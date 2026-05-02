@@ -4,22 +4,32 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [userRole, setUserRole] = useState(null);
+  const [userEmail, setUserEmail] = useState(null);
 
-  const login = (role) => {
-    const normalizedRole = typeof role === 'string' ? role.toLowerCase().trim() : '';
+  const login = (user) => {
+    const normalizedRole =
+      typeof user?.role === 'string' ? user.role.toLowerCase().trim() : '';
+    const normalizedEmail =
+      typeof user?.email === 'string' ? user.email.toLowerCase().trim() : '';
+
     setUserRole(normalizedRole || null);
+    setUserEmail(normalizedEmail || null);
   };
 
-  const logout = () => setUserRole(null);
+  const logout = () => {
+    setUserRole(null);
+    setUserEmail(null);
+  };
 
   const value = useMemo(
     () => ({
       userRole,
+      userEmail,
       isAuthenticated: Boolean(userRole),
       login,
       logout,
     }),
-    [userRole]
+    [userEmail, userRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

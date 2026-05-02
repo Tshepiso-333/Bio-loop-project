@@ -1,32 +1,37 @@
 import React, { useState } from 'react';
 import {
   View,
-  TextInput,
   Text,
+  TextInput,
   StyleSheet,
   Pressable,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useAuth } from '../../AuthContext';
-import { validateCredentials } from '../../auth/hardcodedUsers';
+import { findUserByEmail, normalizeEmail } from '../../auth/hardcodedUsers';
 
-export default function LoginScreen({ navigation }) {
+export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const { login } = useAuth();
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('info');
 
-  const handleLogin = () => {
-    const matchedUser = validateCredentials(email, password);
+  const handleRecoverPassword = () => {
+    const user = findUserByEmail(normalizeEmail(email));
 
-    if (!matchedUser) {
-      setError('Incorrect email or password.');
+    if (!email.trim()) {
+      setMessageType('error');
+      setMessage('Enter your email address first.');
       return;
     }
 
-    setError('');
-    login(matchedUser);
+    if (!user) {
+      setMessageType('error');
+      setMessage('That email is not in the hardcoded demo list yet.');
+      return;
+    }
+
+    setMessageType('info');
+    setMessage(`Demo password for ${user.email}: ${user.password}`);
   };
 
   return (
@@ -34,9 +39,13 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <Text style={styles.title}>Sign In</Text>
+      <Text style={styles.title}>Forgot Password</Text>
 
       <View style={styles.formCard}>
+        <Text style={styles.description}>
+          Enter your email and the app will show the hardcoded demo password for now.
+        </Text>
+
         <Text style={styles.label}>Email</Text>
         <TextInput
           style={styles.input}
@@ -46,34 +55,27 @@ export default function LoginScreen({ navigation }) {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
-          returnKeyType="next"
-        />
-
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
           returnKeyType="done"
-          onSubmitEditing={handleLogin}
+          onSubmitEditing={handleRecoverPassword}
         />
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {message ? (
+          <Text
+            style={[
+              styles.message,
+              messageType === 'error' ? styles.errorMessage : styles.infoMessage,
+            ]}
+          >
+            {message}
+          </Text>
+        ) : null}
 
-        <Pressable style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Sign In</Text>
+        <Pressable style={styles.primaryButton} onPress={handleRecoverPassword}>
+          <Text style={styles.primaryButtonText}>Show Password</Text>
         </Pressable>
 
-        <Pressable onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={styles.linkText}>Forgot password?</Text>
-        </Pressable>
-
-        <Pressable onPress={() => navigation.navigate('SignUp')}>
-          <Text style={styles.linkText}>Create an account</Text>
+        <Pressable onPress={() => navigation.goBack()}>
+          <Text style={styles.secondaryText}>Back to sign in</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -106,6 +108,11 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
+  description: {
+    color: '#475569',
+    marginBottom: 14,
+    lineHeight: 20,
+  },
   label: {
     color: '#334155',
     fontWeight: '600',
@@ -120,23 +127,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginBottom: 14,
   },
-  loginButton: {
+  message: {
+    marginBottom: 14,
+    fontSize: 14,
+  },
+  errorMessage: {
+    color: '#b91c1c',
+  },
+  infoMessage: {
+    color: '#0369a1',
+  },
+  primaryButton: {
     marginTop: 6,
     backgroundColor: '#0f172a',
     paddingVertical: 13,
     borderRadius: 10,
     alignItems: 'center',
   },
-  loginButtonText: {
+  primaryButtonText: {
     color: '#fff',
     fontWeight: '600',
   },
-  errorText: {
-    color: '#b91c1c',
-    marginBottom: 12,
-  },
-  linkText: {
-    marginTop: 16,
+  secondaryText: {
+    marginTop: 18,
     textAlign: 'center',
     color: '#0f172a',
     fontWeight: '600',
