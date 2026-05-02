@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   TextInput,
+  Text,
   StyleSheet,
   Pressable,
   KeyboardAvoidingView,
@@ -11,38 +11,26 @@ import {
 import { findUserByEmail, normalizeEmail } from '../../auth/hardcodedUsers';
 
 export default function SignUpScreen({ navigation }) {
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('info');
+  const [error, setError] = useState('');
 
   const handleSignUp = () => {
     const normalizedEmail = normalizeEmail(email);
 
-    if (!fullName.trim() || !normalizedEmail || !password || !confirmPassword) {
-      setMessageType('error');
-      setMessage('Complete all fields before creating an account.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setMessageType('error');
-      setMessage('Passwords do not match.');
+    if (!normalizedEmail || !password) {
+      setError('Enter an email and password.');
       return;
     }
 
     const existingUser = findUserByEmail(normalizedEmail);
 
     if (existingUser) {
-      setMessageType('info');
-      setMessage('This demo email is already active. Sign in with the existing password.');
+      navigation.goBack();
       return;
     }
 
-    setMessageType('info');
-    setMessage('Signup UI is ready, but only hardcoded accounts can log in right now.');
+    setError('');
   };
 
   return (
@@ -53,16 +41,6 @@ export default function SignUpScreen({ navigation }) {
       <Text style={styles.title}>Create Account</Text>
 
       <View style={styles.formCard}>
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Your full name"
-          value={fullName}
-          onChangeText={setFullName}
-          returnKeyType="next"
-        />
-
-        <Text style={styles.label}>Email</Text>
         <TextInput
           style={styles.input}
           placeholder="Email address"
@@ -74,7 +52,6 @@ export default function SignUpScreen({ navigation }) {
           returnKeyType="next"
         />
 
-        <Text style={styles.label}>Password</Text>
         <TextInput
           style={styles.input}
           placeholder="Create password"
@@ -83,32 +60,11 @@ export default function SignUpScreen({ navigation }) {
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
-          returnKeyType="next"
-        />
-
-        <Text style={styles.label}>Confirm Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Confirm password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
           returnKeyType="done"
           onSubmitEditing={handleSignUp}
         />
 
-        {message ? (
-          <Text
-            style={[
-              styles.message,
-              messageType === 'error' ? styles.errorMessage : styles.infoMessage,
-            ]}
-          >
-            {message}
-          </Text>
-        ) : null}
+        {error ? <Text style={styles.errorMessage}>{error}</Text> : null}
 
         <Pressable style={styles.primaryButton} onPress={handleSignUp}>
           <Text style={styles.primaryButtonText}>Sign Up</Text>
@@ -148,11 +104,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
-  label: {
-    color: '#334155',
-    fontWeight: '600',
-    marginBottom: 8,
-  },
   input: {
     borderWidth: 1,
     borderColor: '#cbd5e1',
@@ -162,15 +113,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginBottom: 14,
   },
-  message: {
-    marginBottom: 14,
-    fontSize: 14,
-  },
   errorMessage: {
     color: '#b91c1c',
-  },
-  infoMessage: {
-    color: '#0369a1',
+    marginBottom: 14,
+    fontSize: 14,
   },
   primaryButton: {
     marginTop: 6,

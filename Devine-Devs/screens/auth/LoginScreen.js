@@ -37,7 +37,6 @@ export default function LoginScreen({ navigation }) {
       <Text style={styles.title}>Sign In</Text>
 
       <View style={styles.formCard}>
-        <Text style={styles.label}>Email</Text>
         <TextInput
           style={styles.input}
           placeholder="Email address"
@@ -49,7 +48,6 @@ export default function LoginScreen({ navigation }) {
           returnKeyType="next"
         />
 
-        <Text style={styles.label}>Password</Text>
         <TextInput
           style={styles.input}
           placeholder="Password"
@@ -105,11 +103,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,
     elevation: 2,
-  },
-  label: {
-    color: '#334155',
-    fontWeight: '600',
-    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
