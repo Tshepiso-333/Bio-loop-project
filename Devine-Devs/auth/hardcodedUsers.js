@@ -3,7 +3,21 @@ export const HARDCODED_USERS = [
     email: 'thobile23@gmail.com',
     password: 'thobile23',
     role: 'driver',
-    label: 'Driver Side',
+  },
+  {
+    email: 'kgopotsobeverly2@gmail.com',
+    password: 'KB12345',
+    role: 'manufacturer',
+  },
+  {
+    email: 'tshepisomolefe1605@gmail.com',
+    password: 'Tshepiso333',
+    role: 'restaurant',
+  },
+  {
+    email: 'admin@gmail.com',
+    password: 'admin',
+    role: 'admin',
   },
 ];
 
