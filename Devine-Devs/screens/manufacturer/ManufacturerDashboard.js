@@ -910,7 +910,7 @@ const ManufacturerDashboard = ({ navigation }) => {
             </View>
           </View>
           <TouchableOpacity style={styles.profileButton}>
-            <Text style={styles.profileInitial}>GF</Text>
+            <Text style={styles.profileInitial}>KB</Text>
           </TouchableOpacity>
         </View>
       </View>
