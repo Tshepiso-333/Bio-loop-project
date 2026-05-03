@@ -1,20 +1,18 @@
+// navigation/ManufacturerStack.js
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ManufacturerHomeScreen from '../screens/manufacturer/ManufacturerHomeScreen';
+import ManufacturerDashboard from '../screens/manufacturer/ManufacturerDashboard';
 
 const Stack = createNativeStackNavigator();
 
-export default function ManufacturerStack() {
+function ManufacturerStack() {
   return (
-    <Stack.Navigator>
-      <Stack.Screen
-        name="ManufacturerHome"
-        component={ManufacturerHomeScreen}
-        options={{ title: 'Manufacturer Side' }}
-      />
-
-      {/* Team: import and add manufacturer screens below this line */}
-      {/* <Stack.Screen name="Inventory" component={InventoryScreen} /> */}
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ManufacturerHome" component={ManufacturerHomeScreen} />
+      <Stack.Screen name="ManufacturerDashboard" component={ManufacturerDashboard} />
     </Stack.Navigator>
   );
 }
+
+export default ManufacturerStack;
