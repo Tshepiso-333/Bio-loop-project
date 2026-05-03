@@ -117,7 +117,7 @@ export default function AdminHomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Group Selector */}
+      
       <View style={styles.groupContainer}>
         <TouchableOpacity
           style={[
