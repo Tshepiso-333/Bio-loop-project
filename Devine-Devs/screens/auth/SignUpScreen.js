@@ -7,30 +7,45 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Alert, // Added for feedback
 } from 'react-native';
-import { findUserByEmail, normalizeEmail } from '../../auth/hardcodedUsers';
+import { supabase } from '../../supabase'; // 1. Import your real client
 
 export default function SignUpScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false); // 2. Add loading state
 
-  const handleSignUp = () => {
-    const normalizedEmail = normalizeEmail(email);
-
-    if (!normalizedEmail || !password) {
+  const handleSignUp = async () => { // 3. Make it async
+    if (!email || !password) {
       setError('Enter an email and password.');
       return;
     }
 
-    const existingUser = findUserByEmail(normalizedEmail);
-
-    if (existingUser) {
-      navigation.goBack();
-      return;
-    }
-
     setError('');
+    setLoading(true);
+
+    // 4. Call real Supabase Auth
+    const { data, error: authError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: password,
+    });
+
+    if (authError) {
+      setError(authError.message);
+      setLoading(false);
+    } else {
+      // 5. Check if Supabase requires email confirmation
+      if (data.session) {
+        // User is logged in immediately
+        Alert.alert("Success", "Account created!");
+      } else {
+        // User needs to check email
+        Alert.alert("Check your email", "Please confirm your email address to log in.");
+        navigation.goBack(); 
+      }
+    }
   };
 
   return (
@@ -49,7 +64,7 @@ export default function SignUpScreen({ navigation }) {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
-          returnKeyType="next"
+          editable={!loading} // Disable during request
         />
 
         <TextInput
@@ -60,24 +75,28 @@ export default function SignUpScreen({ navigation }) {
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
-          returnKeyType="done"
-          onSubmitEditing={handleSignUp}
+          editable={!loading}
         />
 
         {error ? <Text style={styles.errorMessage}>{error}</Text> : null}
 
-        <Pressable style={styles.primaryButton} onPress={handleSignUp}>
-          <Text style={styles.primaryButtonText}>Sign Up</Text>
+        <Pressable 
+          style={[styles.primaryButton, loading && { opacity: 0.7 }]} 
+          onPress={handleSignUp}
+          disabled={loading}
+        >
+          <Text style={styles.primaryButtonText}>
+            {loading ? 'Creating Account...' : 'Sign Up'}
+          </Text>
         </Pressable>
 
-        <Pressable onPress={() => navigation.goBack()}>
+        <Pressable onPress={() => navigation.goBack()} disabled={loading}>
           <Text style={styles.secondaryText}>Back to sign in</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
