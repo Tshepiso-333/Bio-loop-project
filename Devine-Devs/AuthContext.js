@@ -1,38 +1,70 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { supabase } from './supabase';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [userRole, setUserRole] = useState(null);
-  const [userEmail, setUserEmail] = useState(null);
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null); // Explicitly track the DB role
+  const [loading, setLoading] = useState(true);
 
-  const login = (user) => {
-    const normalizedRole =
-      typeof user?.role === 'string' ? user.role.toLowerCase().trim() : '';
-    const normalizedEmail =
-      typeof user?.email === 'string' ? user.email.toLowerCase().trim() : '';
+  const fetchProfile = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("role, full_name, email")
+        .eq("id", userId)
+        .single();
 
-    setUserRole(normalizedRole || null);
-    setUserEmail(normalizedEmail || null);
+      if (error) throw error;
+      setUserRole(data.role?.toLowerCase());
+    } catch (err) {
+      console.error("Error fetching profile:", err.message);
+      setUserRole(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const logout = () => {
-    setUserRole(null);
-    setUserEmail(null);
-  };
+  useEffect(() => {
+    // 1. Initial check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setUser(session.user);
+        fetchProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
 
-  const value = useMemo(
-    () => ({
-      userRole,
-      userEmail,
-      isAuthenticated: Boolean(userRole),
-      login,
-      logout,
-    }),
-    [userEmail, userRole]
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setUser(session.user);
+        fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setUserRole(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const value = useMemo(() => ({
+    user,
+    userRole,
+    isAuthenticated: !!user,
+    loading,
+    signOut: () => supabase.auth.signOut(),
+  }), [user, userRole, loading]);
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => useContext(AuthContext);

@@ -12,7 +12,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
-import { validateCredentials } from '../../auth/hardcodedUsers';
+import { supabase } from '../../supabase';
+
+//import { validateCredentials } from '../../auth/hardcodedUsers';
 
 // ─── COLORS ───────────────────────────────────────────────────────────────────
 
@@ -61,19 +63,37 @@ export default function LoginScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+const [isSubmitting, setIsSubmitting] = useState(false);
 
   const insets = useSafeAreaInsets();
 
   // ── Original handler — untouched ──
-  const handleLogin = () => {
-    const matchedUser = validateCredentials(email, password);
-    if (!matchedUser) {
-      setError('Incorrect email or password.');
-      return;
-    }
-    setError('');
-    login(matchedUser);
-  };
+const handleLogin = async () => {
+  if (!email || !password) {
+    setError('Please enter both email and password.');
+    return;
+  }
+
+  setError('');
+  setIsSubmitting(true);
+
+  // Talk to Supabase
+  const { error: authError } = await supabase.auth.signInWithPassword({
+    email: email.trim(),
+    password: password,
+  });
+
+  if (authError) {
+    setError(authError.message); // e.g., "Invalid login credentials"
+    setIsSubmitting(false);
+  } else {
+    // SUCCESS! 
+    // You don't need to do anything here. 
+    // Your AuthContext will detect the new session, update 'isAuthenticated', 
+    // and your App.js navigation will automatically swap to the Home screen.
+    console.log("Logged in successfully");
+  }
+};
 
   return (
     <KeyboardAvoidingView
@@ -200,10 +220,20 @@ export default function LoginScreen({ navigation }) {
         ) : null}
 
         {/* Sign in button — original onPress untouched */}
-        <Pressable style={styles.signInButton} onPress={handleLogin}>
-          <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
-          <Text style={styles.signInButtonText}>Sign In</Text>
-        </Pressable>
+      <Pressable 
+  style={[styles.signInButton, isSubmitting && { opacity: 0.7 }]} 
+  onPress={handleLogin}
+  disabled={isSubmitting} // Prevent double-tapping
+>
+  <Ionicons 
+    name={isSubmitting ? "hourglass-outline" : "log-in-outline"} 
+    size={18} 
+    color="#FFFFFF" 
+  />
+  <Text style={styles.signInButtonText}>
+    {isSubmitting ? 'Signing in...' : 'Sign In'}
+  </Text>
+</Pressable>
 
         {/* Divider */}
         <View style={styles.dividerRow}>
