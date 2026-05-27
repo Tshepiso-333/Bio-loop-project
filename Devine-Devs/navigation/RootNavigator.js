@@ -1,7 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '../AuthContext';
 import AdminStack from './AdminStack';
@@ -27,6 +26,7 @@ export default function RootNavigator() {
   // 2. Identify the correct stack based on the DB role
   const ActiveStack = ROLE_STACKS[userRole];
 
+  /*
   // 3. Show a loading spinner while fetching the role from Supabase
   if (loading) {
     return (
@@ -35,6 +35,7 @@ export default function RootNavigator() {
       </View>
     );
   }
+  */
 
   return (
     <NavigationContainer>
