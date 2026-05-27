@@ -1,13 +1,30 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { supabase } from './supabase';
+import React, { createContext, useContext, useState, useMemo } from 'react';
+// import { supabase } from './supabase';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null); // Explicitly track the DB role
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
+  const login = ({ email, role = 'restaurant' }) => {
+    setUser({
+      id: 'design-mode-user',
+      email,
+    });
+    setUserRole(role.toLowerCase());
+    setLoading(false);
+  };
+
+  const signOut = async () => {
+    setUser(null);
+    setUserRole(null);
+    setLoading(false);
+    // await supabase.auth.signOut();
+  };
+
+  /*
   const fetchProfile = async (userId) => {
     try {
       const { data, error } = await supabase
@@ -51,13 +68,15 @@ export const AuthProvider = ({ children }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+  */
 
   const value = useMemo(() => ({
     user,
     userRole,
     isAuthenticated: !!user,
     loading,
-    signOut: () => supabase.auth.signOut(),
+    login,
+    signOut,
   }), [user, userRole, loading]);
 
   return (

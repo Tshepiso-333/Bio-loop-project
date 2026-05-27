@@ -9,7 +9,7 @@ import {
   Platform,
   Alert, // Added for feedback
 } from 'react-native';
-import { supabase } from '../../supabase'; // 1. Import your real client
+// import { supabase } from '../../supabase'; // 1. Import your real client
 
 export default function SignUpScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -26,6 +26,7 @@ export default function SignUpScreen({ navigation }) {
     setError('');
     setLoading(true);
 
+    /*
     // 4. Call real Supabase Auth
     const { data, error: authError } = await supabase.auth.signUp({
       email: email.trim(),
@@ -46,6 +47,10 @@ export default function SignUpScreen({ navigation }) {
         navigation.goBack(); 
       }
     }
+    */
+
+    setLoading(false);
+    Alert.alert('Design mode', 'Sign up is disabled while Supabase is switched off.');
   };
 
   return (

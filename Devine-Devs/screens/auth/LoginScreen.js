@@ -12,9 +12,31 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
-import { supabase } from '../../supabase';
 
 //import { validateCredentials } from '../../auth/hardcodedUsers';
+
+const HARDCODED_USERS = [
+  {
+    email: 'thobile23@gmail.com',
+    password: 'thobile23',
+    role: 'driver',
+  },
+  {
+    email: 'kgopotsobeverly2@gmail.com',
+    password: 'KB12345',
+    role: 'manufacturer',
+  },
+  {
+    email: 'tshepisomolefe1605@gmail.com',
+    password: 'Tshepiso333',
+    role: 'restaurant',
+  },
+  {
+    email: 'admin@gmail.com',
+    password: 'admin',
+    role: 'admin',
+  },
+];
 
 // ─── COLORS ───────────────────────────────────────────────────────────────────
 
@@ -77,22 +99,20 @@ const handleLogin = async () => {
   setError('');
   setIsSubmitting(true);
 
-  // Talk to Supabase
-  const { error: authError } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password: password,
-  });
+  const matchedUser = HARDCODED_USERS.find(
+    (user) =>
+      user.email.toLowerCase() === email.trim().toLowerCase() &&
+      user.password === password
+  );
 
-  if (authError) {
-    setError(authError.message); // e.g., "Invalid login credentials"
+  if (!matchedUser) {
+    setError('Invalid login details.');
     setIsSubmitting(false);
-  } else {
-    // SUCCESS! 
-    // You don't need to do anything here. 
-    // Your AuthContext will detect the new session, update 'isAuthenticated', 
-    // and your App.js navigation will automatically swap to the Home screen.
-    console.log("Logged in successfully");
+    return;
   }
+
+  login({ email: matchedUser.email, role: matchedUser.role });
+  setIsSubmitting(false);
 };
 
   return (
