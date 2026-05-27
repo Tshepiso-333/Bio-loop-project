@@ -22,8 +22,8 @@ const HARDCODED_USERS = [
     role: 'driver',
   },
   {
-    email: 'kgopotsobeverly2@gmail.com',
-    password: 'KB12345',
+    email: 'kg@gmail.com',
+    password: 'KB12',
     role: 'manufacturer',
   },
   {
