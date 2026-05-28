@@ -9,9 +9,9 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DRIVER, PICKUPS } from '../../data/driverData';
 
 // Theme colours (matching manufacturer)
@@ -66,9 +66,10 @@ const PickupCard = ({ item, onPress }) => (
 );
 
 export default function DriverHomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const todayPickups = PICKUPS.slice(0, 3);
 
-  // Header Component with Logo and Gradient
+  // Professional Header Component with Logo, Notifications, and Profile
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor={THEME.primaryDark} />
@@ -76,9 +77,10 @@ export default function DriverHomeScreen({ navigation }) {
         colors={[THEME.primary, THEME.primaryDark, THEME.primaryDarker]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
         <View style={styles.headerContent}>
+          {/* Left side - Logo */}
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
               <Image 
@@ -92,28 +94,37 @@ export default function DriverHomeScreen({ navigation }) {
               <Text style={styles.companyName}>Driver Portal</Text>
             </View>
           </View>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {DRIVER.name.split(' ').map(n => n[0]).join('')}
-            </Text>
+          
+          {/* Right side - Notifications and Profile */}
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+              <View style={styles.notificationDot} />
+            </TouchableOpacity>
+            <View style={styles.profileCircle}>
+              <Text style={styles.profileInitial}>
+                {DRIVER.name.split(' ').map(n => n[0]).join('')}
+              </Text>
+            </View>
           </View>
-        </View>
-        
-        {/* Driver Info Section */}
-        <View style={styles.driverInfo}>
-          <Text style={styles.headerName}>{DRIVER.name}</Text>
-          <Text style={styles.headerSub}>{DRIVER.route} · {DRIVER.district}</Text>
         </View>
       </LinearGradient>
     </>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Stats Cards - Matching manufacturer style */}
+        {/* Welcome Section */}
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeText}>Good day,</Text>
+          <Text style={styles.welcomeName}>{DRIVER.name}</Text>
+          <Text style={styles.welcomeRoute}>{DRIVER.route} · {DRIVER.district}</Text>
+        </View>
+
+        {/* Stats Cards */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <LinearGradient
@@ -142,7 +153,7 @@ export default function DriverHomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Weekly Card - Matching manufacturer style */}
+        {/* Weekly Card */}
         <View style={styles.weeklyCard}>
           <LinearGradient
             colors={[THEME.primary + '15', THEME.primary + '05']}
@@ -176,7 +187,7 @@ export default function DriverHomeScreen({ navigation }) {
           />
         ))}
 
-        {/* View All Button - Matching manufacturer style */}
+        {/* View All Button */}
         <TouchableOpacity
           style={styles.viewAllBtn}
           onPress={() => navigation.navigate('DriverCollections')}
@@ -194,7 +205,7 @@ export default function DriverHomeScreen({ navigation }) {
 
         <View style={{ height: 30 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -204,8 +215,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.offWhite 
   },
   header: {
-    paddingTop: 12,
-    paddingBottom: 20,
+    paddingBottom: 12,
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -250,34 +260,63 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginTop: 1,
   },
-  avatar: {
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  profileCircle: {
     width: 45,
     height: 45,
     borderRadius: 22.5,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
   },
-  avatarText: { 
-    color: THEME.white, 
-    fontWeight: '700', 
-    fontSize: 16 
+  profileInitial: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  driverInfo: {
+  welcomeSection: {
     paddingHorizontal: 20,
-    marginTop: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
   },
-  headerName: { 
-    fontSize: 22, 
-    fontWeight: '700', 
-    color: THEME.white 
+  welcomeText: {
+    fontSize: 14,
+    color: THEME.textSecondary,
+    fontFamily: 'Inter_400Regular',
   },
-  headerSub: { 
-    fontSize: 13, 
-    color: 'rgba(255,255,255,0.8)', 
-    marginTop: 4 
+  welcomeName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: THEME.text,
+    marginTop: 4,
+    fontFamily: 'Poppins_700Bold',
+  },
+  welcomeRoute: {
+    fontSize: 14,
+    color: THEME.textSecondary,
+    marginTop: 4,
+    fontFamily: 'Inter_400Regular',
   },
   scroll: { 
     flex: 1, 

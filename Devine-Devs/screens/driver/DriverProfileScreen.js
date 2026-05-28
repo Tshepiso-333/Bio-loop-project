@@ -2,11 +2,11 @@
 import React from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, StatusBar, Alert, Image,
+  TouchableOpacity, StatusBar, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
 import { DRIVER } from '../../data/driverData';
 
@@ -42,6 +42,7 @@ const MenuItem = ({ icon, label, sublabel, onPress, danger }) => (
 );
 
 export default function DriverProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
 
   const handleSignOut = () => {
@@ -51,7 +52,7 @@ export default function DriverProfileScreen() {
     ]);
   };
 
-  // Header Component with Logo and Gradient
+  // Header Component with Gradient (no logo)
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor={THEME.primaryDark} />
@@ -59,24 +60,8 @@ export default function DriverProfileScreen() {
         colors={[THEME.primary, THEME.primaryDark, THEME.primaryDarker]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
-        <View style={styles.headerContent}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Image 
-                source={require('../../assets/BioLoop_Logo.png')} 
-                style={styles.logoImage}
-                resizeMode="cover"
-              />
-            </View>
-            <View>
-              <Text style={styles.appName}>BioLoop</Text>
-              <Text style={styles.companyName}>Driver Portal</Text>
-            </View>
-          </View>
-        </View>
-        
         {/* Profile Info */}
         <View style={styles.profileInfo}>
           <View style={styles.avatarWrap}>
@@ -96,7 +81,7 @@ export default function DriverProfileScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -172,7 +157,7 @@ export default function DriverProfileScreen() {
         <Text style={styles.version}>Version 2.0.0</Text>
         <View style={{ height: 30 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -182,51 +167,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.offWhite 
   },
   header: {
-    paddingTop: 12,
     paddingBottom: 24,
-  },
-  headerContent: {
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logoCircle: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: THEME.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: THEME.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  logoImage: {
-    width: 41,
-    height: 41,
-    borderRadius: 20.5,
-  },
-  appName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: THEME.white,
-  },
-  companyName: {
-    fontSize: 10,
-    color: THEME.white,
-    opacity: 0.9,
-    marginTop: 1,
   },
   profileInfo: {
     alignItems: 'center',

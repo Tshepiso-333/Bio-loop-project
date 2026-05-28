@@ -20,18 +20,18 @@ import { useAuth } from '../../AuthContext';
 
 const HARDCODED_USERS = [
   {
-    email: 'thobile23@gmail.com',
-    password: 'thobile23',
+    email: 'driver@gmail.com',
+    password: 'driver',
     role: 'driver',
   },
   {
-    email: 'kg@gmail.com',
-    password: 'KB12',
+    email: 'manu@gmail.com',
+    password: 'manu',
     role: 'manufacturer',
   },
   {
-    email: 'tshepisomolefe1605@gmail.com',
-    password: 'Tshepiso333',
+    email: 'rest@gmail.com',
+    password: 'rest',
     role: 'restaurant',
   },
   {
