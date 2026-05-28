@@ -15,13 +15,15 @@ import ManualPickupScreen    from '../screens/restaurant/ManualPickupScreen';
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// ─── COLORS / FONTS ───────────────────────────────────────────────────────────
+// ─── THEME COLOURS (matching manufacturer and driver) ─────────────────────────
 
-const COLORS = {
-  active:     '#16A34A',
-  inactive:   '#94A3B8',
-  background: '#FFFFFF',
-  border:     '#E2E8F0',
+const THEME = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  white: '#FFFFFF',
+  gray: '#9CA3AF',
+  grayLight: '#E5E5EA',
+  border: '#E2E8F0',
 };
 
 // ─── BOTTOM TAB NAVIGATOR ─────────────────────────────────────────────────────
@@ -32,28 +34,30 @@ function RestaurantTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor:   COLORS.active,
-        tabBarInactiveTintColor: COLORS.inactive,
+        tabBarActiveTintColor: THEME.primary,
+        tabBarInactiveTintColor: THEME.gray,
         tabBarStyle: {
-          backgroundColor: COLORS.background,
-          borderTopColor:  COLORS.border,
-          borderTopWidth:  1,
-          paddingTop:      8,
-          height:          62,
+          backgroundColor: THEME.white,
+          borderTopColor: THEME.grayLight,
+          borderTopWidth: 1,
+          paddingTop: 8,
+          paddingBottom: 10,
+          height: 65,
         },
         tabBarLabelStyle: {
-          fontFamily:   'Inter_500Medium',
-          fontSize:     10,
-          paddingBottom: 6,
+          fontFamily: 'Inter_500Medium',
+          fontSize: 11,
+          fontWeight: '500',
+          marginTop: 2,
         },
       }}
     >
       <Tab.Screen
-        name="Dashboard"
+        name="Home"
         component={RestaurantHomeScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />

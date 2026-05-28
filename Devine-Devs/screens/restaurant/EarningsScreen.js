@@ -9,6 +9,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ const MARKET_RATES = {
       unit: '/L',
       change: '+2% vs last month',
       changePositive: true,
-      dotColor: '#16A34A',
+      dotColor: '#10b981',
     },
     {
       id: '2',
@@ -35,7 +36,7 @@ const MARKET_RATES = {
       rate: 'R0.90',
       unit: '/L',
       change: 'Stable market',
-      changePositive: null, // null = neutral
+      changePositive: null,
       dotColor: '#F59E0B',
     },
   ],
@@ -91,26 +92,24 @@ const WITHDRAWAL_HISTORY = [
   },
 ];
 
-// ─── COLORS ───────────────────────────────────────────────────────────────────
+// ─── THEME COLOURS (matching manufacturer) ───────────────────────────────────
 
 const COLORS = {
   background: '#F4F4EF',
   card: '#FFFFFF',
-  green: '#16A34A',
-  greenLight: '#DCFCE7',
-  greenDark: '#14532D',
+  green: '#10b981',
+  greenLight: '#D1FAE5',
+  greenDark: '#059669',
   textPrimary: '#0F172A',
   textSecondary: '#64748B',
   textMuted: '#94A3B8',
   border: '#E2E8F0',
-  tabActive: '#16A34A',
+  tabActive: '#10b981',
   tabInactive: '#94A3B8',
   amber: '#F59E0B',
-  positive: '#16A34A',
+  positive: '#10b981',
   negative: '#DC2626',
 };
-
-// ─── FONTS ────────────────────────────────────────────────────────────────────
 
 const FONTS = {
   bold: 'Poppins_700Bold',
@@ -122,8 +121,6 @@ const FONTS = {
   bodyRegular: 'Inter_400Regular',
 };
 
-// ─── ICON HELPER ──────────────────────────────────────────────────────────────
-
 function Icon({ library = 'Ionicons', name, size, color }) {
   if (library === 'MaterialCommunityIcons') {
     return <MaterialCommunityIcons name={name} size={size} color={color} />;
@@ -131,24 +128,45 @@ function Icon({ library = 'Ionicons', name, size, color }) {
   return <Ionicons name={name} size={size} color={color} />;
 }
 
-// ─── MAIN SCREEN ──────────────────────────────────────────────────────────────
-
 export default function EarningsScreen() {
   const insets = useSafeAreaInsets();
   const [withdrawTab, setWithdrawTab] = useState('withdraw');
 
+  // Header Component with Notifications and Profile
+  const Header = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.greenDark} />
+      <LinearGradient
+        colors={[COLORS.green, COLORS.greenDark, '#047857']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Earnings</Text>
+          <View style={styles.headerRight}>
+            <Pressable style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+              <View style={styles.notificationDot} />
+            </Pressable>
+            <View style={styles.profileCircle}>
+              <Text style={styles.profileInitial}>RS</Text>
+            </View>
+          </View>
+        </View>
+      </LinearGradient>
+    </>
+  );
+
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <Header />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Restaurant name header */}
-        <RestaurantHeader name="KitchenSteward" />
-
         {/* Balance card */}
         <BalanceCard
           balance={BALANCE}
@@ -168,7 +186,7 @@ export default function EarningsScreen() {
         {/* Withdrawal history */}
         <WithdrawalHistory items={WITHDRAWAL_HISTORY} />
 
-        <View style={{ height: 16 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
     </View>
   );
@@ -176,33 +194,16 @@ export default function EarningsScreen() {
 
 // ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
 
-function RestaurantHeader({ name }) {
-  return (
-    <View style={styles.restaurantHeader}>
-      <View style={styles.restaurantIcon}>
-        <Ionicons name="restaurant-outline" size={18} color={COLORS.green} />
-      </View>
-      <Text style={styles.restaurantName}>{name}</Text>
-      <Pressable style={styles.bellButton}>
-        <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
-      </Pressable>
-    </View>
-  );
-}
-
 function BalanceCard({ balance, activeTab, onTabSelect }) {
   return (
     <View style={styles.balanceCard}>
-      {/* Label */}
       <View style={styles.balanceLabelRow}>
         <Ionicons name="wallet-outline" size={13} color={COLORS.textMuted} />
         <Text style={styles.balanceLabel}>{balance.label.toUpperCase()}</Text>
       </View>
 
-      {/* Amount */}
       <Text style={styles.balanceAmount}>{balance.amount}</Text>
 
-      {/* Withdraw / History toggle */}
       <View style={styles.balanceTabRow}>
         <Pressable
           style={[styles.balanceTab, activeTab === 'withdraw' && styles.balanceTabActive]}
@@ -219,7 +220,7 @@ function BalanceCard({ balance, activeTab, onTabSelect }) {
         </Pressable>
 
         <Pressable
-          style={[styles.balanceTab, activeTab === 'history' && styles.balanceTabActive]}
+          style={[styles.balanceTab, activeTab === 'history' && styles.balanceTabHistoryActive]}
           onPress={() => onTabSelect('history')}
         >
           <Ionicons
@@ -320,12 +321,10 @@ function RecentEarnings({ items }) {
 function EarningRow({ item }) {
   return (
     <View style={styles.earningRow}>
-      {/* Truck icon */}
       <View style={styles.earningIconWrap}>
         <MaterialCommunityIcons name="truck-outline" size={20} color={COLORS.green} />
       </View>
 
-      {/* Date + detail */}
       <View style={styles.earningText}>
         <Text style={styles.earningTitle}>
           <Text style={styles.earningDate}>{item.date} </Text>
@@ -334,7 +333,6 @@ function EarningRow({ item }) {
         <Text style={styles.earningDetail}>{item.detail}</Text>
       </View>
 
-      {/* Amount + detail */}
       <View style={styles.earningRight}>
         <Text style={styles.earningAmount}>{item.amount}</Text>
         <Text style={styles.earningAmountDetail}>{item.amountDetail}</Text>
@@ -351,7 +349,6 @@ function WithdrawalHistory({ items }) {
         <Text style={styles.sectionTitle}>Withdrawal History</Text>
       </View>
 
-      {/* Table header */}
       <View style={styles.tableHeaderRow}>
         <Text style={[styles.tableHeaderCell, styles.colDate]}>Date</Text>
         <Text style={[styles.tableHeaderCell, styles.colMethod]}>Method</Text>
@@ -378,23 +375,60 @@ function WithdrawalHistory({ items }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16 },
+  
+  // Header Styles
+  header: {
+    paddingBottom: 12,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 22,
+    color: '#FFFFFF',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  profileCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  profileInitial: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 
-  // Restaurant header
-  restaurantHeader: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.card, borderRadius: 14,
-    padding: 12, marginBottom: 12,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  restaurantIcon: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: COLORS.greenLight,
-    justifyContent: 'center', alignItems: 'center', marginRight: 10,
-  },
-  restaurantName: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 15, color: COLORS.textPrimary },
-  bellButton: { padding: 4 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
 
   // Balance card
   balanceCard: {
@@ -428,6 +462,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10, borderRadius: 9,
   },
   balanceTabActive: { backgroundColor: COLORS.greenDark },
+  balanceTabHistoryActive: { backgroundColor: '#EA580C' }, // Orange for history tab
   balanceTabText: {
     fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.textSecondary,
   },
@@ -500,7 +535,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary, lineHeight: 19,
   },
 
-  // Shared section wrapper (no card bg — content has its own rows)
+  // Shared section wrapper
   section: { marginBottom: 12 },
   sectionHeaderRow: {
     flexDirection: 'row', justifyContent: 'space-between',
