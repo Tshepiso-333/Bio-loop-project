@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
@@ -46,21 +47,19 @@ const QUALITY_LOGS = [
 
 const DEVICE_STATS = [
   { label: 'Temperature',  value: '114°F',  valueColor: '#EA580C' },
-  { label: 'Connectivity', value: 'Strong', valueColor: '#16A34A' },
+  { label: 'Connectivity', value: 'Strong', valueColor: '#10b981' },
   { label: 'Last Pickup',  value: '12 Days', valueColor: null },
   { label: 'Sediment',     value: 'Low',     valueColor: null },
 ];
 
-
-
-// ─── COLORS ───────────────────────────────────────────────────────────────────
+// ─── THEME COLOURS (matching manufacturer) ───────────────────────────────────
 
 const COLORS = {
   background: '#F4F4EF',
   card: '#FFFFFF',
-  green: '#16A34A',
-  greenLight: '#DCFCE7',
-  greenDark: '#14532D',
+  green: '#10b981',
+  greenLight: '#D1FAE5',
+  greenDark: '#059669',
   alertBg: '#FFF1F1',
   alertBorder: '#FECACA',
   alertText: '#DC2626',
@@ -69,7 +68,7 @@ const COLORS = {
   textSecondary: '#64748B',
   textMuted: '#94A3B8',
   border: '#E2E8F0',
-  tabActive: '#16A34A',
+  tabActive: '#10b981',
   tabInactive: '#94A3B8',
 };
 
@@ -98,50 +97,56 @@ function Icon({ library = 'Ionicons', name, size, color }) {
 
 export default function MonitoringScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+
+  // Header Component with Notifications and Profile (no logo)
+  const Header = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.greenDark} />
+      <LinearGradient
+        colors={[COLORS.green, COLORS.greenDark, '#047857']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Monitoring</Text>
+          <View style={styles.headerRight}>
+            <Pressable style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+              <View style={styles.notificationDot} />
+            </Pressable>
+            <View style={styles.profileCircle}>
+              <Text style={styles.profileInitial}>RS</Text>
+            </View>
+          </View>
+        </View>
+      </LinearGradient>
+    </>
+  );
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.topBarTitle}>Monitoring</Text>
-      </View>
+      <Header />
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <RestaurantHeader name="KitchenSteward" />
         <TankHeader info={TANK_INFO} />
         <CapacityDisplay percent={TANK_INFO.currentCapacity} />
         <OilTrendChart data={OIL_TREND_DATA} />
         {PREDICTIVE_ALERT.visible && <PredictiveAlert alert={PREDICTIVE_ALERT} />}
         <QualityLogs logs={QUALITY_LOGS} />
         <DeviceStatsGrid stats={DEVICE_STATS} />
-        <View style={{ height: 16 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
-
-      
     </View>
   );
 }
 
 // ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
-
-function RestaurantHeader({ name }) {
-  return (
-    <View style={styles.restaurantHeader}>
-      <View style={styles.restaurantIcon}>
-        <Ionicons name="restaurant-outline" size={18} color={COLORS.green} />
-      </View>
-      <Text style={styles.restaurantName}>{name}</Text>
-      <Pressable style={styles.bellButton}>
-        <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
-      </Pressable>
-    </View>
-  );
-}
 
 function TankHeader({ info }) {
   return (
@@ -206,7 +211,6 @@ function OilTrendChart({ data }) {
   );
 }
 
-// ── navigation added inside this component so it can use the hook correctly
 function PredictiveAlert({ alert }) {
   const navigation = useNavigation();
   return (
@@ -304,32 +308,64 @@ function DeviceStatsGrid({ stats }) {
   );
 }
 
-
-
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
 
-  topBar: { paddingHorizontal: 20, paddingBottom: 8 },
-  topBarTitle: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.textPrimary },
+  // Header Styles
+  header: {
+    paddingBottom: 12,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 22,
+    color: '#FFFFFF',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  profileCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  profileInitial: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 4 },
-
-  restaurantHeader: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.card, borderRadius: 14,
-    padding: 12, marginBottom: 16,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  restaurantIcon: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: COLORS.greenLight,
-    justifyContent: 'center', alignItems: 'center', marginRight: 10,
-  },
-  restaurantName: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 15, color: COLORS.textPrimary },
-  bellButton: { padding: 4 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
 
   tankHeaderBlock: { marginBottom: 12 },
   tankName: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.textPrimary, marginBottom: 6 },
@@ -421,6 +457,4 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6, marginBottom: 2,
   },
   statCellValue: { fontFamily: FONTS.bold, fontSize: 18, color: COLORS.textPrimary },
-
-  
 });

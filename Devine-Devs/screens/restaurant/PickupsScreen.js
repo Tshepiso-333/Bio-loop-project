@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
@@ -43,23 +44,21 @@ const UPCOMING_CYCLE = {
   subtitle: 'Bi-weekly recurring',
 };
 
-
-
-// ─── COLORS ───────────────────────────────────────────────────────────────────
+// ─── THEME COLOURS (matching manufacturer) ───────────────────────────────────
 
 const COLORS = {
   background: '#F4F4EF',
   card: '#FFFFFF',
-  green: '#16A34A',
-  greenDark: '#14532D',
-  greenCard: '#1A5C32',
-  greenLight: '#DCFCE7',
+  green: '#10b981',
+  greenDark: '#059669',
+  greenCard: '#10b981',
+  greenLight: '#D1FAE5',
   textPrimary: '#0F172A',
   textSecondary: '#64748B',
   textMuted: '#94A3B8',
   border: '#E2E8F0',
   progressInactive: '#CBD5E1',
-  tabActive: '#16A34A',
+  tabActive: '#10b981',
   tabInactive: '#94A3B8',
 };
 
@@ -88,19 +87,44 @@ function Icon({ library = 'Ionicons', name, size, color }) {
 
 export default function PickupsScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('upcoming');
+
+  // Header Component with Notifications and Profile
+  const Header = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.greenDark} />
+      <LinearGradient
+        colors={[COLORS.green, COLORS.greenDark, '#047857']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Pickups</Text>
+          <View style={styles.headerRight}>
+            <Pressable style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+              <View style={styles.notificationDot} />
+            </Pressable>
+            <View style={styles.profileCircle}>
+              <Text style={styles.profileInitial}>RS</Text>
+            </View>
+          </View>
+        </View>
+      </LinearGradient>
+    </>
+  );
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <Header />
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <RestaurantHeader name="KitchenSteward" />
-
         {ACTIVE_PICKUP.visible && (
           <ActivePickupCard pickup={ACTIVE_PICKUP} steps={PROGRESS_STEPS} />
         )}
@@ -123,29 +147,13 @@ export default function PickupsScreen() {
           </View>
         )}
 
-        <View style={{ height: 16 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
-
-      
     </View>
   );
 }
 
 // ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
-
-function RestaurantHeader({ name }) {
-  return (
-    <View style={styles.restaurantHeader}>
-      <View style={styles.restaurantIcon}>
-        <Ionicons name="restaurant-outline" size={18} color={COLORS.green} />
-      </View>
-      <Text style={styles.restaurantName}>{name}</Text>
-      <Pressable style={styles.bellButton}>
-        <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
-      </Pressable>
-    </View>
-  );
-}
 
 function ActivePickupCard({ pickup, steps }) {
   return (
@@ -224,7 +232,6 @@ function TabSwitcher({ activeTab, onSelect }) {
   );
 }
 
-// ── navigation added inside this component so it can use the hook correctly
 function ManualRequestCard() {
   const navigation = useNavigation();
   return (
@@ -232,16 +239,23 @@ function ManualRequestCard() {
       style={styles.manualRequestCard}
       onPress={() => navigation.navigate('ManualPickup')}
     >
-      <View style={styles.manualRequestIconWrap}>
-        <Ionicons name="add-circle-outline" size={28} color="rgba(255,255,255,0.9)" />
-      </View>
-      <Text style={styles.manualRequestTitle}>Request Manual Pickup</Text>
-      <Text style={styles.manualRequestSubtitle}>
-        For overflow or emergency disposal
-      </Text>
-      <View style={styles.manualRequestArrow}>
-        <Ionicons name="arrow-forward-circle" size={22} color="rgba(255,255,255,0.6)" />
-      </View>
+      <LinearGradient
+        colors={[COLORS.green, COLORS.greenDark]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.manualRequestGradient}
+      >
+        <View style={styles.manualRequestIconWrap}>
+          <Ionicons name="add-circle-outline" size={28} color="rgba(255,255,255,0.9)" />
+        </View>
+        <Text style={styles.manualRequestTitle}>Request Manual Pickup</Text>
+        <Text style={styles.manualRequestSubtitle}>
+          For overflow or emergency disposal
+        </Text>
+        <View style={styles.manualRequestArrow}>
+          <Ionicons name="arrow-forward-circle" size={22} color="rgba(255,255,255,0.6)" />
+        </View>
+      </LinearGradient>
     </Pressable>
   );
 }
@@ -326,28 +340,64 @@ function UpcomingCycleSection({ cycle }) {
   );
 }
 
-
-
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16 },
+  
+  // Header Styles
+  header: {
+    paddingBottom: 12,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 22,
+    color: '#FFFFFF',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  profileCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  profileInitial: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 
-  restaurantHeader: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.card, borderRadius: 14,
-    padding: 12, marginBottom: 12,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  restaurantIcon: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: COLORS.greenLight,
-    justifyContent: 'center', alignItems: 'center', marginRight: 10,
-  },
-  restaurantName: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 15, color: COLORS.textPrimary },
-  bellButton: { padding: 4 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
 
   card: {
     backgroundColor: COLORS.card, borderRadius: 16,
@@ -394,8 +444,12 @@ const styles = StyleSheet.create({
   tabSwitcherTextActive: { color: '#FFFFFF' },
 
   manualRequestCard: {
-    backgroundColor: COLORS.greenCard,
-    borderRadius: 16, padding: 20, marginBottom: 12,
+    borderRadius: 16,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  manualRequestGradient: {
+    padding: 20,
   },
   manualRequestIconWrap: { marginBottom: 8 },
   manualRequestTitle: { fontFamily: FONTS.bold, fontSize: 20, color: '#FFFFFF', marginBottom: 4 },
@@ -442,6 +496,4 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: 48, gap: 8 },
   emptyStateTitle: { fontFamily: FONTS.semiBold, fontSize: 16, color: COLORS.textSecondary },
   emptyStateText: { fontFamily: FONTS.bodyRegular, fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
-
-  
 });

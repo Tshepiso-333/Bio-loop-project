@@ -8,8 +8,10 @@ import {
   StyleSheet,
   Pressable,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
@@ -61,20 +63,19 @@ const RECENT_ACTIVITY = [
 ];
 
 const ACTIVITY_ICONS = [
-  { name: 'water-outline', color: '#16A34A', bg: '#DCFCE7' },
+  { name: 'water-outline', color: '#10B981', bg: '#D1FAE5' },
   { name: 'checkmark-circle-outline', color: '#2563EB', bg: '#DBEAFE' },
   { name: 'receipt-outline', color: '#D97706', bg: '#FEF3C7' },
 ];
 
-
-// ─── COLORS ───────────────────────────────────────────────────────────────────
+// ─── COLORS (Keeping red for alerts, updating green to theme) ─────────────────
 
 const COLORS = {
   background: '#F4F4EF',
   card: '#FFFFFF',
-  green: '#16A34A',
-  greenLight: '#DCFCE7',
-  greenDark: '#14532D',
+  green: '#10b981',
+  greenLight: '#D1FAE5',
+  greenDark: '#059669',
   alertBg: '#FFF1F1',
   alertBorder: '#FECACA',
   alertText: '#DC2626',
@@ -85,9 +86,9 @@ const COLORS = {
   border: '#E2E8F0',
   progressTrack: '#E2E8F0',
   iconOrange: '#FEF3C7',
-  iconGreen: '#DCFCE7',
+  iconGreen: '#D1FAE5',
   iconBlue: '#DBEAFE',
-  tabActive: '#16A34A',
+  tabActive: '#10b981',
   tabInactive: '#94A3B8',
 };
 
@@ -117,59 +118,71 @@ function Icon({ library = 'Ionicons', name, size, color }) {
 export default function RestaurantHomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  
+
+  // Header Component with Logo, Notifications, and Profile
+  const Header = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.greenDark} />
+      <LinearGradient
+        colors={[COLORS.green, COLORS.greenDark, '#047857']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <Image 
+                source={require('../../assets/BioLoop_Logo.png')} 
+                style={styles.logoImage}
+                resizeMode="cover"
+              />
+            </View>
+            <View>
+              <Text style={styles.appName}>BioLoop</Text>
+              <Text style={styles.companyName}>Restaurant Portal</Text>
+            </View>
+          </View>
+          <View style={styles.headerRight}>
+            <Pressable style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+              <View style={styles.notificationDot} />
+            </Pressable>
+            <View style={styles.profileCircle}>
+              <Text style={styles.profileInitial}>RS</Text>
+            </View>
+          </View>
+        </View>
+      </LinearGradient>
+    </>
+  );
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.topBarTitle}>Dashboard</Text>
-        <Pressable style={styles.topBarCode}>
-          <Ionicons name="code-slash-outline" size={20} color={COLORS.textSecondary} />
-        </Pressable>
-      </View>
+      <Header />
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <RestaurantHeader name="KitchenSteward" />
         <TankCard data={TANK_DATA} />
         {PICKUP_ALERT.visible && <PickupAlert alert={PICKUP_ALERT} />}
 
         <View style={styles.statRow}>
-          <StatCard label="Oil Grade"       value={STATS.oilGrade}          iconBg={COLORS.iconOrange} iconName="water"        iconColor="#D97706" />
-          <StatCard label="Est. Earnings"   value={STATS.estimatedEarnings}  iconBg={COLORS.iconGreen}  iconName="cash-outline" iconColor={COLORS.green} />
-          <StatCard label="Last Pickup"     value={STATS.lastPickupDate}     iconBg={COLORS.iconBlue}   iconName="truck-outline" iconColor="#2563EB" iconLibrary="MaterialCommunityIcons" />
+          <StatCard label="Oil Grade" value={STATS.oilGrade} iconBg={COLORS.iconOrange} iconName="water" iconColor="#D97706" />
+          <StatCard label="Est. Earnings" value={STATS.estimatedEarnings} iconBg={COLORS.iconGreen} iconName="cash-outline" iconColor={COLORS.green} />
+          <StatCard label="Last Pickup" value={STATS.lastPickupDate} iconBg={COLORS.iconBlue} iconName="truck-outline" iconColor="#2563EB" iconLibrary="MaterialCommunityIcons" />
         </View>
 
         <RecentActivity items={RECENT_ACTIVITY} />
-        <View style={{ height: 16 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
-
-     
     </View>
   );
 }
 
 // ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
-
-function RestaurantHeader({ name }) {
-  return (
-    <View style={styles.restaurantHeader}>
-      <View style={styles.restaurantIcon}>
-        <Ionicons name="restaurant-outline" size={18} color={COLORS.green} />
-      </View>
-      <Text style={styles.restaurantName}>{name}</Text>
-      <Pressable style={styles.bellButton}>
-        <Ionicons name="notifications-outline" size={22} color={COLORS.textPrimary} />
-        <View style={styles.bellDot} />
-      </Pressable>
-    </View>
-  );
-}
 
 function TankCard({ data }) {
   return (
@@ -274,42 +287,96 @@ function ActivityRow({ item, iconConfig }) {
   );
 }
 
-
-
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
-  topBar: {
+  
+  // Header Styles - Matching manufacturer/driver with notifications
+  header: {
+    paddingBottom: 12,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    backgroundColor: COLORS.background,
   },
-  topBarTitle: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.textPrimary },
-  topBarCode: { padding: 6 },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  logoImage: {
+    width: 41,
+    height: 41,
+    borderRadius: 20.5,
+  },
+  appName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  companyName: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    opacity: 0.9,
+    marginTop: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  profileCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  profileInitial: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 4 },
-
-  restaurantHeader: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.card, borderRadius: 14,
-    padding: 14, marginBottom: 12,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  restaurantIcon: {
-    width: 38, height: 38, borderRadius: 10,
-    backgroundColor: COLORS.greenLight,
-    justifyContent: 'center', alignItems: 'center', marginRight: 10,
-  },
-  restaurantName: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 16, color: COLORS.textPrimary },
-  bellButton: { position: 'relative', padding: 4 },
-  bellDot: {
-    position: 'absolute', top: 4, right: 4,
-    width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444',
-  },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
 
   card: {
     backgroundColor: COLORS.card, borderRadius: 16,
@@ -369,6 +436,4 @@ const styles = StyleSheet.create({
   badgeLabelText: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.green },
   badgeMoney: { backgroundColor: '#F0FDF4', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   badgeMoneyText: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.greenDark },
-
-  
 });

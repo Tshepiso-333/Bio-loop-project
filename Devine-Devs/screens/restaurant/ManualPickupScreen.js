@@ -5,24 +5,41 @@ import {
   Pressable, StatusBar, TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+
+// ─── THEME COLOURS (matching manufacturer, keeping emergency orange) ─────────
 
 const COLORS = {
-  background: '#F4F4EF', card: '#FFFFFF',
-  green: '#16A34A', greenLight: '#DCFCE7', greenDark: '#14532D',
-  alertBg: '#FFF7ED', alertBorder: '#FED7AA', alertText: '#C2410C',
-  textPrimary: '#0F172A', textSecondary: '#64748B', textMuted: '#94A3B8',
-  border: '#E2E8F0', inputBg: '#F8FAFC',
+  background: '#F4F4EF', 
+  card: '#FFFFFF',
+  green: '#10b981',
+  greenLight: '#D1FAE5', 
+  greenDark: '#059669',
+  // Urgent colour - shows urgency
+  urgent: '#EA580C',
+  urgentLight: '#FFF7ED',
+  // Emergency colours
+  alertBg: '#FFF7ED', 
+  alertBorder: '#FED7AA', 
+  alertText: '#C2410C',
+  textPrimary: '#0F172A', 
+  textSecondary: '#64748B', 
+  textMuted: '#94A3B8',
+  border: '#E2E8F0', 
+  inputBg: '#F8FAFC',
 };
 
 const FONTS = {
-  bold: 'Poppins_700Bold', semiBold: 'Poppins_600SemiBold',
-  bodyMedium: 'Inter_500Medium', bodySemiBold: 'Inter_600SemiBold',
+  bold: 'Poppins_700Bold', 
+  semiBold: 'Poppins_600SemiBold',
+  bodyMedium: 'Inter_500Medium', 
+  bodySemiBold: 'Inter_600SemiBold',
   bodyRegular: 'Inter_400Regular',
 };
 
 const URGENCY_OPTIONS = [
-  { key: 'standard', label: 'Standard', subtitle: 'Within 24 hrs', icon: 'time-outline' },
-  { key: 'urgent',   label: 'Urgent',   subtitle: 'Within 4 hrs',  icon: 'flash-outline' },
+  { key: 'standard', label: 'Standard', subtitle: 'Within 24 hrs', icon: 'time-outline', color: COLORS.green },
+  { key: 'urgent',   label: 'Urgent',   subtitle: 'Within 4 hrs',  icon: 'flash-outline', color: COLORS.urgent },
 ];
 
 const REASONS = [
@@ -45,22 +62,39 @@ export default function ManualPickupScreen({ navigation }) {
     setTimeout(() => navigation.navigate('RestaurantTabs', { screen: 'Pickups' }), 1800);
   };
 
+  // Get the color for the selected urgency
+  const getUrgencyColor = () => {
+    return urgency === 'urgent' ? COLORS.urgent : COLORS.green;
+  };
+
+  // Header Component with Gradient
+  const Header = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.greenDark} />
+      <LinearGradient
+        colors={[COLORS.green, COLORS.greenDark, '#047857']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+        <View style={styles.headerContent}>
+          <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </Pressable>
+          <Text style={styles.headerTitle}>Manual Pickup</Text>
+          <View style={{ width: 38 }} />
+        </View>
+      </LinearGradient>
+    </>
+  );
+
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Manual Pickup Request</Text>
-        <View style={{ width: 38 }} />
-      </View>
+      <Header />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Warning banner */}
+        {/* Warning banner - emergency colours kept */}
         <View style={styles.warningCard}>
           <Ionicons name="warning-outline" size={20} color={COLORS.alertText} />
           <View style={styles.warningText}>
@@ -92,25 +126,32 @@ export default function ManualPickupScreen({ navigation }) {
         {/* Urgency selector */}
         <Text style={styles.sectionLabel}>Urgency Level</Text>
         <View style={styles.urgencyRow}>
-          {URGENCY_OPTIONS.map((opt) => (
-            <Pressable
-              key={opt.key}
-              style={[styles.urgencyCard, urgency === opt.key && styles.urgencyCardActive]}
-              onPress={() => setUrgency(opt.key)}
-            >
-              <Ionicons
-                name={opt.icon}
-                size={20}
-                color={urgency === opt.key ? '#FFFFFF' : COLORS.textSecondary}
-              />
-              <Text style={[styles.urgencyLabel, urgency === opt.key && styles.urgencyLabelActive]}>
-                {opt.label}
-              </Text>
-              <Text style={[styles.urgencySub, urgency === opt.key && styles.urgencySubActive]}>
-                {opt.subtitle}
-              </Text>
-            </Pressable>
-          ))}
+          {URGENCY_OPTIONS.map((opt) => {
+            const isActive = urgency === opt.key;
+            const activeColor = opt.color;
+            return (
+              <Pressable
+                key={opt.key}
+                style={[
+                  styles.urgencyCard,
+                  isActive && { backgroundColor: activeColor, borderColor: activeColor }
+                ]}
+                onPress={() => setUrgency(opt.key)}
+              >
+                <Ionicons
+                  name={opt.icon}
+                  size={20}
+                  color={isActive ? '#FFFFFF' : COLORS.textSecondary}
+                />
+                <Text style={[styles.urgencyLabel, isActive && styles.urgencyLabelActive]}>
+                  {opt.label}
+                </Text>
+                <Text style={[styles.urgencySub, isActive && styles.urgencySubActive]}>
+                  {opt.subtitle}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Reason selector */}
@@ -125,8 +166,11 @@ export default function ManualPickupScreen({ navigation }) {
               ]}
               onPress={() => setSelectedReason(reason)}
             >
-              <View style={[styles.radioOuter, selectedReason === reason && styles.radioOuterActive]}>
-                {selectedReason === reason && <View style={styles.radioInner} />}
+              <View style={[
+                styles.radioOuter, 
+                selectedReason === reason && { borderColor: getUrgencyColor() }
+              ]}>
+                {selectedReason === reason && <View style={[styles.radioInner, { backgroundColor: getUrgencyColor() }]} />}
               </View>
               <Text style={[styles.reasonText, selectedReason === reason && styles.reasonTextActive]}>
                 {reason}
@@ -155,8 +199,17 @@ export default function ManualPickupScreen({ navigation }) {
           </View>
         ) : (
           <Pressable style={styles.submitButton} onPress={handleSubmit}>
-            <Ionicons name="send-outline" size={17} color="#FFFFFF" />
-            <Text style={styles.submitButtonText}>Submit Request</Text>
+            <LinearGradient
+              colors={[getUrgencyColor(), getUrgencyColor() === COLORS.urgent ? '#9A3412' : COLORS.greenDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.submitGradient}
+            >
+              <Ionicons name="send-outline" size={17} color="#FFFFFF" />
+              <Text style={styles.submitButtonText}>
+                {urgency === 'urgent' ? 'Submit Urgent Request' : 'Submit Request'}
+              </Text>
+            </LinearGradient>
           </Pressable>
         )}
 
@@ -172,14 +225,31 @@ export default function ManualPickupScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
+  
+  // Header Styles
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingBottom: 12,
-    backgroundColor: COLORS.background,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    paddingBottom: 12,
   },
-  backButton: { width: 38, height: 38, justifyContent: 'center' },
-  headerTitle: { fontFamily: FONTS.bold, fontSize: 17, color: COLORS.textPrimary },
+  headerContent: {
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    color: '#FFFFFF',
+  },
+  
   content: { padding: 16 },
 
   warningCard: {
@@ -217,7 +287,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card, borderRadius: 12,
     padding: 14, borderWidth: 1.5, borderColor: COLORS.border,
   },
-  urgencyCardActive: { backgroundColor: COLORS.green, borderColor: COLORS.green },
   urgencyLabel: { fontFamily: FONTS.semiBold, fontSize: 14, color: COLORS.textPrimary },
   urgencyLabelActive: { color: '#FFFFFF' },
   urgencySub: { fontFamily: FONTS.bodyRegular, fontSize: 11, color: COLORS.textMuted },
@@ -237,8 +306,7 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: COLORS.border,
     justifyContent: 'center', alignItems: 'center',
   },
-  radioOuterActive: { borderColor: COLORS.green },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.green },
+  radioInner: { width: 10, height: 10, borderRadius: 5 },
   reasonText: { fontFamily: FONTS.bodyRegular, fontSize: 14, color: COLORS.textSecondary },
   reasonTextActive: { fontFamily: FONTS.bodySemiBold, color: COLORS.textPrimary },
 
@@ -251,10 +319,16 @@ const styles = StyleSheet.create({
   },
 
   submitButton: {
-    flexDirection: 'row', justifyContent: 'center',
-    alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.greenDark,
-    paddingVertical: 15, borderRadius: 13, marginBottom: 10,
+    borderRadius: 13,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  submitGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 15,
   },
   submitButtonText: {
     fontFamily: FONTS.bold, color: '#FFFFFF',
