@@ -8,6 +8,12 @@ import DriverCollectionsScreen from '../screens/driver/DriverCollectionsScreen';
 import DriverMapScreen from '../screens/driver/DriverMapScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
 
+// Theme colours (matching manufacturer)
+const THEME = {
+  primary: '#10b981',
+  gray: '#9CA3AF',
+};
+
 const Tab = createBottomTabNavigator();
 
 export default function DriverStack() {
@@ -15,8 +21,8 @@ export default function DriverStack() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#1A6B3C',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: THEME.primary,  // Changed from '#1A6B3C' to '#10b981'
+        tabBarInactiveTintColor: THEME.gray,    // Changed from '#8E8E93' to '#9CA3AF'
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#E5E5EA',

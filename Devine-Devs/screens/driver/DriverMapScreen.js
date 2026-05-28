@@ -5,14 +5,43 @@ import {
   TouchableOpacity, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { PICKUPS, COLORS, DRIVER } from '../../data/driverData';
+import { PICKUPS, DRIVER } from '../../data/driverData';
+
+// Theme colours (matching manufacturer)
+const THEME = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  primaryDarker: '#047857',
+  primaryLight: '#D1FAE5',
+  white: '#FFFFFF',
+  offWhite: '#F9FAFB',
+  text: '#111827',
+  textSecondary: '#6B7280',
+  gray: '#9CA3AF',
+  grayLight: '#E5E7EB',
+  grayMid: '#9CA3AF',
+  pending: '#F59E0B',
+  pendingBg: '#FEF3C7',
+  inProgress: '#3B82F6',
+  inProgressBg: '#DBEAFE',
+  completed: '#10B981',
+  completedBg: '#D1FAE5',
+};
 
 const MapPlaceholder = ({ stops }) => (
-  <View style={styles.mapPlaceholder}>
+  <LinearGradient
+    colors={[THEME.primaryLight, THEME.primary + '15']}
+    start={{ x: 0, y: 0 }}
+    end={{ x: 1, y: 1 }}
+    style={styles.mapPlaceholder}
+  >
     <View style={styles.mapInner}>
-      <Ionicons name="map-outline" size={32} color={COLORS.primaryDark} />
-      <Text style={styles.mapLabel}>Map View</Text>
+      <View style={styles.mapIconCircle}>
+        <Ionicons name="map-outline" size={36} color={THEME.primary} />
+      </View>
+      <Text style={styles.mapLabel}>Route Map</Text>
       <Text style={styles.mapSub}>Install react-native-maps to enable</Text>
     </View>
     <View style={styles.dotGrid}>
@@ -31,26 +60,45 @@ const MapPlaceholder = ({ stops }) => (
         </View>
       ))}
     </View>
-  </View>
+  </LinearGradient>
 );
 
 export default function DriverMapScreen() {
+  const remainingStops = PICKUPS.filter(p => p.status !== 'completed').length;
+  const totalDistance = 12.4;
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
+      
       <MapPlaceholder stops={PICKUPS} />
+      
       <View style={styles.sheet}>
-        <View style={styles.routeHeader}>
+        <LinearGradient
+          colors={[THEME.primary + '10', THEME.white]}
+          style={styles.routeHeader}
+        >
           <View>
             <Text style={styles.routeTitle}>{DRIVER.route}</Text>
-            <Text style={styles.routeSub}>{PICKUPS.length} stops · 12.4 km remaining</Text>
+            <Text style={styles.routeSub}>
+              {remainingStops} stops remaining · {totalDistance} km
+            </Text>
           </View>
           <TouchableOpacity style={styles.navigateBtn} activeOpacity={0.8}>
-            <Ionicons name="navigate" size={15} color={COLORS.white} />
-            <Text style={styles.navigateBtnText}>  Navigate</Text>
+            <LinearGradient
+              colors={[THEME.primary, THEME.primaryDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.navigateGradient}
+            >
+              <Ionicons name="navigate" size={15} color={THEME.white} />
+              <Text style={styles.navigateBtnText}>  Navigate</Text>
+            </LinearGradient>
           </TouchableOpacity>
-        </View>
+        </LinearGradient>
+        
         <Text style={styles.stopsLabel}>ROUTE STOPS</Text>
+        
         <ScrollView showsVerticalScrollIndicator={false}>
           {PICKUPS.map((item, index) => (
             <View key={item.id} style={styles.stopRow}>
@@ -60,8 +108,8 @@ export default function DriverMapScreen() {
                 item.status === 'in_progress' && styles.stopNumberActive,
               ]}>
                 {item.status === 'completed'
-                  ? <Ionicons name="checkmark" size={14} color={COLORS.white} />
-                  : <Text style={[styles.stopNumberText, item.status === 'in_progress' && { color: COLORS.white }]}>
+                  ? <Ionicons name="checkmark" size={14} color={THEME.white} />
+                  : <Text style={[styles.stopNumberText, item.status === 'in_progress' && { color: THEME.white }]}>
                       {index + 1}
                     </Text>
                 }
@@ -75,7 +123,7 @@ export default function DriverMapScreen() {
               <Text style={styles.stopLiters}>{item.estimatedLiters} L</Text>
             </View>
           ))}
-          <View style={{ height: 20 }} />
+          <View style={{ height: 30 }} />
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -83,58 +131,177 @@ export default function DriverMapScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white },
-  mapPlaceholder: {
-    height: 260, backgroundColor: '#D4E9DE',
-    alignItems: 'center', justifyContent: 'center',
+  container: { 
+    flex: 1, 
+    backgroundColor: THEME.white 
   },
-  mapInner: { alignItems: 'center', marginBottom: 16 },
-  mapLabel: { fontSize: 15, fontWeight: '600', color: COLORS.primaryDark, marginTop: 8 },
-  mapSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 3 },
+  mapPlaceholder: {
+    height: 280,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  mapInner: { 
+    alignItems: 'center', 
+    marginBottom: 20 
+  },
+  mapIconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: THEME.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mapLabel: { 
+    fontSize: 16, 
+    fontWeight: '600', 
+    color: THEME.primaryDark, 
+    marginTop: 12 
+  },
+  mapSub: { 
+    fontSize: 12, 
+    color: THEME.textSecondary, 
+    marginTop: 4 
+  },
   dotGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 10,
-    justifyContent: 'center', maxWidth: 260,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+    maxWidth: 280,
   },
   dot: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: THEME.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  dotCompleted: { backgroundColor: COLORS.completed },
-  dotActive: { backgroundColor: COLORS.inProgress },
-  dotText: { color: COLORS.white, fontSize: 11, fontWeight: '700' },
-  sheet: { flex: 1, backgroundColor: COLORS.white, paddingTop: 16 },
+  dotCompleted: { 
+    backgroundColor: THEME.completed 
+  },
+  dotActive: { 
+    backgroundColor: THEME.inProgress 
+  },
+  dotText: { 
+    color: THEME.white, 
+    fontSize: 12, 
+    fontWeight: '700' 
+  },
+  sheet: { 
+    flex: 1, 
+    backgroundColor: THEME.white, 
+    paddingTop: 8 
+  },
   routeHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingBottom: 16,
-    borderBottomWidth: 1, borderBottomColor: COLORS.grayLight,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 8,
   },
-  routeTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
-  routeSub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  routeTitle: { 
+    fontSize: 17, 
+    fontWeight: '700', 
+    color: THEME.text 
+  },
+  routeSub: { 
+    fontSize: 12, 
+    color: THEME.textSecondary, 
+    marginTop: 2 
+  },
   navigateBtn: {
-    backgroundColor: COLORS.primary, paddingHorizontal: 16,
-    paddingVertical: 10, borderRadius: 8, flexDirection: 'row', alignItems: 'center',
+    borderRadius: 10,
+    overflow: 'hidden',
   },
-  navigateBtnText: { color: COLORS.white, fontWeight: '600', fontSize: 13 },
+  navigateGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  navigateBtnText: { 
+    color: THEME.white, 
+    fontWeight: '600', 
+    fontSize: 13 
+  },
   stopsLabel: {
-    fontSize: 11, fontWeight: '700', color: COLORS.gray, letterSpacing: 1,
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.gray,
+    letterSpacing: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   stopRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: COLORS.grayLight, gap: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.grayLight,
+    gap: 14,
   },
   stopNumber: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: COLORS.offWhite, borderWidth: 1.5, borderColor: COLORS.grayMid,
-    alignItems: 'center', justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: THEME.offWhite,
+    borderWidth: 1.5,
+    borderColor: THEME.grayMid,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stopNumberDone: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  stopNumberActive: { backgroundColor: COLORS.inProgress, borderColor: COLORS.inProgress },
-  stopNumberText: { fontSize: 12, fontWeight: '700', color: COLORS.text },
-  stopInfo: { flex: 1 },
-  stopName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  stopNameDone: { color: COLORS.gray, textDecorationLine: 'line-through' },
-  stopAddress: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  stopLiters: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
+  stopNumberDone: { 
+    backgroundColor: THEME.primary, 
+    borderColor: THEME.primary 
+  },
+  stopNumberActive: { 
+    backgroundColor: THEME.inProgress, 
+    borderColor: THEME.inProgress 
+  },
+  stopNumberText: { 
+    fontSize: 12, 
+    fontWeight: '700', 
+    color: THEME.text 
+  },
+  stopInfo: { 
+    flex: 1 
+  },
+  stopName: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: THEME.text 
+  },
+  stopNameDone: { 
+    color: THEME.gray, 
+    textDecorationLine: 'line-through' 
+  },
+  stopAddress: { 
+    fontSize: 12, 
+    color: THEME.textSecondary, 
+    marginTop: 2 
+  },
+  stopLiters: { 
+    fontSize: 13, 
+    color: THEME.textSecondary, 
+    fontWeight: '500' 
+  },
 });
