@@ -7,16 +7,17 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
-  Image,
   StatusBar,
   Modal,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AdminDashboardScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [newUser, setNewUser] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('restaurant');
@@ -299,6 +300,7 @@ export default function AdminDashboardScreen({ navigation }) {
     </View>
   );
 
+  // Updated Header Component - fills to top, with logo, notification bell, and profile
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#059669" />
@@ -306,9 +308,10 @@ export default function AdminDashboardScreen({ navigation }) {
         colors={['#10b981', '#059669', '#047857']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
         <View style={styles.headerContent}>
+          {/* Left side - Logo */}
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
               <Image 
@@ -322,19 +325,27 @@ export default function AdminDashboardScreen({ navigation }) {
               <Text style={styles.companyName}>Admin Portal</Text>
             </View>
           </View>
-          <TouchableOpacity 
-            style={styles.profileButton}
-            onPress={() => navigation.navigate('AdminSettings')}
-          >
-            <Text style={styles.profileInitial}>AD</Text>
-          </TouchableOpacity>
+          
+          {/* Right side - Notifications and Profile */}
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+              <View style={styles.notificationDot} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.profileCircle}
+              onPress={() => navigation.navigate('AdminSettings')}
+            >
+              <Text style={styles.profileInitial}>AD</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
     </>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <FlatList
@@ -381,11 +392,11 @@ export default function AdminDashboardScreen({ navigation }) {
               >
                 <Ionicons 
                   name="restaurant-outline" 
-                  size={20} 
+                  size={18} 
                   color={selectedGroup === 'restaurant' ? '#10b981' : '#6b7280'} 
                 />
                 <Text style={[styles.groupText, selectedGroup === 'restaurant' && styles.activeGroupText]}>
-                  Restaurants
+                  Rest.
                 </Text>
               </TouchableOpacity>
 
@@ -395,11 +406,11 @@ export default function AdminDashboardScreen({ navigation }) {
               >
                 <Ionicons 
                   name="business-outline" 
-                  size={20} 
+                  size={18} 
                   color={selectedGroup === 'manufacturer' ? '#10b981' : '#6b7280'} 
                 />
                 <Text style={[styles.groupText, selectedGroup === 'manufacturer' && styles.activeGroupText]}>
-                  Manufacturers
+                  Mfg.
                 </Text>
               </TouchableOpacity>
 
@@ -409,7 +420,7 @@ export default function AdminDashboardScreen({ navigation }) {
               >
                 <Ionicons 
                   name="car-outline" 
-                  size={20} 
+                  size={18} 
                   color={selectedGroup === 'driver' ? '#10b981' : '#6b7280'} 
                 />
                 <Text style={[styles.groupText, selectedGroup === 'driver' && styles.activeGroupText]}>
@@ -478,7 +489,7 @@ export default function AdminDashboardScreen({ navigation }) {
       />
       
       <UserListModal />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -488,7 +499,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   header: {
-    paddingTop: 12,
     paddingBottom: 12,
   },
   headerContent: {
@@ -534,23 +544,40 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginTop: 1,
   },
-  profileButton: {
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  profileCircle: {
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   profileInitial: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#10b981',
+    color: '#fff',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -603,7 +630,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
     paddingVertical: 12,
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -615,7 +642,7 @@ const styles = StyleSheet.create({
     borderColor: '#10b981',
   },
   groupText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     color: '#6b7280',
   },

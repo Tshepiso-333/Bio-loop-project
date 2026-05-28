@@ -5,15 +5,16 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
-  Image,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AdminSettingsScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -41,7 +42,7 @@ export default function AdminSettingsScreen({ navigation }) {
         colors={['#10b981', '#059669', '#047857']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
         <View style={styles.headerContent}>
           <TouchableOpacity 
@@ -50,16 +51,7 @@ export default function AdminSettingsScreen({ navigation }) {
           >
             <Ionicons name="arrow-back-outline" size={24} color="#fff" />
           </TouchableOpacity>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Image 
-                source={require('../../assets/BioLoop_Logo.png')} 
-                style={styles.logoImage}
-                resizeMode="cover"
-              />
-            </View>
-            <Text style={styles.headerTitle}>Settings</Text>
-          </View>
+          <Text style={styles.headerTitle}>Settings</Text>
           <View style={styles.placeholder} />
         </View>
       </LinearGradient>
@@ -80,7 +72,7 @@ export default function AdminSettingsScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <View style={styles.profileSection}>
@@ -165,7 +157,7 @@ export default function AdminSettingsScreen({ navigation }) {
       <View style={styles.versionText}>
         <Text style={styles.version}>Version 2.0.0</Text>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -175,7 +167,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   header: {
-    paddingTop: 12,
     paddingBottom: 12,
   },
   headerContent: {
@@ -191,25 +182,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  logoCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  logoImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
   },
   headerTitle: {
     fontSize: 18,
