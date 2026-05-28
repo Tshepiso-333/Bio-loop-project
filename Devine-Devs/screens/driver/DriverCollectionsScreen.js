@@ -2,19 +2,40 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, StatusBar, Alert,
+  TouchableOpacity, StatusBar, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { PICKUPS, COLORS } from '../../data/driverData';
+import { PICKUPS } from '../../data/driverData';
+
+// Theme colours (matching manufacturer)
+const THEME = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  primaryDarker: '#047857',
+  primaryLight: '#D1FAE5',
+  white: '#FFFFFF',
+  offWhite: '#F9FAFB',
+  text: '#111827',
+  textSecondary: '#6B7280',
+  gray: '#9CA3AF',
+  grayLight: '#E5E7EB',
+  pending: '#F59E0B',
+  pendingBg: '#FEF3C7',
+  inProgress: '#3B82F6',
+  inProgressBg: '#DBEAFE',
+  completed: '#10B981',
+  completedBg: '#D1FAE5',
+};
 
 const FILTERS = ['All', 'Pending', 'In Progress', 'Completed'];
 
 const StatusBadge = ({ status }) => {
   const config = {
-    pending: { label: 'Pending', bg: COLORS.pendingBg, color: COLORS.pending },
-    in_progress: { label: 'In Progress', bg: COLORS.inProgressBg, color: COLORS.inProgress },
-    completed: { label: 'Completed', bg: COLORS.completedBg, color: COLORS.completed },
+    pending: { label: 'Pending', bg: THEME.pendingBg, color: THEME.pending },
+    in_progress: { label: 'In Progress', bg: THEME.inProgressBg, color: THEME.inProgress },
+    completed: { label: 'Completed', bg: THEME.completedBg, color: THEME.completed },
   };
   const { label, bg, color } = config[status] || config.pending;
   return (
@@ -32,17 +53,17 @@ const CollectionCard = ({ item, onCall, onAction }) => {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.cardLeft}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="storefront-outline" size={20} color={COLORS.primary} />
+          <View style={[styles.iconWrap, { backgroundColor: THEME.primaryLight }]}>
+            <Ionicons name="storefront-outline" size={20} color={THEME.primary} />
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardName}>{item.name}</Text>
             <View style={styles.cardMeta}>
-              <Ionicons name="location-outline" size={12} color={COLORS.gray} />
+              <Ionicons name="location-outline" size={12} color={THEME.gray} />
               <Text style={styles.cardAddress}> {item.address}</Text>
             </View>
             <View style={styles.cardMeta}>
-              <Ionicons name="time-outline" size={12} color={COLORS.gray} />
+              <Ionicons name="time-outline" size={12} color={THEME.gray} />
               <Text style={styles.cardTime}> {item.time} · {item.estimatedLiters}L est.</Text>
             </View>
           </View>
@@ -51,7 +72,7 @@ const CollectionCard = ({ item, onCall, onAction }) => {
       </View>
       <View style={styles.cardActions}>
         <TouchableOpacity style={styles.callBtn} onPress={onCall} activeOpacity={0.7}>
-          <Ionicons name="call-outline" size={15} color={COLORS.text} />
+          <Ionicons name="call-outline" size={15} color={THEME.text} />
           <Text style={styles.callBtnText}>  Call</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -59,14 +80,21 @@ const CollectionCard = ({ item, onCall, onAction }) => {
           onPress={!actionDisabled ? onAction : undefined}
           activeOpacity={actionDisabled ? 1 : 0.7}
         >
-          <Ionicons
-            name={actionDisabled ? 'checkmark-circle' : item.status === 'pending' ? 'play' : 'checkmark'}
-            size={15}
-            color={actionDisabled ? COLORS.gray : COLORS.white}
-          />
-          <Text style={[styles.actionBtnText, actionDisabled && styles.actionBtnTextDisabled]}>
-            {'  ' + actionLabel}
-          </Text>
+          <LinearGradient
+            colors={!actionDisabled ? [THEME.primary, THEME.primaryDark] : [THEME.grayLight, THEME.grayLight]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.actionGradient}
+          >
+            <Ionicons
+              name={actionDisabled ? 'checkmark-circle' : item.status === 'pending' ? 'play' : 'checkmark'}
+              size={15}
+              color={actionDisabled ? THEME.gray : THEME.white}
+            />
+            <Text style={[styles.actionBtnText, actionDisabled && styles.actionBtnTextDisabled]}>
+              {'  ' + actionLabel}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>
@@ -96,13 +124,31 @@ export default function DriverCollectionsScreen() {
 
   const scheduledCount = pickups.filter(p => p.status !== 'completed').length;
 
+  // Header Component with Logo and Gradient
+  const Header = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={THEME.primaryDark} />
+      <LinearGradient
+        colors={[THEME.primary, THEME.primaryDark, THEME.primaryDarker]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
+        
+        {/* Header Info */}
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle}>Collections</Text>
+          <Text style={styles.headerSub}>{scheduledCount} pickups remaining today</Text>
+        </View>
+      </LinearGradient>
+    </>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Collections</Text>
-        <Text style={styles.headerSub}>{scheduledCount} pickups remaining today</Text>
-      </View>
+      <Header />
+      
+      {/* Filter Row */}
       <View style={styles.filterRow}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
           {FILTERS.map(f => (
@@ -117,6 +163,7 @@ export default function DriverCollectionsScreen() {
           ))}
         </ScrollView>
       </View>
+      
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {filtered.map(item => (
           <CollectionCard
@@ -128,70 +175,229 @@ export default function DriverCollectionsScreen() {
         ))}
         {filtered.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="checkmark-done-outline" size={40} color={COLORS.grayMid} />
+            <Ionicons name="checkmark-done-outline" size={50} color={THEME.gray} />
             <Text style={styles.emptyText}>No collections here</Text>
           </View>
         )}
-        <View style={{ height: 20 }} />
+        <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.white },
+  container: { 
+    flex: 1, 
+    backgroundColor: THEME.offWhite 
+  },
   header: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: COLORS.white },
-  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
-  filterRow: { backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.grayLight },
-  filterContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+  headerContent: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: THEME.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: THEME.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  logoImage: {
+    width: 41,
+    height: 41,
+    borderRadius: 20.5,
+  },
+  appName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: THEME.white,
+  },
+  companyName: {
+    fontSize: 10,
+    color: THEME.white,
+    opacity: 0.9,
+    marginTop: 1,
+  },
+  headerInfo: {
+    paddingHorizontal: 20,
+    marginTop: 16,
+  },
+  headerTitle: { 
+    fontSize: 24, 
+    fontWeight: '700', 
+    color: THEME.white 
+  },
+  headerSub: { 
+    fontSize: 13, 
+    color: 'rgba(255,255,255,0.8)', 
+    marginTop: 4 
+  },
+  filterRow: { 
+    backgroundColor: THEME.white, 
+    borderBottomWidth: 1, 
+    borderBottomColor: THEME.grayLight 
+  },
+  filterContent: { 
+    paddingHorizontal: 16, 
+    paddingVertical: 12, 
+    gap: 8 
+  },
   filterBtn: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 6,
-    backgroundColor: COLORS.offWhite, borderWidth: 1, borderColor: COLORS.grayLight,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: THEME.offWhite,
+    borderWidth: 1,
+    borderColor: THEME.grayLight,
   },
-  filterBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  filterText: { fontSize: 13, fontWeight: '500', color: COLORS.textSecondary },
-  filterTextActive: { color: COLORS.white },
-  scroll: { flex: 1, backgroundColor: COLORS.offWhite, paddingTop: 8 },
+  filterBtnActive: { 
+    backgroundColor: THEME.primary, 
+    borderColor: THEME.primary 
+  },
+  filterText: { 
+    fontSize: 13, 
+    fontWeight: '500', 
+    color: THEME.textSecondary 
+  },
+  filterTextActive: { 
+    color: THEME.white 
+  },
+  scroll: { 
+    flex: 1, 
+    backgroundColor: THEME.offWhite, 
+    paddingTop: 12 
+  },
   card: {
-    backgroundColor: COLORS.white, marginHorizontal: 16, marginBottom: 12,
-    borderRadius: 12, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 3, elevation: 2,
+    backgroundColor: THEME.white,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 14,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: THEME.primary,
   },
   cardHeader: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'flex-start', marginBottom: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
   },
-  cardLeft: { flexDirection: 'row', flex: 1, gap: 12 },
+  cardLeft: { 
+    flexDirection: 'row', 
+    flex: 1, 
+    gap: 12 
+  },
   iconWrap: {
-    width: 40, height: 40, borderRadius: 8, backgroundColor: COLORS.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  cardInfo: { flex: 1 },
-  cardName: { fontSize: 14, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  cardAddress: { fontSize: 12, color: COLORS.textSecondary },
-  cardTime: { fontSize: 12, color: COLORS.gray },
-  badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 6 },
-  badgeText: { fontSize: 11, fontWeight: '600' },
-  cardActions: { flexDirection: 'row', gap: 10 },
+  cardInfo: { 
+    flex: 1 
+  },
+  cardName: { 
+    fontSize: 15, 
+    fontWeight: '600', 
+    color: THEME.text, 
+    marginBottom: 4 
+  },
+  cardMeta: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginTop: 2 
+  },
+  cardAddress: { 
+    fontSize: 12, 
+    color: THEME.textSecondary 
+  },
+  cardTime: { 
+    fontSize: 12, 
+    color: THEME.gray 
+  },
+  badge: { 
+    paddingHorizontal: 10, 
+    paddingVertical: 5, 
+    borderRadius: 8 
+  },
+  badgeText: { 
+    fontSize: 11, 
+    fontWeight: '600' 
+  },
+  cardActions: { 
+    flexDirection: 'row', 
+    gap: 10 
+  },
   callBtn: {
-    flex: 1, paddingVertical: 11, borderRadius: 8, flexDirection: 'row',
-    backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.grayLight,
-    alignItems: 'center', justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 10,
+    flexDirection: 'row',
+    backgroundColor: THEME.white,
+    borderWidth: 1.5,
+    borderColor: THEME.grayLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  callBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  callBtnText: { 
+    fontSize: 13, 
+    fontWeight: '600', 
+    color: THEME.text 
+  },
   actionBtn: {
-    flex: 1.5, paddingVertical: 11, borderRadius: 8, flexDirection: 'row',
-    backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center',
+    flex: 1.5,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
-  actionBtnDisabled: { backgroundColor: COLORS.grayLight },
-  actionBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
-  actionBtnTextDisabled: { color: COLORS.gray },
-  emptyState: { alignItems: 'center', paddingVertical: 60, gap: 10 },
-  emptyText: { fontSize: 14, color: COLORS.gray },
+  actionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+  },
+  actionBtnDisabled: { 
+    opacity: 0.7 
+  },
+  actionBtnText: { 
+    fontSize: 13, 
+    fontWeight: '600', 
+    color: THEME.white 
+  },
+  actionBtnTextDisabled: { 
+    color: THEME.gray 
+  },
+  emptyState: { 
+    alignItems: 'center', 
+    paddingVertical: 60, 
+    gap: 12 
+  },
+  emptyText: { 
+    fontSize: 14, 
+    color: THEME.gray 
+  },
 });
