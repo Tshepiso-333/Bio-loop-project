@@ -8,12 +8,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  Image,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
-
-//import { validateCredentials } from '../../auth/hardcodedUsers';
 
 const HARDCODED_USERS = [
   {
@@ -38,30 +41,26 @@ const HARDCODED_USERS = [
   },
 ];
 
-// ─── COLORS ───────────────────────────────────────────────────────────────────
-
 const COLORS = {
   heroBg:           '#111111',
   heroCard:         '#1C1C1C',
   heroText:         '#FFFFFF',
   heroSubtext:      'rgba(255,255,255,0.55)',
   formBg:           '#FFFFFF',
-  green:            '#4ADE00',
-  greenDark:        '#2DA800',
-  greenLight:       '#EDFFD4',
+  green:            '#10b981',
+  greenDark:        '#059669',
+  greenLight:       '#D1FAE5',
   textPrimary:      '#0F172A',
   textSecondary:    '#64748B',
   textMuted:        '#94A3B8',
   inputBorder:      '#E2E8F0',
-  inputBorderFocus: '#4ADE00',
+  inputBorderFocus: '#10b981',
   inputBg:          '#F8FAFC',
   border:           '#E2E8F0',
   errorBg:          '#FFF1F1',
   errorBorder:      '#FECACA',
   errorText:        '#DC2626',
 };
-
-// ─── FONTS ────────────────────────────────────────────────────────────────────
 
 const FONTS = {
   bold:        'Poppins_700Bold',
@@ -72,379 +71,474 @@ const FONTS = {
   bodySemiBold:'Inter_600SemiBold',
 };
 
-// ─── SCREEN ───────────────────────────────────────────────────────────────────
-
 export default function LoginScreen({ navigation }) {
-  // ── All original state and logic unchanged ──
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
-
-  // ── New UI-only state (no effect on auth) ──
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const insets = useSafeAreaInsets();
 
-  // ── Original handler — untouched ──
-const handleLogin = async () => {
-  if (!email || !password) {
-    setError('Please enter both email and password.');
-    return;
-  }
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
 
-  setError('');
-  setIsSubmitting(true);
+    setError('');
+    setIsSubmitting(true);
 
-  const matchedUser = HARDCODED_USERS.find(
-    (user) =>
-      user.email.toLowerCase() === email.trim().toLowerCase() &&
-      user.password === password
-  );
+    const matchedUser = HARDCODED_USERS.find(
+      (user) =>
+        user.email.toLowerCase() === email.trim().toLowerCase() &&
+        user.password === password
+    );
 
-  if (!matchedUser) {
-    setError('Invalid login details.');
+    if (!matchedUser) {
+      setError('Invalid login details.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    login({ email: matchedUser.email, role: matchedUser.role });
     setIsSubmitting(false);
-    return;
-  }
-
-  login({ email: matchedUser.email, role: matchedUser.role });
-  setIsSubmitting(false);
-};
+  };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.root}
-    >
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.heroBg} />
-
-      {/* ── Hero section ── */}
-      <View style={[styles.heroSection, { paddingTop: insets.top + 28 }]}>
-
-        {/* Logo row */}
-        <View style={styles.logoRow}>
-          <View style={styles.logoIconWrap}>
-            <Ionicons name="sync-outline" size={18} color={COLORS.green} />
-          </View>
-          <Text style={styles.logoText}>BioLoop</Text>
-        </View>
-
-        {/* Headline */}
-        <Text style={styles.headline}>{'Smart\nOil Collection'}</Text>
-        <Text style={styles.subtext}>
-          Intelligent waste oil logistics connecting restaurants, collectors,
-          and biodiesel manufacturers in one unified system.
-        </Text>
-
-        {/* Feature pills */}
-        <View style={styles.pillRow}>
-          <FeaturePill icon="analytics-outline"  label="AI Monitoring" />
-          <FeaturePill icon="car-outline"         label="Smart Routing" />
-          <FeaturePill icon="cash-outline"        label="Auto Earnings" />
-        </View>
-      </View>
-
-      {/* ── Form section ── */}
-      <View style={styles.formSection}>
-
-        {/* Form header */}
-        <View style={styles.formHeaderRow}>
-          <View>
-            <Text style={styles.formTitle}>Welcome Back</Text>
-            <Text style={styles.formSubtitle}>Access your BioLoop dashboard</Text>
-          </View>
-          <View style={styles.formHeaderIcon}>
-            <Ionicons name="leaf-outline" size={22} color={COLORS.green} />
-          </View>
-        </View>
-
-        {/* Email */}
-        <Text style={styles.fieldLabel}>Email Address</Text>
-        <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
-          <Ionicons
-            name="mail-outline"
-            size={17}
-            color={emailFocused ? COLORS.green : COLORS.textMuted}
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="you@bioloop.app"
-            placeholderTextColor={COLORS.textMuted}
-            value={email}
-            onChangeText={setEmail}
-            onFocus={() => setEmailFocused(true)}
-            onBlur={() => setEmailFocused(false)}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            returnKeyType="next"
-          />
-        </View>
-
-        {/* Password */}
-        <View style={styles.passwordLabelRow}>
-          <Text style={styles.fieldLabel}>Password</Text>
-          {/* Original navigation call — untouched */}
-          <Pressable
-            style={styles.forgotRow}
-            onPress={() => navigation.navigate('ForgotPassword')}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.root}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <StatusBar barStyle="light-content" backgroundColor="#10b981" />
+        
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Hero Section with Green Gradient */}
+          <LinearGradient
+            colors={['#10b981', '#059669', '#047857']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.heroSection, { paddingTop: insets.top + 28 }]}
           >
-            <Ionicons name="lock-open-outline" size={12} color={COLORS.green} />
-            <Text style={styles.forgotLink}>Forgot password?</Text>
-          </Pressable>
-        </View>
-        <View style={[styles.inputWrap, passwordFocused && styles.inputWrapFocused]}>
-          <Ionicons
-            name="lock-closed-outline"
-            size={17}
-            color={passwordFocused ? COLORS.green : COLORS.textMuted}
-            style={styles.inputIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor={COLORS.textMuted}
-            value={password}
-            onChangeText={setPassword}
-            onFocus={() => setPasswordFocused(true)}
-            onBlur={() => setPasswordFocused(false)}
-            secureTextEntry={!showPassword}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="done"
-            onSubmitEditing={handleLogin}
-          />
-          <Pressable
-            onPress={() => setShowPassword((p) => !p)}
-            style={styles.eyeButton}
-          >
-            <Ionicons
-              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-              size={18}
-              color={COLORS.textMuted}
-            />
-          </Pressable>
-        </View>
+            {/* Logo */}
+            <View style={styles.logoContainer}>
+              <View style={styles.logoCircle}>
+                <Image 
+                  source={require('../../assets/BioLoop_Logo.png')} 
+                  style={styles.logoImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <Text style={styles.logoText}>BioLoop</Text>
+            </View>
 
-        {/* Error message — original logic, restyled */}
-        {error ? (
-          <View style={styles.errorCard}>
-            <Ionicons name="alert-circle-outline" size={15} color={COLORS.errorText} />
-            <Text style={styles.errorText}>{error}</Text>
+            {/* Headline */}
+            <Text style={styles.headline}>Smart Oil Collection</Text>
+            <Text style={styles.subtext}>
+              Intelligent waste oil logistics connecting restaurants, collectors,
+              and biodiesel manufacturers in one unified system.
+            </Text>
+
+            {/* Feature pills */}
+            <View style={styles.pillRow}>
+              <FeaturePill icon="analytics-outline" label="AI Monitoring" />
+              <FeaturePill icon="car-outline" label="Smart Routing" />
+              <FeaturePill icon="cash-outline" label="Auto Earnings" />
+            </View>
+          </LinearGradient>
+
+          {/* Form Section */}
+          <View style={styles.formSection}>
+            {/* Welcome Back - Centered */}
+            <View style={styles.formHeaderRow}>
+              <View style={styles.formHeaderCentered}>
+                <Text style={styles.formTitle}>Welcome Back</Text>
+                <Text style={styles.formSubtitle}>Access your BioLoop dashboard</Text>
+              </View>
+            </View>
+
+            {/* Email */}
+            <Text style={styles.fieldLabel}>Email Address</Text>
+            <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
+              <Ionicons
+                name="mail-outline"
+                size={17}
+                color={emailFocused ? COLORS.green : COLORS.textMuted}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="you@bioloop.app"
+                placeholderTextColor={COLORS.textMuted}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* Password */}
+            <View style={styles.passwordLabelRow}>
+              <Text style={styles.fieldLabel}>Password</Text>
+              <Pressable
+                style={styles.forgotRow}
+                onPress={() => navigation.navigate('ForgotPassword')}
+              >
+                <Ionicons name="lock-open-outline" size={12} color={COLORS.green} />
+                <Text style={styles.forgotLink}>Forgot password?</Text>
+              </Pressable>
+            </View>
+            
+            <View style={[styles.inputWrap, passwordFocused && styles.inputWrapFocused]}>
+              <Ionicons
+                name="lock-closed-outline"
+                size={17}
+                color={passwordFocused ? COLORS.green : COLORS.textMuted}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor={COLORS.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
+              />
+              <Pressable
+                onPress={() => setShowPassword((p) => !p)}
+                style={styles.eyeButton}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color={COLORS.textMuted}
+                />
+              </Pressable>
+            </View>
+
+            {/* Error message */}
+            {error ? (
+              <View style={styles.errorCard}>
+                <Ionicons name="alert-circle-outline" size={15} color={COLORS.errorText} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Sign in button - Updated to match header color */}
+            <Pressable 
+              style={[styles.signInButton, isSubmitting && { opacity: 0.7 }]} 
+              onPress={handleLogin}
+              disabled={isSubmitting}
+            >
+              <LinearGradient
+                colors={['#10b981', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.signInGradient}
+              >
+                <Ionicons 
+                  name={isSubmitting ? "hourglass-outline" : "log-in-outline"} 
+                  size={18} 
+                  color="#FFFFFF" 
+                />
+                <Text style={styles.signInButtonText}>
+                  {isSubmitting ? 'Signing in...' : 'Sign In'}
+                </Text>
+              </LinearGradient>
+            </Pressable>
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Register link */}
+            <View style={styles.registerRow}>
+              <Text style={styles.registerText}>Don't have an account? </Text>
+              <Pressable
+                style={styles.registerLinkRow}
+                onPress={() => navigation.navigate('SignUp')}
+              >
+                <Text style={styles.registerLink}>Create an account</Text>
+                <Ionicons name="arrow-forward" size={13} color={COLORS.green} />
+              </Pressable>
+            </View>
+
+            <View style={{ height: insets.bottom + 20 }} />
           </View>
-        ) : null}
-
-        {/* Sign in button — original onPress untouched */}
-      <Pressable 
-  style={[styles.signInButton, isSubmitting && { opacity: 0.7 }]} 
-  onPress={handleLogin}
-  disabled={isSubmitting} // Prevent double-tapping
->
-  <Ionicons 
-    name={isSubmitting ? "hourglass-outline" : "log-in-outline"} 
-    size={18} 
-    color="#FFFFFF" 
-  />
-  <Text style={styles.signInButtonText}>
-    {isSubmitting ? 'Signing in...' : 'Sign In'}
-  </Text>
-</Pressable>
-
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Register link — original navigation.navigate untouched */}
-        <View style={styles.registerRow}>
-          <Text style={styles.registerText}>Don't have an account? </Text>
-          <Pressable
-            style={styles.registerLinkRow}
-            onPress={() => navigation.navigate('SignUp')}
-          >
-            <Text style={styles.registerLink}>Create an account</Text>
-            <Ionicons name="arrow-forward" size={13} color={COLORS.green} />
-          </Pressable>
-        </View>
-
-        <View style={{ height: insets.bottom + 8 }} />
-      </View>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
-
-// ─── SMALL HELPER COMPONENT ───────────────────────────────────────────────────
 
 function FeaturePill({ icon, label }) {
   return (
     <View style={styles.pill}>
-      <Ionicons name={icon} size={12} color="rgba(255,255,255,0.8)" />
+      <Ionicons name={icon} size={12} color="rgba(255,255,255,0.9)" />
       <Text style={styles.pillText}>{label}</Text>
     </View>
   );
 }
 
-// ─── STYLES ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.heroBg,
+    backgroundColor: '#f9fafb',
   },
-
-  // Hero
+  scrollContent: {
+    flexGrow: 1,
+  },
   heroSection: {
-    backgroundColor: COLORS.heroBg,
     paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingBottom: 40,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
-  logoRow: {
-    flexDirection: 'row', alignItems: 'center',
-    gap: 10, marginBottom: 28,
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 40,
   },
-  logoIconWrap: {
-    width: 38, height: 38, borderRadius: 10,
-    backgroundColor: COLORS.heroCard,
-    borderWidth: 1,
-    borderColor: 'rgba(74,222,0,0.25)',
-    justifyContent: 'center', alignItems: 'center',
+  logoCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   logoText: {
-    fontFamily: FONTS.bold, fontSize: 16, color: COLORS.heroText,
-    letterSpacing: 0.5,
+    fontFamily: FONTS.bold,
+    fontSize: 28,
+    color: '#fff',
+    letterSpacing: 1,
   },
   headline: {
-    fontFamily: FONTS.bold, fontSize: 38,
-    color: COLORS.heroText, lineHeight: 44, marginBottom: 12,
+    fontFamily: FONTS.bold,
+    fontSize: 32,
+    color: '#fff',
+    lineHeight: 40,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   subtext: {
-    fontFamily: FONTS.bodyRegular, fontSize: 13,
-    color: COLORS.heroSubtext, lineHeight: 20, marginBottom: 18,
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 20,
+    marginBottom: 24,
+    textAlign: 'center',
   },
   pillRow: {
-    flexDirection: 'row', gap: 8, flexWrap: 'wrap',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
   },
   pill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(74,222,0,0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(74,222,0,0.2)',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    borderColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 25,
   },
   pillText: {
-    fontFamily: FONTS.bodyMedium, fontSize: 11,
-    color: 'rgba(255,255,255,0.8)',
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 12,
+    color: '#fff',
   },
-
-  // Form
   formSection: {
     flex: 1,
     backgroundColor: COLORS.formBg,
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 24, paddingTop: 28,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    marginTop: -10,
   },
   formHeaderRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'flex-start', marginBottom: 24,
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  formHeaderCentered: {
+    alignItems: 'center',
   },
   formTitle: {
-    fontFamily: FONTS.bold, fontSize: 22,
-    color: COLORS.textPrimary, marginBottom: 3,
+    fontFamily: FONTS.bold,
+    fontSize: 28,
+    color: COLORS.textPrimary,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   formSubtitle: {
-    fontFamily: FONTS.bodyRegular, fontSize: 13, color: COLORS.textSecondary,
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
-  formHeaderIcon: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: COLORS.greenLight,
-    justifyContent: 'center', alignItems: 'center',
-  },
-
-  // Fields
   fieldLabel: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 11,
-    color: COLORS.textSecondary, textTransform: 'uppercase',
-    letterSpacing: 0.6, marginBottom: 8,
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
   },
   inputWrap: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.inputBg,
-    borderWidth: 1.5, borderColor: COLORS.inputBorder,
-    borderRadius: 12, marginBottom: 16, overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: COLORS.inputBorder,
+    borderRadius: 14,
+    marginBottom: 16,
+    overflow: 'hidden',
   },
   inputWrapFocused: {
     borderColor: COLORS.inputBorderFocus,
+    borderWidth: 2,
   },
-  inputIcon: { paddingLeft: 14 },
+  inputIcon: { 
+    paddingLeft: 14 
+  },
   input: {
-    flex: 1, paddingHorizontal: 10, paddingVertical: 13,
-    fontFamily: FONTS.bodyRegular, fontSize: 14, color: COLORS.textPrimary,
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 15,
+    color: COLORS.textPrimary,
   },
-  eyeButton: { paddingHorizontal: 14, paddingVertical: 13 },
-
+  eyeButton: { 
+    paddingHorizontal: 14, 
+    paddingVertical: 13 
+  },
   passwordLabelRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   forgotRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
   },
   forgotLink: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.green,
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 12,
+    color: COLORS.green,
   },
-
-  // Error
   errorCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: COLORS.errorBg,
-    borderWidth: 1, borderColor: COLORS.errorBorder,
-    borderRadius: 10, padding: 12, marginBottom: 14,
+    borderWidth: 1,
+    borderColor: COLORS.errorBorder,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
   },
   errorText: {
-    fontFamily: FONTS.bodyMedium, fontSize: 13,
-    color: COLORS.errorText, flex: 1,
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.errorText,
+    flex: 1,
   },
-
-  // Button
   signInButton: {
-    flexDirection: 'row', justifyContent: 'center',
-    alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.greenDark,
-    paddingVertical: 15, borderRadius: 13, marginBottom: 20,
+    borderRadius: 14,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  signInGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 16,
   },
   signInButtonText: {
-    fontFamily: FONTS.bold, color: '#FFFFFF',
-    fontSize: 14, letterSpacing: 0.4, textTransform: 'uppercase',
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+    fontSize: 15,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-
-  // Divider
   dividerRow: {
-    flexDirection: 'row', alignItems: 'center',
-    gap: 12, marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
+  dividerLine: { 
+    flex: 1, 
+    height: 1, 
+    backgroundColor: COLORS.border 
+  },
   dividerText: {
-    fontFamily: FONTS.bodyRegular, fontSize: 13, color: COLORS.textMuted,
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 13,
+    color: COLORS.textMuted,
   },
-
-  // Register
   registerRow: {
-    flexDirection: 'row', justifyContent: 'center',
-    alignItems: 'center', flexWrap: 'wrap',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   registerText: {
-    fontFamily: FONTS.bodyRegular, fontSize: 13, color: COLORS.textSecondary,
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
   registerLinkRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   registerLink: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.green,
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 13,
+    color: COLORS.green,
   },
 });

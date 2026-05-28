@@ -17,7 +17,7 @@ function ManufacturerHomeScreen({ navigation, route }) {
 
   const handleGoToDashboard = () => {
     // ✅ FIXED: Navigate to the screen inside the nested ManufacturerStack
-    navigation.navigate('ManufacturerDashboard');
+    navigation.navigate('ManufacturerDashboardScreen');
   };
 
   return (
