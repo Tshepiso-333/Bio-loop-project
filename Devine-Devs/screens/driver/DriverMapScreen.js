@@ -4,7 +4,6 @@ import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { PICKUPS, DRIVER } from '../../data/driverData';
@@ -68,7 +67,7 @@ export default function DriverMapScreen() {
   const totalDistance = 12.4;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
       
       <MapPlaceholder stops={PICKUPS} />
@@ -126,7 +125,7 @@ export default function DriverMapScreen() {
           <View style={{ height: 30 }} />
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

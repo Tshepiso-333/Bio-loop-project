@@ -4,9 +4,9 @@ import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, StatusBar, Alert, Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PICKUPS } from '../../data/driverData';
 
 // Theme colours (matching manufacturer)
@@ -102,6 +102,7 @@ const CollectionCard = ({ item, onCall, onAction }) => {
 };
 
 export default function DriverCollectionsScreen() {
+  const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState('All');
   const [pickups, setPickups] = useState(PICKUPS);
 
@@ -124,7 +125,7 @@ export default function DriverCollectionsScreen() {
 
   const scheduledCount = pickups.filter(p => p.status !== 'completed').length;
 
-  // Header Component with Logo and Gradient
+  // Header Component with Logo and Gradient that fills to top
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor={THEME.primaryDark} />
@@ -132,8 +133,9 @@ export default function DriverCollectionsScreen() {
         colors={[THEME.primary, THEME.primaryDark, THEME.primaryDarker]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={styles.header}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
+
         
         {/* Header Info */}
         <View style={styles.headerInfo}>
@@ -145,7 +147,7 @@ export default function DriverCollectionsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       {/* Filter Row */}
@@ -181,7 +183,7 @@ export default function DriverCollectionsScreen() {
         )}
         <View style={{ height: 30 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -191,7 +193,6 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.offWhite 
   },
   header: {
-    paddingTop: 12,
     paddingBottom: 20,
   },
   headerContent: {
