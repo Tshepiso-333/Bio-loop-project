@@ -12,7 +12,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
-import { supabase } from '../../supabase';
 import { COLORS as _C, FONTS } from '../../constants/theme';
 
 //import { validateCredentials } from '../../auth/hardcodedUsers';
@@ -63,21 +62,11 @@ const handleLogin = async () => {
   setError('');
   setIsSubmitting(true);
 
-  // Talk to Supabase
-  const { error: authError } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password: password,
-  });
+  const authError = await login(email.trim(), password);
 
   if (authError) {
-    setError(authError.message); // e.g., "Invalid login credentials"
+    setError(authError.message);
     setIsSubmitting(false);
-  } else {
-    // SUCCESS! 
-    // You don't need to do anything here. 
-    // Your AuthContext will detect the new session, update 'isAuthenticated', 
-    // and your App.js navigation will automatically swap to the Home screen.
-    console.log("Logged in successfully");
   }
 };
 

@@ -52,11 +52,17 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const login = async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return error;
+  };
+
   const value = useMemo(() => ({
     user,
     userRole,
     isAuthenticated: !!user,
     loading,
+    login,
     signOut: () => supabase.auth.signOut(),
   }), [user, userRole, loading]);
 

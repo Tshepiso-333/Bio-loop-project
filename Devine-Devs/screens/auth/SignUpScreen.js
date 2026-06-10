@@ -12,24 +12,25 @@ import {
 import { supabase } from '../../supabase'; // 1. Import your real client
 
 export default function SignUpScreen({ navigation }) {
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false); // 2. Add loading state
+  const [loading, setLoading] = useState(false);
 
-  const handleSignUp = async () => { // 3. Make it async
-    if (!email || !password) {
-      setError('Enter an email and password.');
+  const handleSignUp = async () => {
+    if (!fullName || !email || !password) {
+      setError('Enter your name, email and password.');
       return;
     }
 
     setError('');
     setLoading(true);
 
-    // 4. Call real Supabase Auth
     const { data, error: authError } = await supabase.auth.signUp({
       email: email.trim(),
       password: password,
+      options: { data: { role: 'restaurant', full_name: fullName.trim() } },
     });
 
     if (authError) {
@@ -58,13 +59,22 @@ export default function SignUpScreen({ navigation }) {
       <View style={styles.formCard}>
         <TextInput
           style={styles.input}
+          placeholder="Full name"
+          value={fullName}
+          onChangeText={setFullName}
+          autoCorrect={false}
+          editable={!loading}
+        />
+
+        <TextInput
+          style={styles.input}
           placeholder="Email address"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
-          editable={!loading} // Disable during request
+          editable={!loading}
         />
 
         <TextInput
