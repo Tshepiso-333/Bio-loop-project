@@ -13,12 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
 import { supabase } from '../../supabase';
+import { COLORS as _C, FONTS } from '../../constants/theme';
 
 //import { validateCredentials } from '../../auth/hardcodedUsers';
 
 // ─── COLORS ───────────────────────────────────────────────────────────────────
 
 const COLORS = {
+  ..._C,
   heroBg:           '#111111',
   heroCard:         '#1C1C1C',
   heroText:         '#FFFFFF',
@@ -27,27 +29,11 @@ const COLORS = {
   green:            '#4ADE00',
   greenDark:        '#2DA800',
   greenLight:       '#EDFFD4',
-  textPrimary:      '#0F172A',
-  textSecondary:    '#64748B',
-  textMuted:        '#94A3B8',
-  inputBorder:      '#E2E8F0',
+  inputBorder:      _C.border,
   inputBorderFocus: '#4ADE00',
-  inputBg:          '#F8FAFC',
-  border:           '#E2E8F0',
   errorBg:          '#FFF1F1',
   errorBorder:      '#FECACA',
   errorText:        '#DC2626',
-};
-
-// ─── FONTS ────────────────────────────────────────────────────────────────────
-
-const FONTS = {
-  bold:        'Poppins_700Bold',
-  semiBold:    'Poppins_600SemiBold',
-  regular:     'Poppins_400Regular',
-  bodyRegular: 'Inter_400Regular',
-  bodyMedium:  'Inter_500Medium',
-  bodySemiBold:'Inter_600SemiBold',
 };
 
 // ─── SCREEN ───────────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS as _C, FONTS } from '../../constants/theme';
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
@@ -48,31 +49,9 @@ const UPCOMING_CYCLE = {
 // ─── COLORS ───────────────────────────────────────────────────────────────────
 
 const COLORS = {
-  background: '#F4F4EF',
-  card: '#FFFFFF',
-  green: '#16A34A',
-  greenDark: '#14532D',
-  greenCard: '#1A5C32',
-  greenLight: '#DCFCE7',
-  textPrimary: '#0F172A',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
+  ..._C,
+  greenCard:        '#1A5C32',
   progressInactive: '#CBD5E1',
-  tabActive: '#16A34A',
-  tabInactive: '#94A3B8',
-};
-
-// ─── FONTS ────────────────────────────────────────────────────────────────────
-
-const FONTS = {
-  bold: 'Poppins_700Bold',
-  semiBold: 'Poppins_600SemiBold',
-  medium: 'Poppins_500Medium',
-  regular: 'Poppins_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemiBold: 'Inter_600SemiBold',
-  bodyRegular: 'Inter_400Regular',
 };
 
 // ─── ICON HELPER ──────────────────────────────────────────────────────────────

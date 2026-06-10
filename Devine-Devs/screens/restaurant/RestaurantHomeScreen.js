@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS as _C, FONTS } from '../../constants/theme';
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ const TANK_DATA = {
   statusNote: 'Optimal efficiency detected. Estimated full in',
   estimatedDays: 2,
   currentVolume: 1419,
-  temperature: 104,
+  temperature: 40,
 };
 
 const PICKUP_ALERT = {
@@ -31,7 +32,7 @@ const PICKUP_ALERT = {
 };
 
 const STATS = {
-  oilGrade: 'Grade A+',
+  oilGrade: 'Grade A',
   estimatedEarnings: 'R145.20',
   lastPickupDate: 'Oct 24',
 };
@@ -61,7 +62,7 @@ const RECENT_ACTIVITY = [
 ];
 
 const ACTIVITY_ICONS = [
-  { name: 'water-outline', color: '#16A34A', bg: '#DCFCE7' },
+  { name: 'water-outline', color: '#10b981', bg: '#DCFCE7' },
   { name: 'checkmark-circle-outline', color: '#2563EB', bg: '#DBEAFE' },
   { name: 'receipt-outline', color: '#D97706', bg: '#FEF3C7' },
 ];
@@ -70,37 +71,16 @@ const ACTIVITY_ICONS = [
 // ─── COLORS ───────────────────────────────────────────────────────────────────
 
 const COLORS = {
-  background: '#F4F4EF',
-  card: '#FFFFFF',
-  green: '#16A34A',
-  greenLight: '#DCFCE7',
-  greenDark: '#14532D',
-  alertBg: '#FFF1F1',
-  alertBorder: '#FECACA',
-  alertText: '#DC2626',
-  alertButton: '#991B1B',
-  textPrimary: '#0F172A',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  progressTrack: '#E2E8F0',
-  iconOrange: '#FEF3C7',
-  iconGreen: '#DCFCE7',
-  iconBlue: '#DBEAFE',
-  tabActive: '#16A34A',
-  tabInactive: '#94A3B8',
-};
-
-// ─── FONTS ────────────────────────────────────────────────────────────────────
-
-const FONTS = {
-  bold: 'Poppins_700Bold',
-  semiBold: 'Poppins_600SemiBold',
-  medium: 'Poppins_500Medium',
-  regular: 'Poppins_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemiBold: 'Inter_600SemiBold',
-  bodyRegular: 'Inter_400Regular',
+  ..._C,
+  greenDark:     _C.greenDeep,
+  alertBg:       '#FFF1F1',
+  alertBorder:   '#FECACA',
+  alertText:     '#DC2626',
+  alertButton:   '#991B1B',
+  iconGreen:     _C.greenLight,
+  iconOrange:    '#FEF3C7',
+  iconBlue:      '#DBEAFE',
+  progressTrack: _C.border,
 };
 
 // ─── ICON HELPER ──────────────────────────────────────────────────────────────
@@ -197,7 +177,7 @@ function TankCard({ data }) {
         </View>
         <View>
           <Text style={styles.tankMetaLabel}>Temperature</Text>
-          <Text style={styles.tankMetaValue}>{data.temperature}° F</Text>
+          <Text style={styles.tankMetaValue}>{data.temperature}° C</Text>
         </View>
       </View>
     </View>

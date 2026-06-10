@@ -5,18 +5,11 @@ import {
   Pressable, StatusBar, TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS as _C, FONTS } from '../../constants/theme';
 
 const COLORS = {
-  background: '#F4F4EF', card: '#FFFFFF',
-  green: '#16A34A', greenLight: '#DCFCE7', greenDark: '#14532D',
-  textPrimary: '#0F172A', textSecondary: '#64748B', textMuted: '#94A3B8',
-  border: '#E2E8F0', inputBg: '#F8FAFC', inputBorderFocus: '#16A34A',
-};
-
-const FONTS = {
-  bold: 'Poppins_700Bold', semiBold: 'Poppins_600SemiBold',
-  bodyMedium: 'Inter_500Medium', bodySemiBold: 'Inter_600SemiBold',
-  bodyRegular: 'Inter_400Regular',
+  ..._C,
+  greenDark: _C.greenDeep,
 };
 
 const TIME_SLOTS = ['08:00 - 10:00', '10:00 - 12:00', '12:00 - 14:00', '14:00 - 16:00'];

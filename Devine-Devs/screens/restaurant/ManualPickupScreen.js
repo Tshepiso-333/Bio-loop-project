@@ -5,19 +5,14 @@ import {
   Pressable, StatusBar, TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS as _C, FONTS } from '../../constants/theme';
 
 const COLORS = {
-  background: '#F4F4EF', card: '#FFFFFF',
-  green: '#16A34A', greenLight: '#DCFCE7', greenDark: '#14532D',
-  alertBg: '#FFF7ED', alertBorder: '#FED7AA', alertText: '#C2410C',
-  textPrimary: '#0F172A', textSecondary: '#64748B', textMuted: '#94A3B8',
-  border: '#E2E8F0', inputBg: '#F8FAFC',
-};
-
-const FONTS = {
-  bold: 'Poppins_700Bold', semiBold: 'Poppins_600SemiBold',
-  bodyMedium: 'Inter_500Medium', bodySemiBold: 'Inter_600SemiBold',
-  bodyRegular: 'Inter_400Regular',
+  ..._C,
+  greenDark:   _C.greenDeep,
+  alertBg:     '#FFF7ED',
+  alertBorder: '#FED7AA',
+  alertText:   '#C2410C',
 };
 
 const URGENCY_OPTIONS = [
@@ -85,7 +80,7 @@ export default function ManualPickupScreen({ navigation }) {
           <View style={styles.tankStatusRow}>
             <Ionicons name="thermometer-outline" size={18} color={COLORS.green} />
             <Text style={styles.tankStatusLabel}>Temperature</Text>
-            <Text style={styles.tankStatusValue}>104°F</Text>
+            <Text style={styles.tankStatusValue}>40°C</Text>
           </View>
         </View>
 

@@ -9,6 +9,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS as _C, FONTS } from '../../constants/theme';
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ const MARKET_RATES = {
       unit: '/L',
       change: '+2% vs last month',
       changePositive: true,
-      dotColor: '#16A34A',
+      dotColor: '#10b981',
     },
     {
       id: '2',
@@ -94,32 +95,11 @@ const WITHDRAWAL_HISTORY = [
 // ─── COLORS ───────────────────────────────────────────────────────────────────
 
 const COLORS = {
-  background: '#F4F4EF',
-  card: '#FFFFFF',
-  green: '#16A34A',
-  greenLight: '#DCFCE7',
-  greenDark: '#14532D',
-  textPrimary: '#0F172A',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  tabActive: '#16A34A',
-  tabInactive: '#94A3B8',
-  amber: '#F59E0B',
-  positive: '#16A34A',
-  negative: '#DC2626',
-};
-
-// ─── FONTS ────────────────────────────────────────────────────────────────────
-
-const FONTS = {
-  bold: 'Poppins_700Bold',
-  semiBold: 'Poppins_600SemiBold',
-  medium: 'Poppins_500Medium',
-  regular: 'Poppins_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemiBold: 'Inter_600SemiBold',
-  bodyRegular: 'Inter_400Regular',
+  ..._C,
+  greenDark: _C.greenDeep,
+  positive:  _C.green,
+  amber:     '#F59E0B',
+  negative:  '#DC2626',
 };
 
 // ─── ICON HELPER ──────────────────────────────────────────────────────────────

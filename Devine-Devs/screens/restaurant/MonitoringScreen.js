@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS as _C, FONTS } from '../../constants/theme';
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
 
@@ -45,8 +46,8 @@ const QUALITY_LOGS = [
 ];
 
 const DEVICE_STATS = [
-  { label: 'Temperature',  value: '114°F',  valueColor: '#EA580C' },
-  { label: 'Connectivity', value: 'Strong', valueColor: '#16A34A' },
+  { label: 'Temperature',  value: '45°C',   valueColor: '#EA580C' },
+  { label: 'Connectivity', value: 'Strong', valueColor: '#10b981' },
   { label: 'Last Pickup',  value: '12 Days', valueColor: null },
   { label: 'Sediment',     value: 'Low',     valueColor: null },
 ];
@@ -56,33 +57,11 @@ const DEVICE_STATS = [
 // ─── COLORS ───────────────────────────────────────────────────────────────────
 
 const COLORS = {
-  background: '#F4F4EF',
-  card: '#FFFFFF',
-  green: '#16A34A',
-  greenLight: '#DCFCE7',
-  greenDark: '#14532D',
-  alertBg: '#FFF1F1',
+  ..._C,
+  alertBg:     '#FFF1F1',
   alertBorder: '#FECACA',
-  alertText: '#DC2626',
+  alertText:   '#DC2626',
   alertButton: '#991B1B',
-  textPrimary: '#0F172A',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  tabActive: '#16A34A',
-  tabInactive: '#94A3B8',
-};
-
-// ─── FONTS ────────────────────────────────────────────────────────────────────
-
-const FONTS = {
-  bold: 'Poppins_700Bold',
-  semiBold: 'Poppins_600SemiBold',
-  medium: 'Poppins_500Medium',
-  regular: 'Poppins_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemiBold: 'Inter_600SemiBold',
-  bodyRegular: 'Inter_400Regular',
 };
 
 // ─── ICON HELPER ──────────────────────────────────────────────────────────────
