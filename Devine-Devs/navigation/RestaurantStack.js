@@ -9,6 +9,9 @@ import PickupsScreen         from '../screens/restaurant/PickupsScreen';
 import EarningsScreen        from '../screens/restaurant/EarningsScreen';
 import SchedulePickupScreen  from '../screens/restaurant/SchedulePickupScreen';
 import ManualPickupScreen    from '../screens/restaurant/ManualPickupScreen';
+import OnboardingScreen      from '../screens/restaurant/OnboardingScreen';
+
+import { useAuth } from '../AuthContext';
 
 // ─── NAVIGATORS ───────────────────────────────────────────────────────────────
 
@@ -93,22 +96,31 @@ function RestaurantTabs() {
 // slide in on top of the tabs without hiding the tab bar context.
 
 export default function RestaurantStack() {
+  const { onboardingCompleted } = useAuth();
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {/* Main tabs — always the entry point */}
-      <Stack.Screen name="RestaurantTabs" component={RestaurantTabs} />
+      {!onboardingCompleted ? (
+        // First-run: force the one-time onboarding wizard before anything else.
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      ) : (
+        <>
+          {/* Main tabs — always the entry point */}
+          <Stack.Screen name="RestaurantTabs" component={RestaurantTabs} />
 
-      {/* Screens that slide in over the tabs */}
-      <Stack.Screen
-        name="SchedulePickup"
-        component={SchedulePickupScreen}
-        options={{ presentation: 'card' }}
-      />
-      <Stack.Screen
-        name="ManualPickup"
-        component={ManualPickupScreen}
-        options={{ presentation: 'card' }}
-      />
+          {/* Screens that slide in over the tabs */}
+          <Stack.Screen
+            name="SchedulePickup"
+            component={SchedulePickupScreen}
+            options={{ presentation: 'card' }}
+          />
+          <Stack.Screen
+            name="ManualPickup"
+            component={ManualPickupScreen}
+            options={{ presentation: 'card' }}
+          />
+        </>
+      )}
     </Stack.Navigator>
   );
 }

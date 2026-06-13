@@ -6,7 +6,21 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null); // Explicitly track the DB role
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Reads the restaurant's onboarding flag. Returns false when no row exists yet
+  // (i.e. a brand-new signup that hasn't onboarded).
+  const fetchOnboarding = async (userId) => {
+    const { data, error } = await supabase
+      .from("restaurants")
+      .select("onboarding_completed")
+      .eq("owner_user_id", userId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.onboarding_completed === true;
+  };
 
   const fetchProfile = async (userId) => {
     try {
@@ -17,12 +31,33 @@ export const AuthProvider = ({ children }) => {
         .single();
 
       if (error) throw error;
-      setUserRole(data.role?.toLowerCase());
+
+      const role = data.role?.toLowerCase();
+      setUserRole(role);
+
+      // Onboarding only applies to the restaurant side.
+      if (role === "restaurant") {
+        setOnboardingCompleted(await fetchOnboarding(userId));
+      } else {
+        setOnboardingCompleted(false);
+      }
     } catch (err) {
       console.error("Error fetching profile:", err.message);
       setUserRole(null);
+      setOnboardingCompleted(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Re-checks the onboarding flag for the current user (called after the
+  // restaurant finishes the onboarding wizard) so navigation can swap stacks.
+  const refreshOnboarding = async () => {
+    if (!user) return;
+    try {
+      setOnboardingCompleted(await fetchOnboarding(user.id));
+    } catch (err) {
+      console.error("Error refreshing onboarding:", err.message);
     }
   };
 
@@ -45,6 +80,7 @@ export const AuthProvider = ({ children }) => {
       } else {
         setUser(null);
         setUserRole(null);
+        setOnboardingCompleted(false);
         setLoading(false);
       }
     });
@@ -60,11 +96,13 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(() => ({
     user,
     userRole,
+    onboardingCompleted,
+    refreshOnboarding,
     isAuthenticated: !!user,
     loading,
     login,
     signOut: () => supabase.auth.signOut(),
-  }), [user, userRole, loading]);
+  }), [user, userRole, onboardingCompleted, loading]);
 
   return (
     <AuthContext.Provider value={value}>
