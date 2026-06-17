@@ -1,10 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   Pressable,
   StatusBar,
@@ -12,61 +11,21 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-
-const TANK_DATA = {
-  label: 'Main Storage Tank',
-  fillPercent: 75,
-  statusText: 'Full',
-  statusNote: 'Optimal efficiency detected. Estimated full in',
-  estimatedDays: 2,
-  currentVolume: 1419,
-  temperature: 104,
-};
-
-const PICKUP_ALERT = {
-  visible: true,
-  title: 'Pickup Ready',
-  message:
-    'Capacity threshold approaching 80%. System recommends scheduling pickup within 12 hours.',
-};
-
-const STATS = {
-  oilGrade: 'Grade A+',
-  estimatedEarnings: 'R145.20',
-  lastPickupDate: 'Oct 24',
-};
-
-const RECENT_ACTIVITY = [
-  {
-    id: '1',
-    title: 'Tank Volume Increased',
-    subtitle: '159 Liters added • 10:45 AM',
-    badge: '+12%',
-    badgeType: 'percent',
-  },
-  {
-    id: '2',
-    title: 'Quality Check Completed',
-    subtitle: 'Grade A maintained • 08:30 AM',
-    badge: 'Excellent',
-    badgeType: 'label',
-  },
-  {
-    id: '3',
-    title: 'October Payment Processed',
-    subtitle: 'Credits added to account • Yesterday',
-    badge: 'R412.00',
-    badgeType: 'money',
-  },
-];
-
-const ACTIVITY_ICONS = [
-  { name: 'water-outline', color: '#10B981', bg: '#D1FAE5' },
-  { name: 'checkmark-circle-outline', color: '#2563EB', bg: '#DBEAFE' },
-  { name: 'receipt-outline', color: '#D97706', bg: '#FEF3C7' },
-];
+import { useAuth } from '../../AuthContext';
+import { useProfile } from '../../src/hooks/useProfile';
+import { useRestaurant } from '../../src/hooks/useRestaurant';
+import {
+  RestaurantEmptyBanner,
+  RestaurantLoadingBanner,
+  RestaurantRefreshScrollView,
+} from '../../src/components/RestaurantScreenStates';
+import {
+  getInitials,
+  mapActivityItems,
+  mapHomeStats,
+  mapPickupAlert,
+  mapTankCardData,
+} from '../../src/utils/restaurantViewModels';
 
 // ─── COLORS (Keeping red for alerts, updating green to theme) ─────────────────
 
@@ -118,6 +77,36 @@ function Icon({ library = 'Ionicons', name, size, color }) {
 export default function RestaurantHomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const { signOut } = useAuth();
+  const { profile } = useProfile();
+  const {
+    tank,
+    alerts,
+    qualityLogs,
+    earnings,
+    pickups,
+    activityLogs,
+    loading,
+    refreshing,
+    refreshRestaurant,
+    restaurant,
+  } = useRestaurant();
+
+  const profileInitials = useMemo(
+    () => getInitials(profile?.full_name ?? restaurant?.name, 'RS'),
+    [profile?.full_name, restaurant?.name]
+  );
+
+  const tankData = useMemo(() => mapTankCardData(tank), [tank]);
+  const pickupAlert = useMemo(() => mapPickupAlert(alerts, tank), [alerts, tank]);
+  const stats = useMemo(
+    () => mapHomeStats({ qualityLogs, earnings, pickups }),
+    [qualityLogs, earnings, pickups]
+  );
+  const { items: recentActivity, icons: activityIcons } = useMemo(
+    () => mapActivityItems(activityLogs),
+    [activityLogs]
+  );
 
   // Header Component with Logo, Notifications, and Profile
   const Header = () => (
@@ -144,12 +133,15 @@ export default function RestaurantHomeScreen() {
             </View>
           </View>
           <View style={styles.headerRight}>
+            <Pressable style={styles.headerSignOutButton} onPress={signOut}>
+              <Ionicons name="log-out-outline" size={22} color="#FFFFFF" />
+            </Pressable>
             <Pressable style={styles.notificationButton}>
               <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
               <View style={styles.notificationDot} />
             </Pressable>
             <View style={styles.profileCircle}>
-              <Text style={styles.profileInitial}>RS</Text>
+              <Text style={styles.profileInitial}>{profileInitials}</Text>
             </View>
           </View>
         </View>
@@ -161,23 +153,38 @@ export default function RestaurantHomeScreen() {
     <View style={styles.root}>
       <Header />
 
-      <ScrollView
+      <RestaurantRefreshScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={refreshRestaurant}
       >
-        <TankCard data={TANK_DATA} />
-        {PICKUP_ALERT.visible && <PickupAlert alert={PICKUP_ALERT} />}
+        {loading && !tankData ? <RestaurantLoadingBanner /> : null}
+        {!loading && !restaurant ? (
+          <RestaurantEmptyBanner message="No restaurant profile linked to this account yet." />
+        ) : null}
+
+        {tankData ? <TankCard data={tankData} /> : null}
+        {pickupAlert.visible ? (
+          <PickupAlert
+            alert={pickupAlert}
+            onSchedule={() => navigation.navigate('SchedulePickup')}
+          />
+        ) : null}
 
         <View style={styles.statRow}>
-          <StatCard label="Oil Grade" value={STATS.oilGrade} iconBg={COLORS.iconOrange} iconName="water" iconColor="#D97706" />
-          <StatCard label="Est. Earnings" value={STATS.estimatedEarnings} iconBg={COLORS.iconGreen} iconName="cash-outline" iconColor={COLORS.green} />
-          <StatCard label="Last Pickup" value={STATS.lastPickupDate} iconBg={COLORS.iconBlue} iconName="truck-outline" iconColor="#2563EB" iconLibrary="MaterialCommunityIcons" />
+          <StatCard label="Oil Grade" value={stats.oilGrade} iconBg={COLORS.iconOrange} iconName="water" iconColor="#D97706" />
+          <StatCard label="Est. Earnings" value={stats.estimatedEarnings} iconBg={COLORS.iconGreen} iconName="cash-outline" iconColor={COLORS.green} />
+          <StatCard label="Last Pickup" value={stats.lastPickupDate} iconBg={COLORS.iconBlue} iconName="truck-outline" iconColor="#2563EB" iconLibrary="MaterialCommunityIcons" />
         </View>
 
-        <RecentActivity items={RECENT_ACTIVITY} />
+        {recentActivity.length > 0 ? (
+          <RecentActivity items={recentActivity} icons={activityIcons} />
+        ) : (
+          <RestaurantEmptyBanner message="No recent activity yet." />
+        )}
         <View style={{ height: 30 }} />
-      </ScrollView>
+      </RestaurantRefreshScrollView>
     </View>
   );
 }
@@ -217,7 +224,7 @@ function TankCard({ data }) {
   );
 }
 
-function PickupAlert({ alert }) {
+function PickupAlert({ alert, onSchedule }) {
   return (
     <View style={styles.alertCard}>
       <View style={styles.alertTitleRow}>
@@ -225,7 +232,7 @@ function PickupAlert({ alert }) {
         <Text style={styles.alertTitle}> {alert.title.toUpperCase()}</Text>
       </View>
       <Text style={styles.alertMessage}>{alert.message}</Text>
-      <Pressable style={styles.scheduleButton}>
+      <Pressable style={styles.scheduleButton} onPress={onSchedule}>
         <Text style={styles.scheduleButtonText}>Schedule Now</Text>
         <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
       </Pressable>
@@ -245,7 +252,7 @@ function StatCard({ label, value, iconBg, iconName, iconColor, iconLibrary = 'Io
   );
 }
 
-function RecentActivity({ items }) {
+function RecentActivity({ items, icons }) {
   return (
     <View style={styles.activitySection}>
       <View style={styles.activityHeader}>
@@ -255,7 +262,7 @@ function RecentActivity({ items }) {
         </Pressable>
       </View>
       {items.map((item, index) => (
-        <ActivityRow key={item.id} item={item} iconConfig={ACTIVITY_ICONS[index]} />
+        <ActivityRow key={item.id} item={item} iconConfig={icons[index % icons.length]} />
       ))}
     </View>
   );
@@ -343,6 +350,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  headerSignOutButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(220,38,38,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   notificationButton: {
     position: 'relative',

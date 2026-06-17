@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, StyleSheet,
-  Pressable, StatusBar, TextInput,
+  Pressable, StatusBar, TextInput, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRestaurant } from '../../src/hooks/useRestaurant';
+import { mapTankCardData } from '../../src/utils/restaurantViewModels';
 
 // ─── THEME COLOURS (matching manufacturer, keeping emergency orange) ─────────
 
@@ -51,15 +53,40 @@ const REASONS = [
 
 export default function ManualPickupScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { tank, createManualPickupRequest } = useRestaurant();
   const [urgency, setUrgency] = useState('standard');
   const [selectedReason, setSelectedReason] = useState(null);
   const [notes, setNotes] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = () => {
-    setSubmitted(true);
-    // In production: POST to your API here, then navigate back
-    setTimeout(() => navigation.navigate('RestaurantTabs', { screen: 'Pickups' }), 1800);
+  const tankData = useMemo(() => mapTankCardData(tank), [tank]);
+  const fillPercent = tankData?.fillPercent ?? 0;
+  const temperature = tankData?.temperature ?? 0;
+
+  const handleSubmit = async () => {
+    if (!selectedReason) {
+      setError('Please select a reason for the request.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      await createManualPickupRequest({
+        urgency,
+        reason: selectedReason,
+        notes: notes.trim() || null,
+      });
+      setSubmitted(true);
+      setTimeout(() => navigation.navigate('RestaurantTabs', { screen: 'Pickups' }), 1800);
+    } catch (err) {
+      setError(err.message ?? 'Could not submit manual pickup request.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Get the color for the selected urgency
@@ -111,17 +138,19 @@ export default function ManualPickupScreen({ navigation }) {
           <View style={styles.tankStatusRow}>
             <Ionicons name="water-outline" size={18} color={COLORS.green} />
             <Text style={styles.tankStatusLabel}>Fill Level</Text>
-            <Text style={styles.tankStatusValue}>82%</Text>
+            <Text style={styles.tankStatusValue}>{fillPercent}%</Text>
           </View>
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: '82%' }]} />
+            <View style={[styles.progressFill, { width: `${Math.min(fillPercent, 100)}%` }]} />
           </View>
           <View style={styles.tankStatusRow}>
             <Ionicons name="thermometer-outline" size={18} color={COLORS.green} />
             <Text style={styles.tankStatusLabel}>Temperature</Text>
-            <Text style={styles.tankStatusValue}>104°F</Text>
+            <Text style={styles.tankStatusValue}>{temperature}°F</Text>
           </View>
         </View>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         {/* Urgency selector */}
         <Text style={styles.sectionLabel}>Urgency Level</Text>
@@ -198,17 +227,23 @@ export default function ManualPickupScreen({ navigation }) {
             <Text style={styles.successText}>Request submitted! A driver will be assigned shortly.</Text>
           </View>
         ) : (
-          <Pressable style={styles.submitButton} onPress={handleSubmit}>
+          <Pressable style={styles.submitButton} onPress={handleSubmit} disabled={submitting}>
             <LinearGradient
               colors={[getUrgencyColor(), getUrgencyColor() === COLORS.urgent ? '#9A3412' : COLORS.greenDark]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.submitGradient}
             >
-              <Ionicons name="send-outline" size={17} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>
-                {urgency === 'urgent' ? 'Submit Urgent Request' : 'Submit Request'}
-              </Text>
+              {submitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="send-outline" size={17} color="#FFFFFF" />
+                  <Text style={styles.submitButtonText}>
+                    {urgency === 'urgent' ? 'Submit Urgent Request' : 'Submit Request'}
+                  </Text>
+                </>
+              )}
             </LinearGradient>
           </Pressable>
         )}
@@ -343,4 +378,10 @@ const styles = StyleSheet.create({
     padding: 16, marginBottom: 10,
   },
   successText: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.green, flex: 1 },
+  errorText: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 13,
+    color: COLORS.alertText,
+    marginBottom: 12,
+  },
 });

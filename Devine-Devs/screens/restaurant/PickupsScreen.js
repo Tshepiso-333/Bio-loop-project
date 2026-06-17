@@ -1,48 +1,37 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   Pressable,
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-
-const ACTIVE_PICKUP = {
-  visible: true,
-  statusLabel: 'Active Pickup',
-  statusTitle: 'Driver en route',
-  currentStep: 1,
-};
+import { useProfile } from '../../src/hooks/useProfile';
+import { useRestaurant } from '../../src/hooks/useRestaurant';
+import {
+  RestaurantEmptyBanner,
+  RestaurantLoadingBanner,
+  RestaurantRefreshScrollView,
+} from '../../src/components/RestaurantScreenStates';
+import {
+  getActivePickup,
+  getCompletedPickups,
+  getInitials,
+  getUpcomingPickup,
+  mapActivePickupCard,
+  mapUpcomingCycle,
+  mapUpcomingPickupCard,
+} from '../../src/utils/restaurantViewModels';
 
 const PROGRESS_STEPS = [
-  { key: 'scheduled',  label: 'Scheduled' },
+  { key: 'scheduled', label: 'Scheduled' },
   { key: 'in_transit', label: 'In Transit' },
-  { key: 'arrival',    label: 'Arrival' },
+  { key: 'arrival', label: 'Arrival' },
 ];
-
-const UPCOMING_PICKUP = {
-  scheduledType: 'Auto-Scheduled',
-  status: 'Confirmed',
-  date: 'Oct 24, 2023',
-  etaWindow: '09:00 - 11:30',
-  driverName: 'Simphiwe',
-  driverInitials: 'S',
-  estimatedVolume: '45 Liters',
-};
-
-const UPCOMING_CYCLE = {
-  month: 'NOV',
-  day: '07',
-  title: 'Routine Pickup',
-  subtitle: 'Bi-weekly recurring',
-};
 
 // ─── THEME COLOURS (matching manufacturer) ───────────────────────────────────
 
@@ -89,6 +78,32 @@ export default function PickupsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('upcoming');
+  const { profile } = useProfile();
+  const {
+    pickups,
+    pickupSchedules,
+    loading,
+    refreshing,
+    refreshRestaurant,
+  } = useRestaurant();
+
+  const profileInitials = useMemo(
+    () => getInitials(profile?.full_name, 'RS'),
+    [profile?.full_name]
+  );
+  const activePickup = useMemo(
+    () => mapActivePickupCard(getActivePickup(pickups)),
+    [pickups]
+  );
+  const upcomingPickup = useMemo(
+    () => mapUpcomingPickupCard(getUpcomingPickup(pickups)),
+    [pickups]
+  );
+  const upcomingCycle = useMemo(
+    () => mapUpcomingCycle(pickupSchedules[0]),
+    [pickupSchedules]
+  );
+  const historyPickups = useMemo(() => getCompletedPickups(pickups), [pickups]);
 
   // Header Component with Notifications and Profile
   const Header = () => (
@@ -108,7 +123,7 @@ export default function PickupsScreen() {
               <View style={styles.notificationDot} />
             </Pressable>
             <View style={styles.profileCircle}>
-              <Text style={styles.profileInitial}>RS</Text>
+              <Text style={styles.profileInitial}>{profileInitials}</Text>
             </View>
           </View>
         </View>
@@ -120,23 +135,36 @@ export default function PickupsScreen() {
     <View style={styles.root}>
       <Header />
 
-      <ScrollView
+      <RestaurantRefreshScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={refreshRestaurant}
       >
-        {ACTIVE_PICKUP.visible && (
-          <ActivePickupCard pickup={ACTIVE_PICKUP} steps={PROGRESS_STEPS} />
-        )}
+        {loading && pickups.length === 0 ? <RestaurantLoadingBanner /> : null}
+
+        {activePickup.visible ? (
+          <ActivePickupCard pickup={activePickup} steps={PROGRESS_STEPS} />
+        ) : null}
 
         <TabSwitcher activeTab={activeTab} onSelect={setActiveTab} />
 
         {activeTab === 'upcoming' ? (
           <>
             <ManualRequestCard />
-            <UpcomingPickupCard pickup={UPCOMING_PICKUP} />
-            <UpcomingCycleSection cycle={UPCOMING_CYCLE} />
+            {upcomingPickup ? (
+              <UpcomingPickupCard pickup={upcomingPickup} />
+            ) : (
+              <RestaurantEmptyBanner message="No upcoming pickups scheduled." />
+            )}
+            {upcomingCycle ? (
+              <UpcomingCycleSection cycle={upcomingCycle} />
+            ) : null}
           </>
+        ) : historyPickups.length > 0 ? (
+          historyPickups.map((pickup) => (
+            <HistoryPickupCard key={pickup.id} pickup={pickup} />
+          ))
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="time-outline" size={40} color={COLORS.textMuted} />
@@ -148,7 +176,7 @@ export default function PickupsScreen() {
         )}
 
         <View style={{ height: 30 }} />
-      </ScrollView>
+      </RestaurantRefreshScrollView>
     </View>
   );
 }
@@ -336,6 +364,24 @@ function UpcomingCycleSection({ cycle }) {
         </View>
         <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
       </Pressable>
+    </View>
+  );
+}
+
+function HistoryPickupCard({ pickup }) {
+  const card = mapUpcomingPickupCard(pickup);
+  if (!card) return null;
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.pickupBadgeRow}>
+        <View style={styles.autoScheduledBadge}>
+          <Ionicons name="checkmark-done-outline" size={12} color={COLORS.green} />
+          <Text style={styles.autoScheduledText}>COMPLETED</Text>
+        </View>
+      </View>
+      <Text style={styles.activePickupTitle}>{card.date}</Text>
+      <Text style={styles.pickupMetaValue}>{card.estimatedVolume}</Text>
     </View>
   );
 }

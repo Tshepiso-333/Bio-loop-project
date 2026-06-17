@@ -12,7 +12,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DRIVER, PICKUPS } from '../../data/driverData';
+import { useAuth } from '../../AuthContext';
+import { useCollectorContext } from '../../src/contexts/CollectorContext';
 
 // Theme colours (matching manufacturer)
 const THEME = {
@@ -67,7 +68,17 @@ const PickupCard = ({ item, onPress }) => (
 
 export default function DriverHomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const todayPickups = PICKUPS.slice(0, 3);
+  const { signOut } = useAuth();
+  const { collector, pickups = [], stats } = useCollectorContext();
+
+  const todayPickups = (pickups || []).slice(0, 3).map(p => ({
+    id: p.id,
+    name: p.restaurants?.name ?? 'Unknown',
+    address: p.restaurants?.address ?? '',
+    time: p.pickup_time_start || '',
+    estimatedLiters: p.estimated_volume_liters ?? p.actual_volume_liters ?? 0,
+    status: p.status ?? 'pending',
+  }));
 
   // Professional Header Component with Logo, Notifications, and Profile
   const Header = () => (
@@ -97,13 +108,16 @@ export default function DriverHomeScreen({ navigation }) {
           
           {/* Right side - Notifications and Profile */}
           <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.headerSignOutButton} onPress={signOut}>
+              <Ionicons name="log-out-outline" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.notificationButton}>
               <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
               <View style={styles.notificationDot} />
             </TouchableOpacity>
             <View style={styles.profileCircle}>
               <Text style={styles.profileInitial}>
-                {DRIVER.name.split(' ').map(n => n[0]).join('')}
+                {(collector?.full_name || 'D').split(' ').map(n => n[0]).join('')}
               </Text>
             </View>
           </View>
@@ -120,8 +134,8 @@ export default function DriverHomeScreen({ navigation }) {
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Good day,</Text>
-          <Text style={styles.welcomeName}>{DRIVER.name}</Text>
-          <Text style={styles.welcomeRoute}>{DRIVER.route} · {DRIVER.district}</Text>
+          <Text style={styles.welcomeName}>{collector?.full_name ?? 'Driver'}</Text>
+          <Text style={styles.welcomeRoute}>{stats?.route_name ?? ''} · {stats?.district ?? ''}</Text>
         </View>
 
         {/* Stats Cards */}
@@ -134,7 +148,7 @@ export default function DriverHomeScreen({ navigation }) {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="water-outline" size={22} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{DRIVER.todayCollected} L</Text>
+              <Text style={styles.statValue}>{stats?.todayCollected ?? stats?.litersTotal ?? 0} L</Text>
               <Text style={styles.statLabel}>Collected today</Text>
             </LinearGradient>
           </View>
@@ -147,7 +161,7 @@ export default function DriverHomeScreen({ navigation }) {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="location-outline" size={22} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{DRIVER.stopsCompleted}/{DRIVER.stopsTotal}</Text>
+              <Text style={styles.statValue}>{stats?.stopsCompleted ?? 0}/{stats?.stopsTotal ?? 0}</Text>
               <Text style={styles.statLabel}>Stops remaining</Text>
             </LinearGradient>
           </View>
@@ -165,17 +179,17 @@ export default function DriverHomeScreen({ navigation }) {
               </View>
               <View>
                 <Text style={styles.weeklyTitle}>Weekly Total</Text>
-                <Text style={styles.weeklySub}>{DRIVER.weeklyTotal}L · {DRIVER.weeklyStops} stops</Text>
+                <Text style={styles.weeklySub}>{stats?.total_liters ?? 0}L · {(pickups || []).length} stops</Text>
               </View>
             </View>
-            <Text style={styles.weeklyChange}>+{DRIVER.weeklyChange}%</Text>
+            <Text style={styles.weeklyChange}>+{stats?.weeklyChange ?? '—'}%</Text>
           </LinearGradient>
         </View>
 
         {/* Section Header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Today's Pickups</Text>
-          <Text style={styles.sectionCount}>{PICKUPS.length} scheduled</Text>
+          <Text style={styles.sectionCount}>{(pickups || []).length} scheduled</Text>
         </View>
 
         {/* Pickup Cards */}
@@ -268,6 +282,16 @@ const styles = StyleSheet.create({
   notificationButton: {
     position: 'relative',
     padding: 8,
+  },
+  headerSignOutButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(220,38,38,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   notificationDot: {
     position: 'absolute',

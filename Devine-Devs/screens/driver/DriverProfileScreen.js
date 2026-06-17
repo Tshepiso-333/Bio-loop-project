@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
-import { DRIVER } from '../../data/driverData';
+import { useCollectorContext } from '../../src/contexts/CollectorContext';
 
 // Theme colours (matching manufacturer)
 const THEME = {
@@ -44,6 +44,7 @@ const MenuItem = ({ icon, label, sublabel, onPress, danger }) => (
 export default function DriverProfileScreen() {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
+  const { collector, stats } = useCollectorContext();
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -66,14 +67,14 @@ export default function DriverProfileScreen() {
         <View style={styles.profileInfo}>
           <View style={styles.avatarWrap}>
             <Text style={styles.avatarText}>
-              {DRIVER.name.split(' ').map(n => n[0]).join('')}
+              {(collector?.full_name || 'D').split(' ').map(n => n[0]).join('')}
             </Text>
           </View>
-          <Text style={styles.name}>{DRIVER.name}</Text>
-          <Text style={styles.driverId}>Driver ID: {DRIVER.id}</Text>
+          <Text style={styles.name}>{collector?.full_name ?? 'Driver'}</Text>
+          <Text style={styles.driverId}>Driver ID: {collector?.employee_code ?? ''}</Text>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color={THEME.star} />
-            <Text style={styles.ratingText}> {DRIVER.rating} ({DRIVER.reviews} reviews)</Text>
+            <Text style={styles.ratingText}> {stats?.rating ?? '—'} ({stats?.reviews_count ?? '—'} reviews)</Text>
           </View>
         </View>
       </LinearGradient>
@@ -95,7 +96,7 @@ export default function DriverProfileScreen() {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="water-outline" size={20} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{DRIVER.litersTotal.toLocaleString()}</Text>
+              <Text style={styles.statValue}>{(stats?.litersTotal ?? stats?.total_liters ?? 0).toLocaleString()}</Text>
               <Text style={styles.statLabel}>Litres Total</Text>
             </View>
             <View style={styles.statDivider} />
@@ -103,7 +104,7 @@ export default function DriverProfileScreen() {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="cube-outline" size={20} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{DRIVER.collections}</Text>
+              <Text style={styles.statValue}>{stats?.total_collections ?? stats?.collections ?? 0}</Text>
               <Text style={styles.statLabel}>Collections</Text>
             </View>
             <View style={styles.statDivider} />
@@ -111,7 +112,7 @@ export default function DriverProfileScreen() {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="leaf-outline" size={20} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{DRIVER.co2Saved}t</Text>
+              <Text style={styles.statValue}>{(stats?.co2Saved || stats?.co2_saved_kg || 0)}t</Text>
               <Text style={styles.statLabel}>CO₂ Saved</Text>
             </View>
           </LinearGradient>

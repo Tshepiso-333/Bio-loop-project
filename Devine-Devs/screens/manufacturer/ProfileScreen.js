@@ -13,9 +13,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line,Polyline } from 'react-native-svg';
+import { useAuth } from '../../AuthContext';
+import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
 const ProfileScreen = ({ navigation }) => {
+  const { signOut } = useAuth();
+  const { manufacturer } = useManufacturerContext();
   const [isEditing, setIsEditing] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(true);
@@ -23,13 +27,13 @@ const ProfileScreen = ({ navigation }) => {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   
   const [profile, setProfile] = useState({
-    name: 'Kgopotso Baloyi',
-    email: 'kgopotso@biodiesel.co.za',
-    phone: '+27 123 456 789',
-    company: 'BioLoop Manufacturing',
-    position: 'Operations Manager',
-    location: 'Johannesburg, South Africa',
-    joinDate: 'January 2024',
+    name: manufacturer?.name ?? '—',
+    email: manufacturer?.contact_email ?? '—',
+    phone: manufacturer?.contact_phone ?? '—',
+    company: manufacturer?.name ?? '—',
+    position: manufacturer?.position ?? '—',
+    location: manufacturer?.address ?? '—',
+    joinDate: manufacturer?.created_at ? new Date(manufacturer.created_at).toLocaleDateString() : '—',
   });
 
   const [isEditingField, setIsEditingField] = useState(null);
@@ -60,7 +64,7 @@ const ProfileScreen = ({ navigation }) => {
         { 
           text: 'Logout', 
           style: 'destructive',
-          onPress: () => navigation.navigate('ManufacturerHome')
+          onPress: signOut,
         },
       ]
     );

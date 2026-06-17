@@ -15,9 +15,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../AuthContext';
 
 export default function AdminDashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { signOut } = useAuth();
   const [search, setSearch] = useState('');
   const [newUser, setNewUser] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('restaurant');
@@ -161,6 +163,13 @@ export default function AdminDashboardScreen({ navigation }) {
     
     Alert.alert('Approved', 'User has been approved.');
   }
+
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Clear this Supabase session and return to login?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+    ]);
+  };
 
   const getCurrentUsers = () => {
     if (selectedGroup === 'restaurant') return restaurantUsers;
@@ -328,6 +337,9 @@ export default function AdminDashboardScreen({ navigation }) {
           
           {/* Right side - Notifications and Profile */}
           <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.headerSignOutButton} onPress={signOut}>
+              <Ionicons name="log-out-outline" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.notificationButton}>
               <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
               <View style={styles.notificationDot} />
@@ -352,6 +364,11 @@ export default function AdminDashboardScreen({ navigation }) {
         data={[{ key: 'content' }]}
         renderItem={() => (
           <View>
+            <TouchableOpacity style={styles.testSignOutButton} onPress={handleSignOut}>
+              <Ionicons name="log-out-outline" size={18} color="#dc2626" />
+              <Text style={styles.testSignOutText}>Sign out for auth test</Text>
+            </TouchableOpacity>
+
             {/* Stats Section */}
             <View style={styles.statsGrid}>
               <StatCard 
@@ -553,6 +570,16 @@ const styles = StyleSheet.create({
     position: 'relative',
     padding: 8,
   },
+  headerSignOutButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(220,38,38,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
   notificationDot: {
     position: 'absolute',
     top: 6,
@@ -584,7 +611,25 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     paddingHorizontal: 16,
     gap: 12,
-    marginTop: 20,
+    marginTop: 14,
+  },
+  testSignOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  testSignOutText: {
+    color: '#dc2626',
+    fontSize: 14,
+    fontWeight: '700',
   },
   statCard: {
     flex: 1,
