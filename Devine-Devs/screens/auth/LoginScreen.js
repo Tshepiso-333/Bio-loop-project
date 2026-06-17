@@ -16,30 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../AuthContext';
-
-const HARDCODED_USERS = [
-  {
-    email: 'driver@gmail.com',
-    password: 'driver',
-    role: 'driver',
-  },
-  {
-    email: 'manu@gmail.com',
-    password: 'manu',
-    role: 'manufacturer',
-  },
-  {
-    email: 'rest@gmail.com',
-    password: 'rest',
-    role: 'restaurant',
-  },
-  {
-    email: 'admin@gmail.com',
-    password: 'admin',
-    role: 'admin',
-  },
-];
+import { supabase } from '../../supabase';
 
 const COLORS = {
   heroBg:           '#111111',
@@ -75,7 +52,6 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
@@ -92,20 +68,15 @@ export default function LoginScreen({ navigation }) {
     setError('');
     setIsSubmitting(true);
 
-    const matchedUser = HARDCODED_USERS.find(
-      (user) =>
-        user.email.toLowerCase() === email.trim().toLowerCase() &&
-        user.password === password
-    );
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
 
-    if (!matchedUser) {
-      setError('Invalid login details.');
+    if (authError) {
+      setError(authError.message);
       setIsSubmitting(false);
-      return;
     }
-
-    login({ email: matchedUser.email, role: matchedUser.role });
-    setIsSubmitting(false);
   };
 
   return (

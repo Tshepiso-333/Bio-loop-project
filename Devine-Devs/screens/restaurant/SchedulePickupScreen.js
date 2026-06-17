@@ -1,16 +1,24 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, StyleSheet,
-  Pressable, StatusBar, TextInput,
+  Pressable, StatusBar, TextInput, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRestaurant } from '../../src/hooks/useRestaurant';
+import {
+  getUpcomingPickup,
+  mapScheduleDriver,
+  mapSchedulePickupDate,
+  mapScheduleStatus,
+} from '../../src/utils/restaurantViewModels';
 
 const COLORS = {
   background: '#F4F4EF', card: '#FFFFFF',
   green: '#16A34A', greenLight: '#DCFCE7', greenDark: '#14532D',
   textPrimary: '#0F172A', textSecondary: '#64748B', textMuted: '#94A3B8',
   border: '#E2E8F0', inputBg: '#F8FAFC', inputBorderFocus: '#16A34A',
+  error: '#DC2626',
 };
 
 const FONTS = {
@@ -23,21 +31,53 @@ const TIME_SLOTS = ['08:00 - 10:00', '10:00 - 12:00', '12:00 - 14:00', '14:00 - 
 
 export default function SchedulePickupScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const { tank, qualityLogs, pickups, createPickupRequest } = useRestaurant();
+  const [selectedSlot, setSelectedSlot] = useState(TIME_SLOTS[0]);
   const [notes, setNotes] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleConfirm = () => {
-    setConfirmed(true);
-    // In production: POST to your API here, then navigate back
-    setTimeout(() => navigation.navigate('RestaurantTabs', { screen: 'Pickups' }), 1800);
+  const upcomingPickup = useMemo(() => getUpcomingPickup(pickups), [pickups]);
+  const statusCard = useMemo(
+    () => mapScheduleStatus({ tank, qualityLogs }),
+    [tank, qualityLogs]
+  );
+  const pickupDate = useMemo(
+    () => mapSchedulePickupDate(upcomingPickup),
+    [upcomingPickup]
+  );
+  const driver = useMemo(
+    () => mapScheduleDriver(upcomingPickup),
+    [upcomingPickup]
+  );
+
+  const handleConfirm = async () => {
+    setSubmitting(true);
+    setError('');
+
+    try {
+      if (!upcomingPickup) {
+        await createPickupRequest({
+          status: 'scheduled',
+          time_window: selectedSlot,
+          notes: notes.trim() || null,
+        });
+      }
+
+      setConfirmed(true);
+      setTimeout(() => navigation.navigate('RestaurantTabs', { screen: 'Pickups' }), 1800);
+    } catch (err) {
+      setError(err.message ?? 'Could not schedule pickup.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
@@ -47,31 +87,29 @@ export default function SchedulePickupScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
-        {/* Status banner */}
         <View style={styles.statusCard}>
           <View style={styles.statusIconWrap}>
             <Ionicons name="calendar-outline" size={22} color={COLORS.green} />
           </View>
           <View>
-            <Text style={styles.statusTitle}>Auto-Scheduled Pickup</Text>
-            <Text style={styles.statusSub}>Tank at 75% • Grade A oil detected</Text>
+            <Text style={styles.statusTitle}>{statusCard.title}</Text>
+            <Text style={styles.statusSub}>{statusCard.subtitle}</Text>
           </View>
         </View>
 
-        {/* Date */}
         <Text style={styles.sectionLabel}>Pickup Date</Text>
         <View style={styles.card}>
           <View style={styles.dateRow}>
             <Ionicons name="calendar" size={18} color={COLORS.green} />
-            <Text style={styles.dateText}>Oct 24, 2023</Text>
+            <Text style={styles.dateText}>{pickupDate}</Text>
             <View style={styles.confirmedBadge}>
-              <Text style={styles.confirmedBadgeText}>Confirmed</Text>
+              <Text style={styles.confirmedBadgeText}>
+                {upcomingPickup ? 'Scheduled' : 'New Request'}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Time slot selector */}
         <Text style={styles.sectionLabel}>Preferred Time Window</Text>
         <View style={styles.slotGrid}>
           {TIME_SLOTS.map((slot) => (
@@ -92,18 +130,19 @@ export default function SchedulePickupScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Driver info */}
         <Text style={styles.sectionLabel}>Assigned Driver</Text>
         <View style={styles.card}>
           <View style={styles.driverRow}>
             <View style={styles.driverAvatar}>
-              <Text style={styles.driverAvatarText}>S</Text>
+              <Text style={styles.driverAvatarText}>{driver.initials}</Text>
             </View>
             <View style={styles.driverInfo}>
-              <Text style={styles.driverName}>Simphiwe</Text>
+              <Text style={styles.driverName}>{driver.name}</Text>
               <View style={styles.driverRatingRow}>
                 <Ionicons name="star" size={12} color="#F59E0B" />
-                <Text style={styles.driverRating}>4.9 • 120 collections</Text>
+                <Text style={styles.driverRating}>
+                  {driver.rating} • {driver.collections} collections
+                </Text>
               </View>
             </View>
             <View style={styles.driverOnline}>
@@ -113,7 +152,6 @@ export default function SchedulePickupScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Notes */}
         <Text style={styles.sectionLabel}>Additional Notes (optional)</Text>
         <TextInput
           style={styles.notesInput}
@@ -125,16 +163,23 @@ export default function SchedulePickupScreen({ navigation }) {
           numberOfLines={3}
         />
 
-        {/* Confirm button */}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
         {confirmed ? (
           <View style={styles.successBanner}>
             <Ionicons name="checkmark-circle" size={20} color={COLORS.green} />
             <Text style={styles.successText}>Pickup confirmed! Redirecting...</Text>
           </View>
         ) : (
-          <Pressable style={styles.confirmButton} onPress={handleConfirm}>
-            <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.confirmButtonText}>Confirm Pickup</Text>
+          <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={submitting}>
+            {submitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.confirmButtonText}>Confirm Pickup</Text>
+              </>
+            )}
           </Pressable>
         )}
 
@@ -247,4 +292,10 @@ const styles = StyleSheet.create({
     padding: 16, marginBottom: 10, justifyContent: 'center',
   },
   successText: { fontFamily: FONTS.semiBold, fontSize: 14, color: COLORS.green },
+  errorText: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 13,
+    color: COLORS.error,
+    marginBottom: 12,
+  },
 });

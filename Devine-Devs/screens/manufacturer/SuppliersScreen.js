@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
+import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
 const { width } = Dimensions.get('window');
 
@@ -22,78 +23,33 @@ const SuppliersScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const { pickups = [] } = useManufacturerContext();
 
-  // Supplier data
-  const suppliersList = [
-    { 
-      id: 1,
-      name: 'Golden Dragon Restaurant', 
-      volume: 2450, 
-      quality: 'A', 
-      reliability: 98, 
-      deliveries: 24, 
-      lastDelivery: 'Today',
-      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=80&h=80&fit=crop',
-      cuisine: 'Chinese',
-      location: 'Downtown',
-      contact: '+1 234 567 890',
-      email: 'contact@goldendragon.com',
-      joinDate: 'Jan 2024',
-      qualityHistory: [98, 97, 98, 99, 98],
-      volumeHistory: [2100, 2250, 2380, 2450],
-    },
-    { 
-      id: 2,
-      name: 'Bella Italia Bistro', 
-      volume: 1890, 
-      quality: 'B', 
-      reliability: 92, 
-      deliveries: 18, 
-      lastDelivery: 'Yesterday',
-      image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=80&h=80&fit=crop',
-      cuisine: 'Italian',
-      location: 'Westside',
-      contact: '+1 234 567 891',
-      email: 'info@bellaitalia.com',
-      joinDate: 'Feb 2024',
-      qualityHistory: [91, 92, 91, 93, 92],
-      volumeHistory: [1650, 1720, 1800, 1890],
-    },
-    { 
-      id: 3,
-      name: 'Spice Junction', 
-      volume: 1670, 
-      quality: 'A', 
-      reliability: 96, 
-      deliveries: 21, 
-      lastDelivery: 'Today',
-      image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=80&h=80&fit=crop',
-      cuisine: 'Indian',
-      location: 'Eastside',
-      contact: '+1 234 567 892',
-      email: 'contact@spicejunction.com',
-      joinDate: 'Mar 2024',
-      qualityHistory: [95, 96, 96, 97, 96],
-      volumeHistory: [1450, 1520, 1600, 1670],
-    },
-    { 
-      id: 4,
-      name: 'Urban Bistro', 
-      volume: 1430, 
-      quality: 'B', 
-      reliability: 88, 
-      deliveries: 15, 
-      lastDelivery: '2 days ago',
-      image: 'https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=80&h=80&fit=crop',
-      cuisine: 'Contemporary',
-      location: 'Northside',
-      contact: '+1 234 567 893',
-      email: 'hello@urbanbistro.com',
-      joinDate: 'Apr 2024',
-      qualityHistory: [87, 88, 87, 89, 88],
-      volumeHistory: [1200, 1280, 1350, 1430],
-    },
-  ];
+  // Map real pickups to supplier format or use empty placeholder
+  const suppliersList = (pickups || []).map(p => ({
+    id: p.id,
+    name: p.restaurants?.name ?? 'Unknown',
+    volume: p.estimated_volume_liters ?? p.actual_volume_liters ?? 0,
+    quality: p.quality_grade ?? '—',
+    reliability: 0,
+    deliveries: 0,
+    lastDelivery: p.pickup_date ? new Date(p.pickup_date).toLocaleDateString() : '—',
+    image: null,
+    cuisine: '—',
+    location: p.restaurants?.address ?? '—',
+    contact: p.restaurants?.phone ?? '—',
+    email: p.restaurants?.email ?? '—',
+    joinDate: '—',
+    qualityHistory: [],
+    volumeHistory: [],
+  }));
+
+  // Filter based on search or category
+  const filteredSuppliers = suppliersList.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = selectedFilter === 'all' || s.quality === selectedFilter;
+    return matchesSearch && matchesFilter;
+  });
 
   const getQualityColor = (quality) => {
     switch(quality) {
@@ -155,13 +111,6 @@ const SuppliersScreen = ({ navigation }) => {
       <Polyline points="2,17 8,11 12,15 18,9" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   );
-
-  // Filter suppliers based on search and quality filter
-  const filteredSuppliers = suppliersList.filter(supplier => {
-    const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = selectedFilter === 'all' || supplier.quality === selectedFilter;
-    return matchesSearch && matchesFilter;
-  });
 
   // Header Component
   const Header = () => (

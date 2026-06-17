@@ -11,93 +11,34 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
+import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
 const AlertsScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showRead, setShowRead] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const { alerts: contextAlerts = [], refreshManufacturer } = useManufacturerContext();
 
-  // Alerts data
-  const [alerts, setAlerts] = useState([
-    {
-      id: 1,
-      title: 'Low Grade A Stock',
-      message: 'Grade A inventory is below 30% capacity. Schedule immediate collections to avoid production delays.',
-      type: 'critical',
-      category: 'inventory',
-      time: '2 hours ago',
-      read: false,
-      icon: '⚠️',
-    },
-    {
-      id: 2,
-      title: 'Delivery Incoming',
-      message: 'Golden Dragon Restaurant - 450L Grade A arriving in 30 minutes. Prepare receiving bay.',
-      type: 'warning',
-      category: 'delivery',
-      time: '30 minutes ago',
-      read: false,
-      icon: '🚚',
-    },
-    {
-      id: 3,
-      title: 'Tank C at 94% Capacity',
-      message: 'Tank C is nearly full. Transfer to processing within 24 hours to prevent overflow.',
-      type: 'critical',
-      category: 'inventory',
-      time: 'Yesterday',
-      read: true,
-      icon: '⚠️',
-    },
-    {
-      id: 4,
-      title: 'Quality Alert: Grade C Increase',
-      message: 'Grade C oil volume has increased by 15% this week. Review supplier quality reports.',
-      type: 'warning',
-      category: 'quality',
-      time: 'Yesterday',
-      read: true,
-      icon: '📊',
-    },
-    {
-      id: 5,
-      title: 'Supplier Performance Update',
-      message: 'Bella Italia Bistro reliability dropped to 88%. Schedule quality review meeting.',
-      type: 'info',
-      category: 'supplier',
-      time: '2 days ago',
-      read: true,
-      icon: 'ℹ️',
-    },
-    {
-      id: 6,
-      title: 'Maintenance Reminder',
-      message: 'Filter replacement due in 3 days. Schedule maintenance for processing unit #2.',
-      type: 'info',
-      category: 'maintenance',
-      time: '2 days ago',
-      read: true,
-      icon: '🔧',
-    },
-    {
-      id: 7,
-      title: 'Production Target Met',
-      message: 'Weekly production target achieved 2 days early. Excellent performance!',
-      type: 'success',
-      category: 'production',
-      time: '3 days ago',
-      read: true,
-      icon: '✅',
-    },
-  ]);
+  // Map real alerts from context or use empty placeholder
+  const [alerts, setAlerts] = useState((contextAlerts || []).map(a => ({
+    id: a.id,
+    title: a.title ?? '—',
+    message: a.message ?? '—',
+    type: a.type ?? 'info',
+    category: a.category ?? 'general',
+    time: a.created_at ? new Date(a.created_at).toLocaleDateString() : '—',
+    read: a.is_read ?? false,
+    icon: a.type === 'critical' ? '⚠️' : a.type === 'warning' ? '⚠️' : 'ℹ️',
+  })));
 
-  const onRefresh = () => {
+  const handleRefresh = () => {
     setRefreshing(true);
-    // Simulate fetching new alerts
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
+    if (refreshManufacturer) {
+      refreshManufacturer().then(() => setRefreshing(false));
+    } else {
+      setTimeout(() => setRefreshing(false), 1000);
+    }
   };
 
   const markAsRead = (id) => {
@@ -275,7 +216,7 @@ const AlertsScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
         {filteredAlerts.length === 0 ? (

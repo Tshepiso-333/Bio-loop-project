@@ -5,15 +5,18 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   StatusBar,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../AuthContext';
 
 export default function AdminSettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { signOut } = useAuth();
 
   const handleLogout = () => {
     Alert.alert(
@@ -24,12 +27,7 @@ export default function AdminSettingsScreen({ navigation }) {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: () => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
-          },
+          onPress: signOut,
         },
       ]
     );
@@ -74,89 +72,91 @@ export default function AdminSettingsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Header />
-      
-      <View style={styles.profileSection}>
-        <View style={styles.profileAvatar}>
-          <Text style={styles.profileInitial}>AD</Text>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileSection}>
+          <View style={styles.profileAvatar}>
+            <Text style={styles.profileInitial}>AD</Text>
+          </View>
+          <Text style={styles.profileName}>Admin User</Text>
+          <Text style={styles.profileEmail}>admin@bioloop.co.za</Text>
+          <View style={styles.profileBadge}>
+            <Text style={styles.profileBadgeText}>Administrator</Text>
+          </View>
         </View>
-        <Text style={styles.profileName}>Admin User</Text>
-        <Text style={styles.profileEmail}>admin@bioloop.co.za</Text>
-        <View style={styles.profileBadge}>
-          <Text style={styles.profileBadgeText}>Administrator</Text>
+
+        <View style={styles.settingsSection}>
+          <Text style={styles.sectionTitle}>Account Settings</Text>
+          <SettingsItem 
+            icon="person-outline" 
+            title="Profile Information" 
+            subtitle="Update your personal details"
+            onPress={() => {}}
+          />
+          <SettingsItem 
+            icon="lock-closed-outline" 
+            title="Security" 
+            subtitle="Change password, 2FA"
+            onPress={() => {}}
+          />
+          <SettingsItem 
+            icon="notifications-outline" 
+            title="Notifications" 
+            subtitle="Manage alert preferences"
+            onPress={() => {}}
+          />
         </View>
-      </View>
 
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>Account Settings</Text>
-        <SettingsItem 
-          icon="person-outline" 
-          title="Profile Information" 
-          subtitle="Update your personal details"
-          onPress={() => {}}
-        />
-        <SettingsItem 
-          icon="lock-closed-outline" 
-          title="Security" 
-          subtitle="Change password, 2FA"
-          onPress={() => {}}
-        />
-        <SettingsItem 
-          icon="notifications-outline" 
-          title="Notifications" 
-          subtitle="Manage alert preferences"
-          onPress={() => {}}
-        />
-      </View>
+        <View style={styles.settingsSection}>
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          <SettingsItem 
+            icon="color-palette-outline" 
+            title="Theme" 
+            subtitle="Light / Dark mode"
+            onPress={() => {}}
+          />
+          <SettingsItem 
+            icon="language-outline" 
+            title="Language" 
+            subtitle="English"
+            onPress={() => {}}
+          />
+        </View>
 
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <SettingsItem 
-          icon="color-palette-outline" 
-          title="Theme" 
-          subtitle="Light / Dark mode"
-          onPress={() => {}}
-        />
-        <SettingsItem 
-          icon="language-outline" 
-          title="Language" 
-          subtitle="English"
-          onPress={() => {}}
-        />
-      </View>
+        <View style={styles.settingsSection}>
+          <Text style={styles.sectionTitle}>Support</Text>
+          <SettingsItem 
+            icon="help-circle-outline" 
+            title="Help Center" 
+            subtitle="FAQs and support"
+            onPress={() => {}}
+            color="#3b82f6"
+          />
+          <SettingsItem 
+            icon="document-text-outline" 
+            title="Terms & Privacy" 
+            subtitle="Legal information"
+            onPress={() => {}}
+            color="#3b82f6"
+          />
+        </View>
 
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>Support</Text>
-        <SettingsItem 
-          icon="help-circle-outline" 
-          title="Help Center" 
-          subtitle="FAQs and support"
-          onPress={() => {}}
-          color="#3b82f6"
-        />
-        <SettingsItem 
-          icon="document-text-outline" 
-          title="Terms & Privacy" 
-          subtitle="Legal information"
-          onPress={() => {}}
-          color="#3b82f6"
-        />
-      </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <LinearGradient
+            colors={['#ef4444', '#dc2626']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.logoutGradient}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#fff" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </LinearGradient>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <LinearGradient
-          colors={['#ef4444', '#dc2626']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.logoutGradient}
-        >
-          <Ionicons name="log-out-outline" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-
-      <View style={styles.versionText}>
-        <Text style={styles.version}>Version 2.0.0</Text>
-      </View>
+        <View style={styles.versionText}>
+          <Text style={styles.version}>Version 2.0.0</Text>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -165,6 +165,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
+  },
+  content: {
+    paddingBottom: 24,
   },
   header: {
     paddingBottom: 12,

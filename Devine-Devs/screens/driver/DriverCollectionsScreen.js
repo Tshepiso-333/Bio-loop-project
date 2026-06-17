@@ -7,7 +7,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PICKUPS } from '../../data/driverData';
+import { useCollectorContext } from '../../src/contexts/CollectorContext';
 
 // Theme colours (matching manufacturer)
 const THEME = {
@@ -104,7 +104,20 @@ const CollectionCard = ({ item, onCall, onAction }) => {
 export default function DriverCollectionsScreen() {
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState('All');
-  const [pickups, setPickups] = useState(PICKUPS);
+  const { pickups: assignedPickups = [] } = useCollectorContext();
+  const [pickups, setPickups] = useState([]);
+
+  React.useEffect(() => {
+    const mapped = (assignedPickups || []).map(p => ({
+      id: p.id,
+      name: p.restaurants?.name ?? 'Unknown',
+      address: p.restaurants?.address ?? '',
+      time: p.pickup_time_start ?? '',
+      estimatedLiters: p.estimated_volume_liters ?? p.actual_volume_liters ?? 0,
+      status: p.status ?? 'pending',
+    }));
+    setPickups(mapped);
+  }, [assignedPickups]);
 
   const filtered = pickups.filter(p => {
     if (activeFilter === 'All') return true;

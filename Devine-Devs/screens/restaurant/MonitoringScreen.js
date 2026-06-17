@@ -1,56 +1,30 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   Pressable,
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-
-const TANK_INFO = {
-  name: 'Tank 01 Monitoring',
-  isActive: true,
-  lastPing: '2 mins ago',
-  currentCapacity: 82,
-};
-
-const OIL_TREND_DATA = [
-  { day: 'MON', value: 20 },
-  { day: 'TUE', value: 32 },
-  { day: 'WED', value: 45 },
-  { day: 'THU', value: 58 },
-  { day: 'FRI', value: 68 },
-  { day: 'SAT', value: 80 },
-  { day: 'SUN', value: 95 },
-];
-
-const PREDICTIVE_ALERT = {
-  visible: true,
-  hoursUntilFull: 48,
-  message:
-    'Estimated time until 95% capacity based on current disposal rates. Schedule pickup soon.',
-};
-
-const QUALITY_LOGS = [
-  { id: '1', timestamp: 'Oct 24,\n08:32 PM', analyzedBy: 'Sensor\nAI v2.4', oilLevel: '1.2%' },
-  { id: '2', timestamp: 'Oct 23,\n11:15 AM', analyzedBy: 'Sensor\nAI v2.4', oilLevel: '2.8%' },
-  { id: '3', timestamp: 'Oct 22,\n09:45 PM', analyzedBy: 'Sensor\nAI v2.4', oilLevel: '1.1%' },
-  { id: '4', timestamp: 'Oct 21,\n07:12 AM', analyzedBy: 'Sensor\nAI v2.4', oilLevel: '5.4%' },
-];
-
-const DEVICE_STATS = [
-  { label: 'Temperature',  value: '114°F',  valueColor: '#EA580C' },
-  { label: 'Connectivity', value: 'Strong', valueColor: '#10b981' },
-  { label: 'Last Pickup',  value: '12 Days', valueColor: null },
-  { label: 'Sediment',     value: 'Low',     valueColor: null },
-];
+import { useProfile } from '../../src/hooks/useProfile';
+import { useRestaurant } from '../../src/hooks/useRestaurant';
+import {
+  RestaurantEmptyBanner,
+  RestaurantLoadingBanner,
+  RestaurantRefreshScrollView,
+} from '../../src/components/RestaurantScreenStates';
+import {
+  getInitials,
+  mapDeviceStats,
+  mapMonitoringTankInfo,
+  mapOilTrendData,
+  mapPredictiveAlert,
+  mapQualityLogRows,
+} from '../../src/utils/restaurantViewModels';
 
 // ─── THEME COLOURS (matching manufacturer) ───────────────────────────────────
 
@@ -97,7 +71,33 @@ function Icon({ library = 'Ionicons', name, size, color }) {
 
 export default function MonitoringScreen() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const { profile } = useProfile();
+  const {
+    tank,
+    tankReadings,
+    qualityLogs,
+    pickups,
+    alerts,
+    loading,
+    refreshing,
+    refreshRestaurant,
+  } = useRestaurant();
+
+  const profileInitials = useMemo(
+    () => getInitials(profile?.full_name, 'RS'),
+    [profile?.full_name]
+  );
+  const tankInfo = useMemo(() => mapMonitoringTankInfo(tank), [tank]);
+  const oilTrendData = useMemo(() => mapOilTrendData(tankReadings), [tankReadings]);
+  const predictiveAlert = useMemo(
+    () => mapPredictiveAlert(tank, alerts),
+    [tank, alerts]
+  );
+  const qualityLogRows = useMemo(() => mapQualityLogRows(qualityLogs), [qualityLogs]);
+  const deviceStats = useMemo(
+    () => mapDeviceStats(tank, pickups),
+    [tank, pickups]
+  );
 
   // Header Component with Notifications and Profile (no logo)
   const Header = () => (
@@ -117,7 +117,7 @@ export default function MonitoringScreen() {
               <View style={styles.notificationDot} />
             </Pressable>
             <View style={styles.profileCircle}>
-              <Text style={styles.profileInitial}>RS</Text>
+              <Text style={styles.profileInitial}>{profileInitials}</Text>
             </View>
           </View>
         </View>
@@ -129,19 +129,30 @@ export default function MonitoringScreen() {
     <View style={styles.root}>
       <Header />
 
-      <ScrollView
+      <RestaurantRefreshScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={refreshRestaurant}
       >
-        <TankHeader info={TANK_INFO} />
-        <CapacityDisplay percent={TANK_INFO.currentCapacity} />
-        <OilTrendChart data={OIL_TREND_DATA} />
-        {PREDICTIVE_ALERT.visible && <PredictiveAlert alert={PREDICTIVE_ALERT} />}
-        <QualityLogs logs={QUALITY_LOGS} />
-        <DeviceStatsGrid stats={DEVICE_STATS} />
+        {loading && !tank ? <RestaurantLoadingBanner /> : null}
+
+        <TankHeader info={tankInfo} />
+        <CapacityDisplay percent={tankInfo.currentCapacity} />
+        {oilTrendData.length > 0 ? (
+          <OilTrendChart data={oilTrendData} />
+        ) : (
+          <RestaurantEmptyBanner message="No tank trend readings yet." />
+        )}
+        {predictiveAlert.visible ? <PredictiveAlert alert={predictiveAlert} /> : null}
+        {qualityLogRows.length > 0 ? (
+          <QualityLogs logs={qualityLogRows} />
+        ) : (
+          <RestaurantEmptyBanner message="No quality logs yet." />
+        )}
+        <DeviceStatsGrid stats={deviceStats} />
         <View style={{ height: 30 }} />
-      </ScrollView>
+      </RestaurantRefreshScrollView>
     </View>
   );
 }
@@ -181,7 +192,7 @@ function CapacityDisplay({ percent }) {
 }
 
 function OilTrendChart({ data }) {
-  const maxValue = Math.max(...data.map((d) => d.value));
+  const maxValue = Math.max(...data.map((d) => d.value), 1);
   const BAR_MAX_HEIGHT = 90;
 
   return (
@@ -197,7 +208,7 @@ function OilTrendChart({ data }) {
       <View style={styles.chartArea}>
         {data.map((item, index) => {
           const barHeight = (item.value / maxValue) * BAR_MAX_HEIGHT;
-          const opacity = 0.25 + (index / (data.length - 1)) * 0.75;
+          const opacity = data.length === 1 ? 1 : 0.25 + (index / (data.length - 1)) * 0.75;
           return (
             <View key={item.day} style={styles.barColumn}>
               <View style={{ flex: 1 }} />

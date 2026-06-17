@@ -1,96 +1,29 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   Pressable,
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-
-const BALANCE = {
-  label: 'Available Balance',
-  amount: 'R4,280.50',
-};
-
-const MARKET_RATES = {
-  updatedLabel: 'Updated 2H Ago',
-  grades: [
-    {
-      id: '1',
-      grade: 'Grade A',
-      rate: 'R1.20',
-      unit: '/L',
-      change: '+2% vs last month',
-      changePositive: true,
-      dotColor: '#10b981',
-    },
-    {
-      id: '2',
-      grade: 'Grade B',
-      rate: 'R0.90',
-      unit: '/L',
-      change: 'Stable market',
-      changePositive: null,
-      dotColor: '#F59E0B',
-    },
-  ],
-};
-
-const AVG_QUALITY = {
-  badge: 'High Grade',
-  description:
-    'Your oil consistently meets Grade A filtration standards.',
-};
-
-const RECENT_EARNINGS = [
-  {
-    id: '1',
-    date: 'Oct 24',
-    title: 'Collection',
-    detail: '42 Liters • Grade A',
-    amount: '+R50.40',
-    amountDetail: '42 Liters • Grade A',
-  },
-  {
-    id: '2',
-    date: 'Oct 18',
-    title: 'Collection',
-    detail: '38 Liters • Grade A',
-    amount: '+R45.60',
-    amountDetail: '38 Liters • Grade A',
-  },
-  {
-    id: '3',
-    date: 'Oct 11',
-    title: 'Collection',
-    detail: '50 Liters • Grade B',
-    amount: '+R45.00',
-    amountDetail: '50 Liters • Grade B',
-  },
-];
-
-const WITHDRAWAL_HISTORY = [
-  {
-    id: '1',
-    date: 'Oct 05, 2023',
-    method: 'Bank Transfer',
-    methodIcon: 'business-outline',
-    amount: '-R1,200.00',
-  },
-  {
-    id: '2',
-    date: 'Sep 20, 2023',
-    method: 'ACH',
-    methodIcon: 'swap-horizontal-outline',
-    amount: '-R850.25',
-  },
-];
+import { useProfile } from '../../src/hooks/useProfile';
+import { useRestaurant } from '../../src/hooks/useRestaurant';
+import {
+  RestaurantEmptyBanner,
+  RestaurantLoadingBanner,
+  RestaurantRefreshScrollView,
+} from '../../src/components/RestaurantScreenStates';
+import {
+  getInitials,
+  mapAvgQuality,
+  mapBalance,
+  mapMarketRates,
+  mapRecentEarnings,
+  mapWithdrawalHistory,
+} from '../../src/utils/restaurantViewModels';
 
 // ─── THEME COLOURS (matching manufacturer) ───────────────────────────────────
 
@@ -131,6 +64,30 @@ function Icon({ library = 'Ionicons', name, size, color }) {
 export default function EarningsScreen() {
   const insets = useSafeAreaInsets();
   const [withdrawTab, setWithdrawTab] = useState('withdraw');
+  const { profile } = useProfile();
+  const {
+    wallet,
+    marketRates,
+    qualityLogs,
+    earnings,
+    withdrawals,
+    loading,
+    refreshing,
+    refreshRestaurant,
+  } = useRestaurant();
+
+  const profileInitials = useMemo(
+    () => getInitials(profile?.full_name, 'RS'),
+    [profile?.full_name]
+  );
+  const balance = useMemo(() => mapBalance(wallet), [wallet]);
+  const marketRatesView = useMemo(() => mapMarketRates(marketRates), [marketRates]);
+  const avgQuality = useMemo(() => mapAvgQuality(qualityLogs), [qualityLogs]);
+  const recentEarnings = useMemo(() => mapRecentEarnings(earnings), [earnings]);
+  const withdrawalHistory = useMemo(
+    () => mapWithdrawalHistory(withdrawals),
+    [withdrawals]
+  );
 
   // Header Component with Notifications and Profile
   const Header = () => (
@@ -150,7 +107,7 @@ export default function EarningsScreen() {
               <View style={styles.notificationDot} />
             </Pressable>
             <View style={styles.profileCircle}>
-              <Text style={styles.profileInitial}>RS</Text>
+              <Text style={styles.profileInitial}>{profileInitials}</Text>
             </View>
           </View>
         </View>
@@ -162,32 +119,42 @@ export default function EarningsScreen() {
     <View style={styles.root}>
       <Header />
 
-      <ScrollView
+      <RestaurantRefreshScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={refreshRestaurant}
       >
-        {/* Balance card */}
+        {loading && !wallet ? <RestaurantLoadingBanner /> : null}
+
         <BalanceCard
-          balance={BALANCE}
+          balance={balance}
           activeTab={withdrawTab}
           onTabSelect={setWithdrawTab}
         />
 
-        {/* Market rates */}
-        <MarketRatesCard rates={MARKET_RATES} />
+        {marketRatesView.grades.length > 0 ? (
+          <MarketRatesCard rates={marketRatesView} />
+        ) : (
+          <RestaurantEmptyBanner message="No market rates available." />
+        )}
 
-        {/* Average quality */}
-        <AvgQualityCard quality={AVG_QUALITY} />
+        <AvgQualityCard quality={avgQuality} />
 
-        {/* Recent earnings */}
-        <RecentEarnings items={RECENT_EARNINGS} />
+        {recentEarnings.length > 0 ? (
+          <RecentEarnings items={recentEarnings} />
+        ) : (
+          <RestaurantEmptyBanner message="No earnings recorded yet." />
+        )}
 
-        {/* Withdrawal history */}
-        <WithdrawalHistory items={WITHDRAWAL_HISTORY} />
+        {withdrawalHistory.length > 0 ? (
+          <WithdrawalHistory items={withdrawalHistory} />
+        ) : (
+          <RestaurantEmptyBanner message="No withdrawals yet." />
+        )}
 
         <View style={{ height: 30 }} />
-      </ScrollView>
+      </RestaurantRefreshScrollView>
     </View>
   );
 }

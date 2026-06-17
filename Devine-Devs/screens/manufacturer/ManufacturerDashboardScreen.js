@@ -13,6 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
+import { useAuth } from '../../AuthContext';
+import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
 // Import all screens - FIXED PATHS
 import QualityScreen from './QualityScreen';
@@ -26,47 +28,73 @@ import ProfileScreen from './ProfileScreen';
 const { width } = Dimensions.get('window');
 
 const ManufacturerDashboardScreen = ({ navigation }) => {
+  const { signOut } = useAuth();
+  const { manufacturer, inventory, tanks, forecasts, pickups, alerts, loading, refreshManufacturer } = useManufacturerContext();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState('home');
 
-  // Mock data for dashboard
-  const currentStock = 24580;
-  const stockIncrease = 12;
-  const thisWeekVolume = 11500;
-  const weeklyDeliveries = 8;
-  
-  const weeklyData = [
-    { day: 'Mon', volume: 1200 },
-    { day: 'Tue', volume: 1800 },
-    { day: 'Wed', volume: 1500 },
-    { day: 'Thu', volume: 2200 },
-    { day: 'Fri', volume: 1900 },
-    { day: 'Sat', volume: 1600 },
-    { day: 'Sun', volume: 1400 },
-  ];
+  // derive values from bundle with sensible fallbacks
+  const currentStock = inventory?.current_stock_liters ?? 0;
+  const stockIncrease = inventory?.stock_change_pct ?? 0;
+  const thisWeekVolume = forecasts?.[0]?.total_volume_liters ?? 0;
+  const weeklyDeliveries = (pickups || []).length;
 
-  const forecastData = {
-    '7days': { total: 12450, gradeA: 52, gradeB: 34, gradeC: 14, trend: '+8%' }
-  };
+  const weeklyData = (() => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const totals = days.reduce((acc, day) => ({ ...acc, [day]: 0 }), {});
 
-  const qualityDistribution = [
-    { name: 'Grade A', value: 58, color: '#7EE92D' },
-    { name: 'Grade B', value: 32, color: '#f59e0b' },
-    { name: 'Grade C', value: 10, color: '#ef4444' },
-  ];
+    (pickups || []).forEach((p) => {
+      if (!p.pickup_date) return;
+      const date = new Date(p.pickup_date);
+      if (Number.isNaN(date.getTime())) return;
+      const day = date.toLocaleDateString('en-US', { weekday: 'short' });
+      if (totals[day] !== undefined) {
+        totals[day] += p.estimated_volume_liters ?? p.actual_volume_liters ?? 0;
+      }
+    });
 
-  const upcomingDeliveries = [
-    { id: 1, restaurant: 'Golden Dragon Restaurant', volume: 450, quality: 'A', eta: '10:30 AM', status: 'in-transit' },
-    { id: 2, restaurant: 'Bella Italia Bistro', volume: 320, quality: 'B', eta: '11:45 AM', status: 'scheduled' },
-    { id: 3, restaurant: 'Spice Junction', volume: 580, quality: 'A', eta: '02:15 PM', status: 'scheduled' },
-  ];
+    return days.map((day) => ({ day, volume: totals[day] }));
+  })();
+
+  // Use real forecasts data or empty placeholder
+  const sevenDayForecast = forecasts?.find(f => f.period_days === 7) || null;
+  const qualityDistribution = sevenDayForecast ? [
+    { name: 'Grade A', value: sevenDayForecast.grade_a_pct ?? 0, color: '#7EE92D' },
+    { name: 'Grade B', value: sevenDayForecast.grade_b_pct ?? 0, color: '#f59e0b' },
+    { name: 'Grade C', value: sevenDayForecast.grade_c_pct ?? 0, color: '#ef4444' },
+  ] : [];
+
+  // Use real pickups or empty placeholder
+  const upcomingDeliveries = (pickups || []).slice(0, 3).map(p => ({
+    id: p.id,
+    restaurant: p.restaurants?.name ?? 'Unknown',
+    volume: p.estimated_volume_liters ?? p.actual_volume_liters ?? 0,
+    quality: p.quality_grade ?? '—',
+    eta: p.pickup_time_start ?? '—',
+    status: p.status ?? 'scheduled',
+  }));
 
   const onRefresh = () => {
+    if (refreshManufacturer) {
+      refreshManufacturer();
+    }
     setRefreshing(true);
     setTimeout(() => {
       setRefreshing(false);
     }, 2000);
   };
+
+  // Forecast data from real context or placeholders
+  const forecastData = sevenDayForecast ? {
+    '7days': {
+      total: sevenDayForecast.total_volume_liters ?? 0,
+      gradeA: sevenDayForecast.grade_a_pct ?? 0,
+      gradeB: sevenDayForecast.grade_b_pct ?? 0,
+      gradeC: sevenDayForecast.grade_c_pct ?? 0,
+      trend: sevenDayForecast.trend_label ?? '—',
+      confidence: sevenDayForecast.confidence_pct ?? 0,
+    }
+  } : { '7days': { total: 0, gradeA: 0, gradeB: 0, gradeC: 0, trend: '—', confidence: 0 } };
 
   const getQualityColor = (quality) => {
     switch(quality) {
@@ -221,27 +249,30 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
   // Area Chart for weekly collection
   const WeeklyAreaChart = () => {
-    const maxVolume = Math.max(...weeklyData.map(d => d.volume));
+    const maxVolume = Math.max(...weeklyData.map(d => d.volume), 1);
     
     return (
       <View style={styles.areaChartContainer}>
         <View style={styles.areaChart}>
-          {weeklyData.map((item, index) => (
-            <View key={index} style={styles.areaBarWrapper}>
-              <View style={styles.areaBarContainer}>
-                <View 
-                  style={[
-                    styles.areaBar,
-                    { 
-                      height: (item.volume / maxVolume) * 120,
-                      backgroundColor: '#7EE92D',
-                    }
-                  ]} 
-                />
+          {weeklyData.map((item, index) => {
+            const height = maxVolume > 0 ? (item.volume / maxVolume) * 120 : 0;
+            return (
+              <View key={index} style={styles.areaBarWrapper}>
+                <View style={styles.areaBarContainer}>
+                  <View 
+                    style={[
+                      styles.areaBar,
+                      { 
+                        height,
+                        backgroundColor: '#7EE92D',
+                      }
+                    ]} 
+                  />
               </View>
               <Text style={styles.areaBarLabel}>{item.day}</Text>
             </View>
-          ))}
+         );
+        })}
         </View>
       </View>
     );
@@ -272,6 +303,9 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                 <Text style={styles.companyName}>GreenFuel Manufacturing</Text>
               </View>
             </View>
+            <TouchableOpacity style={styles.headerSignOutButton} onPress={signOut}>
+              <Text style={styles.headerSignOutText}>Logout</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.profileButton}>
               <Text style={styles.profileInitial}>KB</Text>
             </TouchableOpacity>
@@ -540,6 +574,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
   logoCircle: {
     width: 50,
@@ -572,6 +607,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     opacity: 0.9,
     marginTop: 2,
+  },
+  headerSignOutButton: {
+    backgroundColor: 'rgba(220,38,38,0.85)',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    marginHorizontal: 10,
+  },
+  headerSignOutText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   profileButton: {
     width: 44,

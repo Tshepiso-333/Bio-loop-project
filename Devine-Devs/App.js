@@ -15,6 +15,7 @@ import {
 } from '@expo-google-fonts/inter';
 
 import { AuthProvider } from './AuthContext';
+import { ProfileProvider } from './src/contexts/ProfileContext';
 import RootNavigator from './navigation/RootNavigator';
 
 export default function App() {
@@ -41,7 +42,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RootNavigator />
+        <ProfileProvider>
+          <RootNavigator />
+        </ProfileProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

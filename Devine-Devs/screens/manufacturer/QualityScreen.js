@@ -10,58 +10,76 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line, Polyline, Text as SvgText } from 'react-native-svg';
+import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
 const { width } = Dimensions.get('window');
 
 const QualityScreen = ({ navigation }) => {
   const [selectedGrade, setSelectedGrade] = useState('all');
+  const { forecasts = [], pickups = [] } = useManufacturerContext();
 
-  // Quality Distribution with source details
+  const sevenDayForecast = forecasts?.find(f => f.period_days === 7);
+
+  const groupedSources = (pickups || []).reduce((groups, p) => {
+    const grade = (p.quality_grade || '').toUpperCase();
+    const volume = p.estimated_volume_liters ?? p.actual_volume_liters ?? 0;
+    const restaurantName = p.restaurants?.name ?? 'Unknown';
+
+    if (grade === 'A' || grade === 'B' || grade === 'C') {
+      groups[grade].push({
+        restaurant: restaurantName,
+        volume,
+        percentage: 0,
+      });
+    }
+
+    return groups;
+  }, { A: [], B: [], C: [] });
+
+  const calculatePercentages = (sources) => {
+    const total = sources.reduce((sum, item) => sum + item.volume, 0);
+    return sources.map((item) => ({
+      ...item,
+      percentage: total > 0 ? Math.round((item.volume / total) * 100) : 0,
+    }));
+  };
+
+  const gradeASources = calculatePercentages(groupedSources.A);
+  const gradeBSources = calculatePercentages(groupedSources.B);
+  const gradeCSources = calculatePercentages(groupedSources.C);
+
   const qualityDistribution = [
-    { 
-      name: 'Grade A', 
-      value: 58, 
+    {
+      name: 'Grade A',
+      value: sevenDayForecast?.grade_a_pct ?? 0,
       color: '#7EE92D',
-      totalVolume: 5800,
-      sources: [
-        { restaurant: 'Golden Dragon Restaurant', volume: 2450, percentage: 42 },
-        { restaurant: 'Spice Junction', volume: 1670, percentage: 29 },
-        { restaurant: 'Urban Bistro', volume: 980, percentage: 17 },
-        { restaurant: 'Others', volume: 700, percentage: 12 },
-      ]
+      totalVolume: gradeASources.reduce((sum, item) => sum + item.volume, 0),
+      sources: gradeASources,
     },
-    { 
-      name: 'Grade B', 
-      value: 32, 
+    {
+      name: 'Grade B',
+      value: sevenDayForecast?.grade_b_pct ?? 0,
       color: '#f59e0b',
-      totalVolume: 3200,
-      sources: [
-        { restaurant: 'Bella Italia Bistro', volume: 1890, percentage: 59 },
-        { restaurant: 'Urban Bistro', volume: 450, percentage: 14 },
-        { restaurant: 'Others', volume: 860, percentage: 27 },
-      ]
+      totalVolume: gradeBSources.reduce((sum, item) => sum + item.volume, 0),
+      sources: gradeBSources,
     },
-    { 
-      name: 'Grade C', 
-      value: 10, 
+    {
+      name: 'Grade C',
+      value: sevenDayForecast?.grade_c_pct ?? 0,
       color: '#ef4444',
-      totalVolume: 1000,
-      sources: [
-        { restaurant: 'Various Small Vendors', volume: 580, percentage: 58 },
-        { restaurant: 'Bella Italia Bistro', volume: 220, percentage: 22 },
-        { restaurant: 'Others', volume: 200, percentage: 20 },
-      ]
+      totalVolume: gradeCSources.reduce((sum, item) => sum + item.volume, 0),
+      sources: gradeCSources,
     },
   ];
 
-  // Quality metrics over time
   const qualityTrends = [
-    { month: 'Jan', gradeA: 52, gradeB: 35, gradeC: 13 },
-    { month: 'Feb', gradeA: 54, gradeB: 34, gradeC: 12 },
-    { month: 'Mar', gradeA: 56, gradeB: 33, gradeC: 11 },
-    { month: 'Apr', gradeA: 58, gradeB: 32, gradeC: 10 },
+    { month: 'Jan', gradeA: 0, gradeB: 0, gradeC: 0 },
+    { month: 'Feb', gradeA: 0, gradeB: 0, gradeC: 0 },
+    { month: 'Mar', gradeA: 0, gradeB: 0, gradeC: 0 },
+    { month: 'Apr', gradeA: 0, gradeB: 0, gradeC: 0 },
   ];
+
 
   // Icons
   const TrendingUpIcon = ({ color = '#fff', size = 20 }) => (
@@ -127,7 +145,7 @@ const QualityScreen = ({ navigation }) => {
     const maxValue = 70;
     const chartHeight = 150;
     const chartWidth = width - 80;
-    const pointSpacing = chartWidth / (qualityTrends.length - 1);
+    const pointSpacing = qualityTrends.length > 1 ? chartWidth / (qualityTrends.length - 1) : chartWidth;
 
     const getGradeAY = (value) => chartHeight - (value / maxValue) * chartHeight;
     const getGradeBY = (value) => chartHeight - (value / maxValue) * chartHeight;
@@ -173,7 +191,7 @@ const QualityScreen = ({ navigation }) => {
                     strokeWidth={1}
                     strokeDasharray="5,5"
                   />
-                  <Text
+                  <SvgText
                     x={10}
                     y={y + 4}
                     fontSize={10}
@@ -181,7 +199,7 @@ const QualityScreen = ({ navigation }) => {
                     textAnchor="end"
                   >
                     {value}%
-                  </Text>
+                  </SvgText>
                 </React.Fragment>
               );
             })}
@@ -234,7 +252,7 @@ const QualityScreen = ({ navigation }) => {
             {qualityTrends.map((item, index) => {
               const x = index * pointSpacing + 20;
               return (
-                <Text
+                <SvgText
                   key={index}
                   x={x}
                   y={chartHeight + 20}
@@ -243,7 +261,7 @@ const QualityScreen = ({ navigation }) => {
                   textAnchor="middle"
                 >
                   {item.month}
-                </Text>
+                </SvgText>
               );
             })}
           </Svg>
@@ -347,7 +365,7 @@ const QualityScreen = ({ navigation }) => {
             </View>
           </LinearGradient>
           
-          {qualityDistribution[0].sources.map((source, idx) => (
+          {(qualityDistribution[0]?.sources ?? []).map((source, idx) => (
             <View key={idx} style={styles.sourceCard}>
               <View style={styles.sourceInfo}>
                 <Text style={styles.sourceName}>{source.restaurant}</Text>
@@ -376,7 +394,7 @@ const QualityScreen = ({ navigation }) => {
             </View>
           </LinearGradient>
           
-          {qualityDistribution[1].sources.map((source, idx) => (
+          {(qualityDistribution[1]?.sources ?? []).map((source, idx) => (
             <View key={idx} style={styles.sourceCard}>
               <View style={styles.sourceInfo}>
                 <Text style={styles.sourceName}>{source.restaurant}</Text>
@@ -405,7 +423,7 @@ const QualityScreen = ({ navigation }) => {
             </View>
           </LinearGradient>
           
-          {qualityDistribution[2].sources.map((source, idx) => (
+          {(qualityDistribution[2]?.sources ?? []).map((source, idx) => (
             <View key={idx} style={styles.sourceCard}>
               <View style={styles.sourceInfo}>
                 <Text style={styles.sourceName}>{source.restaurant}</Text>

@@ -11,57 +11,50 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline, G, Text as SvgText } from 'react-native-svg';
+import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
 const { width } = Dimensions.get('window');
 
 const ForecastsScreen = ({ navigation }) => {
   const [forecastPeriod, setForecastPeriod] = useState('7days');
+  const { forecasts = [] } = useManufacturerContext();
 
-  // AI Forecast Data
-  const forecastData = {
-    '7days': { 
-      total: 12450, 
-      gradeA: 52, 
-      gradeB: 34, 
-      gradeC: 14, 
-      trend: '+8%',
-      confidence: 94,
-      daily: [
-        { day: 'Mon', volume: 1650, gradeA: 52 },
-        { day: 'Tue', volume: 1820, gradeA: 53 },
-        { day: 'Wed', volume: 1710, gradeA: 51 },
-        { day: 'Thu', volume: 1890, gradeA: 54 },
-        { day: 'Fri', volume: 1950, gradeA: 52 },
-        { day: 'Sat', volume: 1780, gradeA: 50 },
-        { day: 'Sun', volume: 1650, gradeA: 51 },
-      ]
-    },
-    '14days': { 
-      total: 25890, 
-      gradeA: 54, 
-      gradeB: 33, 
-      gradeC: 13, 
-      trend: '+12%',
-      confidence: 89,
-    },
-    '30days': { 
-      total: 53200, 
-      gradeA: 56, 
-      gradeB: 32, 
-      gradeC: 12, 
-      trend: '+15%',
-      confidence: 85,
-    },
+  // Get real forecasts data by period or use empty placeholder
+  const getForecastByPeriod = (period) => {
+    const days = period === '7days' ? 7 : period === '14days' ? 14 : 30;
+    const forecast = forecasts.find(f => f.period_days === days);
+    
+    if (forecast) {
+      return {
+        total: forecast.total_volume_liters ?? 0,
+        gradeA: forecast.grade_a_pct ?? 0,
+        gradeB: forecast.grade_b_pct ?? 0,
+        gradeC: forecast.grade_c_pct ?? 0,
+        trend: forecast.trend_label ?? '—',
+        confidence: forecast.confidence_pct ?? 0,
+      };
+    }
+    return { total: 0, gradeA: 0, gradeB: 0, gradeC: 0, trend: '—', confidence: 0 };
   };
 
-  // Historical data for trend line
+  // AI Forecast Data mapped from context
+  const forecastData = {
+    '7days': getForecastByPeriod('7days'),
+    '14days': getForecastByPeriod('14days'),
+    '30days': getForecastByPeriod('30days'),
+  };
+
+  // Historical/daily data placeholder (no real data source yet)
   const historicalData = [
-    { week: 'W1', volume: 11200, gradeA: 48 },
-    { week: 'W2', volume: 11500, gradeA: 49 },
-    { week: 'W3', volume: 11800, gradeA: 50 },
-    { week: 'W4', volume: 12100, gradeA: 51 },
-    { week: 'W5', volume: 12450, gradeA: 52 },
+    { day: 'Mon', volume: 0, gradeA: 0 },
+    { day: 'Tue', volume: 0, gradeA: 0 },
+    { day: 'Wed', volume: 0, gradeA: 0 },
+    { day: 'Thu', volume: 0, gradeA: 0 },
+    { day: 'Fri', volume: 0, gradeA: 0 },
+    { day: 'Sat', volume: 0, gradeA: 0 },
+    { day: 'Sun', volume: 0, gradeA: 0 },
   ];
+
 
   // Icons
   const TrendingUpIcon = ({ color = '#fff', size = 24 }) => (
@@ -98,19 +91,20 @@ const ForecastsScreen = ({ navigation }) => {
   // Forecast Line Chart Component
   const ForecastChart = () => {
     const data = forecastData[forecastPeriod].daily || historicalData;
-    const maxVolume = Math.max(...data.map(d => d.volume || d.volume));
+    const chartData = data.length > 0 ? data : historicalData;
+    const maxVolume = Math.max(...chartData.map(d => d.volume || 0), 1);
     const chartHeight = 180;
     const chartWidth = width - 80;
-    const pointSpacing = chartWidth / (data.length - 1);
+    const pointSpacing = chartData.length > 1 ? chartWidth / (chartData.length - 1) : chartWidth;
     
     const getY = (volume) => chartHeight - (volume / maxVolume) * chartHeight;
     
     let volumePath = '';
     let gradeAPath = '';
     
-    data.forEach((item, index) => {
+    chartData.forEach((item, index) => {
       const x = index * pointSpacing + 20;
-      const yVolume = getY(item.volume || item.volume);
+      const yVolume = getY(item.volume || 0);
       
       if (index === 0) {
         volumePath = `M ${x} ${yVolume}`;
@@ -120,11 +114,11 @@ const ForecastsScreen = ({ navigation }) => {
     });
     
     // Grade A trend line (if available)
-    if (data[0].gradeA) {
+    if (chartData[0]?.gradeA) {
       const maxGrade = 70;
-      data.forEach((item, index) => {
+      chartData.forEach((item, index) => {
         const x = index * pointSpacing + 20;
-        const yGrade = chartHeight - ((item.gradeA || 50) / maxGrade) * chartHeight;
+        const yGrade = chartHeight - ((item.gradeA || 0) / maxGrade) * chartHeight;
         
         if (index === 0) {
           gradeAPath = `M ${x} ${yGrade}`;

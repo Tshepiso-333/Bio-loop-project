@@ -15,8 +15,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
 const AIChatScreen = ({ navigation }) => {
+  const { inventory, tanks = [], forecasts = [], pickups = [] } = useManufacturerContext();
   const [chatMessage, setChatMessage] = useState('');
   const [chatMessages, setChatMessages] = useState([
     { 
@@ -40,39 +42,37 @@ const AIChatScreen = ({ navigation }) => {
     }, 100);
   };
 
-  // Mock data for responses
-  const currentStock = 24580;
-  const thisWeekVolume = 11500;
+  // Use real data from context for responses
+  const currentStock = inventory?.current_stock_liters ?? 0;
+  const thisWeekVolume = forecasts?.[0]?.total_volume_liters ?? 0;
 
   const getAIResponse = (question) => {
     const lowerQuestion = question.toLowerCase();
     
     if (lowerQuestion.includes('production') || lowerQuestion.includes('schedule')) {
-      return "Based on current forecasts, we recommend scheduling production runs for Mondays and Thursdays when Grade A supply peaks at 58%. Next optimal window: Thursday, 8:00 AM. Would you like me to add this to your calendar?";
+      return "Production scheduling requires data not yet available. Please check back once historical data is loaded.";
     } 
     else if (lowerQuestion.includes('quality') || lowerQuestion.includes('grade')) {
-      return "Current quality distribution: Grade A (58% from Golden Dragon & Spice Junction), Grade B (32% from Bella Italia), Grade C (10% from various vendors). Grade A quality has improved by 6% over the last 4 months. Would you like specific recommendations for improving Grade C quality?";
+      const sevenDayForecast = forecasts?.find(f => f.period_days === 7);
+      return sevenDayForecast ? `Current quality forecast: Grade A (${sevenDayForecast.grade_a_pct ?? 0}%), Grade B (${sevenDayForecast.grade_b_pct ?? 0}%), Grade C (${sevenDayForecast.grade_c_pct ?? 0}%).` : "Quality data not yet available.";
     } 
     else if (lowerQuestion.includes('inventory') || lowerQuestion.includes('stock')) {
-      return `Current inventory: ${currentStock.toLocaleString()}L total. Tank A: 82% full (Grade A - 14,256L), Tank B: 45% full (Grade B - 7,866L), Tank C: 94% full (Grade C - 2,458L). Tank C requires attention within 24 hours. Should I schedule a transfer?`;
+      return `Current inventory: ${currentStock.toLocaleString()}L. Tank data: ${(tanks || []).length} tanks recorded.`;
     } 
     else if (lowerQuestion.includes('forecast') || lowerQuestion.includes('prediction')) {
-      return "7-day forecast: 12,450L (↑8%). 14-day: 25,890L (↑12%). 30-day: 53,200L (↑15%). Grade A expected to reach 56% in 30 days. Peak collection expected on Thursdays. Would you like me to prepare a detailed report?";
+      return `7-day forecast: ${thisWeekVolume.toLocaleString()}L.`;
     } 
     else if (lowerQuestion.includes('supplier') || lowerQuestion.includes('restaurant')) {
-      return "Top performing suppliers this month: 1. Golden Dragon (2,450L - Grade A), 2. Spice Junction (1,670L - Grade A), 3. Bella Italia (1,890L - Grade B). Golden Dragon has 98% reliability rating. Would you like to see full supplier analytics?";
+      return `${(pickups || []).length} upcoming deliveries from suppliers.`;
     } 
-    else if (lowerQuestion.includes('sustainability') || lowerQuestion.includes('esg') || lowerQuestion.includes('carbon')) {
-      return "Year-to-date impact: 184.5 tonnes CO₂ avoided, 24,580L waste oil diverted, 845 trees equivalent planted. Your operations have displaced 18,920L of fossil diesel. Excellent progress! 🌱";
-    }
     else if (lowerQuestion.includes('alert') || lowerQuestion.includes('notification')) {
-      return "You have 3 unread alerts: 1) Tank C at 94% capacity, 2) Grade A stock below 30%, 3) Golden Dragon delivery arriving in 30 minutes. Would you like to review these now?";
+      return "Alerts are loading. Please check back in a moment.";
     }
     else if (lowerQuestion.includes('help')) {
-      return "I can help you with:\n• Production scheduling\n• Quality forecasts and analysis\n• Inventory management\n• Supplier performance\n• Sustainability metrics\n• Delivery tracking\n\nWhat would you like to know?";
+      return "I can help you with manufacturing data. What would you like to know?";
     }
     else {
-      return "I can help you manage your biodiesel manufacturing operations. You can ask me about production schedules, quality forecasts, inventory levels, supplier performance, or sustainability metrics. What specific information do you need?";
+      return "I can help you manage your biodiesel manufacturing. Ask me about inventory, forecasts, or deliveries.";
     }
   };
 
