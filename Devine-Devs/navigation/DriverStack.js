@@ -1,28 +1,30 @@
 // Devine-Devs/navigation/DriverStack.js
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import DriverHomeScreen from '../screens/driver/DriverHomeScreen';
 import DriverCollectionsScreen from '../screens/driver/DriverCollectionsScreen';
 import DriverMapScreen from '../screens/driver/DriverMapScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
+import ProfileEditRoute from '../screens/profile/ProfileEditRoute';
 
-// Theme colours (matching manufacturer)
 const THEME = {
   primary: '#10b981',
   gray: '#9CA3AF',
 };
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
-export default function DriverStack() {
+function DriverTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: THEME.primary,  // Changed from '#1A6B3C' to '#10b981'
-        tabBarInactiveTintColor: THEME.gray,    // Changed from '#8E8E93' to '#9CA3AF'
+        tabBarActiveTintColor: THEME.primary,
+        tabBarInactiveTintColor: THEME.gray,
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#E5E5EA',
@@ -52,5 +54,14 @@ export default function DriverStack() {
       <Tab.Screen name="DriverMap" component={DriverMapScreen} options={{ tabBarLabel: 'Map' }} />
       <Tab.Screen name="DriverProfile" component={DriverProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
+  );
+}
+
+export default function DriverStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="DriverTabs" component={DriverTabs} />
+      <Stack.Screen name="ProfileEdit" component={ProfileEditRoute} options={{ presentation: 'card' }} />
+    </Stack.Navigator>
   );
 }

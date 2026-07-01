@@ -8,6 +8,7 @@ import AIChatScreen from '../screens/manufacturer/AIChatScreen';
 import SuppliersScreen from '../screens/manufacturer/SuppliersScreen';
 import AlertsScreen from '../screens/manufacturer/AlertsScreen';
 import ProfileScreen from '../screens/manufacturer/ProfileScreen';
+import ProfileEditRoute from '../screens/profile/ProfileEditRoute';
 
 const Stack = createNativeStackNavigator();
 
@@ -62,6 +63,12 @@ function ManufacturerStack() {
       <Stack.Screen 
         name="Profile" 
         component={ProfileScreen} 
+      />
+
+      <Stack.Screen
+        name="ProfileEdit"
+        component={ProfileEditRoute}
+        options={{ presentation: 'card' }}
       />
       
     </Stack.Navigator>

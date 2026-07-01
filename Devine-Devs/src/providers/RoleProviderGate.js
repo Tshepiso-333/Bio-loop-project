@@ -7,28 +7,35 @@ import ManufacturerStack from '../../navigation/ManufacturerStack';
 import RestaurantStack from '../../navigation/RestaurantStack';
 import { CollectorProvider } from '../contexts/CollectorContext';
 import { ManufacturerProvider } from '../contexts/ManufacturerContext';
+import ProfileCompletionGate from '../components/profile/ProfileCompletionGate';
 
 function RestaurantArea() {
   return (
-    <RestaurantProvider>
-      <RestaurantStack />
-    </RestaurantProvider>
+    <ProfileCompletionGate>
+      <RestaurantProvider>
+        <RestaurantStack />
+      </RestaurantProvider>
+    </ProfileCompletionGate>
   );
 }
 
 function CollectorArea() {
   return (
-    <CollectorProvider>
-      <DriverStack />
-    </CollectorProvider>
+    <ProfileCompletionGate>
+      <CollectorProvider>
+        <DriverStack />
+      </CollectorProvider>
+    </ProfileCompletionGate>
   );
 }
 
 function ManufacturerArea() {
   return (
-    <ManufacturerProvider>
-      <ManufacturerStack />
-    </ManufacturerProvider>
+    <ProfileCompletionGate>
+      <ManufacturerProvider>
+        <ManufacturerStack />
+      </ManufacturerProvider>
+    </ProfileCompletionGate>
   );
 }
 

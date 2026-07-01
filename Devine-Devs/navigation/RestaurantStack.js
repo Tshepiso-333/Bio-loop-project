@@ -7,8 +7,10 @@ import RestaurantHomeScreen  from '../screens/restaurant/RestaurantHomeScreen';
 import MonitoringScreen      from '../screens/restaurant/MonitoringScreen';
 import PickupsScreen         from '../screens/restaurant/PickupsScreen';
 import EarningsScreen        from '../screens/restaurant/EarningsScreen';
+import RestaurantProfileScreen from '../screens/restaurant/RestaurantProfileScreen';
 import SchedulePickupScreen  from '../screens/restaurant/SchedulePickupScreen';
 import ManualPickupScreen    from '../screens/restaurant/ManualPickupScreen';
+import ProfileEditRoute      from '../screens/profile/ProfileEditRoute';
 
 // ─── NAVIGATORS ───────────────────────────────────────────────────────────────
 
@@ -88,6 +90,15 @@ function RestaurantTabs() {
           ),
         }}
       />
+      <Tab.Screen
+        name="Profile"
+        component={RestaurantProfileScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -111,6 +122,11 @@ export default function RestaurantStack() {
       <Stack.Screen
         name="ManualPickup"
         component={ManualPickupScreen}
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen
+        name="ProfileEdit"
+        component={ProfileEditRoute}
         options={{ presentation: 'card' }}
       />
     </Stack.Navigator>

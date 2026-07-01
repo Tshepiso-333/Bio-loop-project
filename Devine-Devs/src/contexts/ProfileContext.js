@@ -7,7 +7,8 @@ import React, {
   useState,
 } from 'react';
 import { useAuth } from '../../AuthContext';
-import { getProfile } from '../services/profileService';
+import { getProfileCompletionStatus } from '../lib/profileCompletion';
+import { ensureRoleBusinessRecord, getProfile, saveRoleProfile } from '../services/profileService';
 
 const ProfileContext = createContext(null);
 
@@ -25,7 +26,13 @@ export const ProfileProvider = ({ children }) => {
 
     setLoading(true);
     try {
-      const data = await getProfile(userId);
+      let data = await getProfile(userId);
+
+      if (data.role && data.role !== 'admin' && !data.businessDetails) {
+        await ensureRoleBusinessRecord(userId, data.role, data);
+        data = await getProfile(userId);
+      }
+
       setProfile(data);
     } catch (err) {
       console.error('Error loading profile:', err.message);
@@ -41,6 +48,18 @@ export const ProfileProvider = ({ children }) => {
     }
   }, [user?.id, loadProfile]);
 
+  const updateProfile = useCallback(
+    async ({ base = {}, business = {} } = {}) => {
+      if (!user?.id || !profile?.role) {
+        throw new Error('No authenticated profile to update');
+      }
+      const updated = await saveRoleProfile(user.id, profile.role, { base, business });
+      setProfile(updated);
+      return updated;
+    },
+    [user?.id, profile?.role]
+  );
+
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       loadProfile(user.id);
@@ -52,15 +71,23 @@ export const ProfileProvider = ({ children }) => {
 
   const role = profile?.role ?? null;
 
+  const completion = useMemo(
+    () => getProfileCompletionStatus(profile),
+    [profile]
+  );
+
   const value = useMemo(
     () => ({
       profile,
       role,
       loading,
+      completion,
+      isProfileComplete: completion.isComplete,
       loadProfile,
       refreshProfile,
+      updateProfile,
     }),
-    [profile, role, loading, loadProfile, refreshProfile]
+    [profile, role, loading, completion, loadProfile, refreshProfile, updateProfile]
   );
 
   return (

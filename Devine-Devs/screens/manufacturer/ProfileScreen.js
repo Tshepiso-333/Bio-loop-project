@@ -16,9 +16,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line,Polyline } from 'react-native-svg';
 import { useAuth } from '../../AuthContext';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { useProfile } from '../../src/hooks/useProfile';
+import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
+import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
 
 const ProfileScreen = ({ navigation }) => {
   const { signOut } = useAuth();
+  const { profile: authProfile } = useProfile();
   const { manufacturer } = useManufacturerContext();
   const [isEditing, setIsEditing] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -28,13 +32,38 @@ const ProfileScreen = ({ navigation }) => {
   
   const [profile, setProfile] = useState({
     name: manufacturer?.name ?? '—',
-    email: manufacturer?.contact_email ?? '—',
-    phone: manufacturer?.contact_phone ?? '—',
+    email: manufacturer?.contact_email ?? authProfile?.email ?? '—',
+    phone: manufacturer?.contact_phone ?? authProfile?.phone ?? '—',
     company: manufacturer?.name ?? '—',
-    position: manufacturer?.position ?? '—',
+    position: manufacturer?.position ?? manufacturer?.contact_person ?? '—',
     location: manufacturer?.address ?? '—',
     joinDate: manufacturer?.created_at ? new Date(manufacturer.created_at).toLocaleDateString() : '—',
+    description: manufacturer?.company_description ?? '',
+    registration: manufacturer?.company_registration_number ?? '',
+    grades: Array.isArray(manufacturer?.accepted_grades)
+      ? manufacturer.accepted_grades.join(', ')
+      : manufacturer?.accepted_grades ?? '',
+    yearsInBusiness: manufacturer?.years_in_business ?? '',
   });
+
+  React.useEffect(() => {
+    if (!manufacturer) return;
+    setProfile({
+      name: manufacturer.name ?? '—',
+      email: manufacturer.contact_email ?? authProfile?.email ?? '—',
+      phone: manufacturer.contact_phone ?? authProfile?.phone ?? '—',
+      company: manufacturer.name ?? '—',
+      position: manufacturer.position ?? manufacturer.contact_person ?? '—',
+      location: manufacturer.address ?? '—',
+      joinDate: manufacturer.created_at ? new Date(manufacturer.created_at).toLocaleDateString() : '—',
+      description: manufacturer.company_description ?? '',
+      registration: manufacturer.company_registration_number ?? '',
+      grades: Array.isArray(manufacturer.accepted_grades)
+        ? manufacturer.accepted_grades.join(', ')
+        : manufacturer.accepted_grades ?? '',
+      yearsInBusiness: manufacturer.years_in_business ?? '',
+    });
+  }, [manufacturer, authProfile]);
 
   const [isEditingField, setIsEditingField] = useState(null);
   const [editValue, setEditValue] = useState('');
@@ -201,12 +230,10 @@ const ProfileScreen = ({ navigation }) => {
           </View>
           <TouchableOpacity 
             style={styles.editButton}
-            onPress={() => setIsEditing(!isEditing)}
+            onPress={() => navigation?.navigate?.('ProfileEdit')}
           >
             <EditIcon color="#fff" size={18} />
-            <Text style={styles.editButtonText}>
-              {isEditing ? 'Done' : 'Edit'}
-            </Text>
+            <Text style={styles.editButtonText}>Edit profile</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -266,19 +293,12 @@ const ProfileScreen = ({ navigation }) => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Image Section */}
         <View style={styles.profileImageSection}>
-          <LinearGradient
-            colors={['#8b5cf6', '#7c3aed']}
-            style={styles.profileImageBorder}
-          >
-            <View style={styles.profileImageContainer}>
-              <Text style={styles.profileInitials}>KB</Text>
-            </View>
-          </LinearGradient>
-          {isEditing && (
-            <TouchableOpacity style={styles.changePhotoButton}>
-              <Text style={styles.changePhotoText}>Change Photo</Text>
-            </TouchableOpacity>
-          )}
+          <ProfileAvatar
+            name={manufacturer?.name ?? profile.name}
+            imageUrl={manufacturer?.profile_image_url ?? authProfile?.profile_image_url}
+            size={96}
+          />
+          <VerifiedBadge isVerified={manufacturer?.is_verified} style={{ marginTop: 10 }} />
         </View>
 
         {/* Personal Information Card */}
@@ -297,6 +317,42 @@ const ProfileScreen = ({ navigation }) => {
           
           {renderEditableField('Company', 'company', profile.company, <BuildingIcon size={20} />)}
           {renderEditableField('Position', 'position', profile.position, <BriefcaseIcon size={20} />)}
+          {profile.registration ? (
+            <View style={styles.profileField}>
+              <View style={styles.fieldIcon}><BuildingIcon size={20} /></View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>Registration</Text>
+                <Text style={styles.fieldValue}>{profile.registration}</Text>
+              </View>
+            </View>
+          ) : null}
+          {profile.description ? (
+            <View style={styles.profileField}>
+              <View style={styles.fieldIcon}><BuildingIcon size={20} /></View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>Description</Text>
+                <Text style={styles.fieldValue}>{profile.description}</Text>
+              </View>
+            </View>
+          ) : null}
+          {profile.grades ? (
+            <View style={styles.profileField}>
+              <View style={styles.fieldIcon}><BuildingIcon size={20} /></View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>Accepted grades</Text>
+                <Text style={styles.fieldValue}>{profile.grades}</Text>
+              </View>
+            </View>
+          ) : null}
+          {profile.yearsInBusiness ? (
+            <View style={styles.profileField}>
+              <View style={styles.fieldIcon}><CalendarIcon size={20} /></View>
+              <View style={styles.fieldContent}>
+                <Text style={styles.fieldLabel}>Years in business</Text>
+                <Text style={styles.fieldValue}>{String(profile.yearsInBusiness)}</Text>
+              </View>
+            </View>
+          ) : null}
           
           <View style={styles.profileField}>
             <View style={styles.fieldIcon}><CalendarIcon size={20} /></View>

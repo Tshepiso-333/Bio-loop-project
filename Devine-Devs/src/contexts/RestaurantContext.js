@@ -16,6 +16,8 @@ import {
 
 const RestaurantContext = createContext(null);
 
+export { RestaurantContext };
+
 const EMPTY_STATE = {
   restaurant: null,
   tank: null,

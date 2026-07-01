@@ -5,6 +5,8 @@ import { loadManufacturerBundle } from '../services/manufacturerService';
 
 const ManufacturerContext = createContext(null);
 
+export { ManufacturerContext };
+
 const EMPTY_STATE = {
   manufacturer: null,
   inventory: null,

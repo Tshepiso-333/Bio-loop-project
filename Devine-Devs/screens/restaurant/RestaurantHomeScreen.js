@@ -14,6 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../AuthContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
+import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
+import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
 import {
   RestaurantEmptyBanner,
   RestaurantLoadingBanner,
@@ -97,6 +99,8 @@ export default function RestaurantHomeScreen() {
     [profile?.full_name, restaurant?.name]
   );
 
+  const profileImageUrl = restaurant?.profile_image_url ?? profile?.profile_image_url;
+
   const tankData = useMemo(() => mapTankCardData(tank), [tank]);
   const pickupAlert = useMemo(() => mapPickupAlert(alerts, tank), [alerts, tank]);
   const stats = useMemo(
@@ -140,9 +144,19 @@ export default function RestaurantHomeScreen() {
               <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
               <View style={styles.notificationDot} />
             </Pressable>
-            <View style={styles.profileCircle}>
-              <Text style={styles.profileInitial}>{profileInitials}</Text>
-            </View>
+            <Pressable
+              style={styles.profileCircle}
+              onPress={() => navigation.navigate('RestaurantTabs', { screen: 'Profile' })}
+            >
+              {profileImageUrl ? (
+                <Image source={{ uri: profileImageUrl }} style={styles.profileImage} />
+              ) : (
+                <Text style={styles.profileInitial}>{profileInitials}</Text>
+              )}
+            </Pressable>
+            {restaurant?.is_verified ? (
+              <VerifiedBadge isVerified style={styles.headerVerified} />
+            ) : null}
           </View>
         </View>
       </LinearGradient>
@@ -385,6 +399,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+  },
+  headerVerified: {
+    position: 'absolute',
+    right: 16,
+    bottom: 8,
   },
   profileInitial: {
     fontSize: 16,

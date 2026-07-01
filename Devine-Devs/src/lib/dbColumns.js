@@ -6,17 +6,103 @@
 export const profiles = {
   table: 'profiles',
   select:
-    'id, email, role, full_name, phone, status, created_at, updated_at',
+    'id, email, role, full_name, phone, profile_image_url, city, province, bio, status, created_at, updated_at',
 };
 
 export const restaurants = {
   table: 'restaurants',
   select:
-    'id, owner_user_id, name, address, district, cuisine, latitude, longitude, phone, email, image_url, status, created_at, updated_at',
+    `
+    id,
+    owner_user_id,
+    name,
+    owner_name,
+    business_type,
+    address,
+    district,
+    cuisine,
+    latitude,
+    longitude,
+    phone,
+    email,
+    image_url,
+    website_url,
+    google_business_url,
+    operating_hours,
+    estimated_monthly_oil_liters,
+    pickup_instructions,
+    preferred_pickup_days,
+    profile_image_url,
+    cover_image_url,
+    is_verified,
+    verified_at,
+    status,
+    created_at,
+    updated_at
+    `.replace(/\s+/g, ' ').trim(),
+};
+
+export const collectors = {
+  table: 'collectors',
+  select:
+    `
+    id,
+    owner_user_id,
+    full_name,
+    employee_code,
+    district,
+    route_name,
+    vehicle_info,
+    profile_image_url,
+    vehicle_type,
+    vehicle_make,
+    vehicle_model,
+    vehicle_registration,
+    drivers_license_number,
+    years_experience,
+    languages,
+    bio,
+    rating,
+    reviews_count,
+    total_liters,
+    total_collections,
+    co2_saved_kg,
+    is_verified,
+    verified_at,
+    status,
+    created_at,
+    updated_at
+    `.replace(/\s+/g, ' ').trim(),
+};
+
+export const manufacturers = {
+  table: 'manufacturers',
+  select:
+    `
+    id,
+    owner_user_id,
+    name,
+    address,
+    contact_phone,
+    contact_email,
+    position,
+    contact_person,
+    company_registration_number,
+    website_url,
+    company_description,
+    accepted_grades,
+    years_in_business,
+    profile_image_url,
+    cover_image_url,
+    is_verified,
+    verified_at,
+    status,
+    created_at,
+    updated_at
+    `.replace(/\s+/g, ' ').trim(),
 };
 
 export const tanks = {
-  table: 'tanks',
   columns: {
     fillPercent: 'fill_percent',
     volumeLiters: 'current_volume_liters',
@@ -27,13 +113,18 @@ export const tanks = {
     isActive: 'is_active',
     statusText: 'status_text',
     estimatedDaysUntilFull: 'estimated_days_until_full',
+
+    capacityLiters: 'capacity_liters',
+    installationDate: 'installation_date',
+    serialNumber: 'serial_number',
   },
 };
 
 export const pickups = {
   table: 'pickups',
   collectorJoin:
-    '*, collectors(full_name, rating, total_collections, reviews_count)',
+    '*, collectors(full_name, rating, total_collections, reviews_count, profile_image_url)',
+
   columns: {
     pickupDate: 'pickup_date',
     timeStart: 'pickup_time_start',
@@ -42,6 +133,10 @@ export const pickups = {
     actualVolumeLiters: 'actual_volume_liters',
     qualityGrade: 'quality_grade',
     pickupType: 'pickup_type',
+
+    collectorNotes: 'collector_notes',
+    restaurantNotes: 'restaurant_notes',
+    completedAt: 'completed_at',
   },
 };
 

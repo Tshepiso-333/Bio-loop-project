@@ -7,8 +7,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../AuthContext';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
+import { useProfile } from '../../src/hooks/useProfile';
+import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
+import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
 
 // Theme colours (matching manufacturer)
 const THEME = {
@@ -43,8 +47,15 @@ const MenuItem = ({ icon, label, sublabel, onPress, danger }) => (
 
 export default function DriverProfileScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { signOut } = useAuth();
+  const { profile } = useProfile();
   const { collector, stats } = useCollectorContext();
+
+  const imageUrl = collector?.profile_image_url ?? profile?.profile_image_url;
+  const vehicleLine = [collector?.vehicle_make, collector?.vehicle_model, collector?.vehicle_registration]
+    .filter(Boolean)
+    .join(' · ');
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -65,13 +76,14 @@ export default function DriverProfileScreen() {
       >
         {/* Profile Info */}
         <View style={styles.profileInfo}>
-          <View style={styles.avatarWrap}>
-            <Text style={styles.avatarText}>
-              {(collector?.full_name || 'D').split(' ').map(n => n[0]).join('')}
-            </Text>
-          </View>
-          <Text style={styles.name}>{collector?.full_name ?? 'Driver'}</Text>
+          <ProfileAvatar
+            name={collector?.full_name ?? profile?.full_name}
+            imageUrl={imageUrl}
+            size={80}
+          />
+          <Text style={styles.name}>{collector?.full_name ?? profile?.full_name ?? 'Driver'}</Text>
           <Text style={styles.driverId}>Driver ID: {collector?.employee_code ?? ''}</Text>
+          <VerifiedBadge isVerified={collector?.is_verified} style={{ marginTop: 8 }} />
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color={THEME.star} />
             <Text style={styles.ratingText}> {stats?.rating ?? '—'} ({stats?.reviews_count ?? '—'} reviews)</Text>
@@ -118,8 +130,55 @@ export default function DriverProfileScreen() {
           </LinearGradient>
         </View>
 
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => navigation.navigate('ProfileEdit')}
+        >
+          <Ionicons name="create-outline" size={18} color="#fff" />
+          <Text style={styles.editBtnText}>Edit profile</Text>
+        </TouchableOpacity>
+
+        {(vehicleLine || collector?.years_experience || collector?.languages) ? (
+          <View style={styles.menuSection}>
+            <Text style={styles.sectionTitle}>Vehicle & experience</Text>
+            {vehicleLine ? (
+              <View style={styles.detailRow}>
+                <Ionicons name="car-outline" size={18} color={THEME.primary} />
+                <Text style={styles.detailText}>{vehicleLine}</Text>
+              </View>
+            ) : null}
+            {collector?.vehicle_type ? (
+              <View style={styles.detailRow}>
+                <Ionicons name="speedometer-outline" size={18} color={THEME.primary} />
+                <Text style={styles.detailText}>{collector.vehicle_type}</Text>
+              </View>
+            ) : null}
+            {collector?.years_experience != null ? (
+              <View style={styles.detailRow}>
+                <Ionicons name="ribbon-outline" size={18} color={THEME.primary} />
+                <Text style={styles.detailText}>{collector.years_experience} years experience</Text>
+              </View>
+            ) : null}
+            {collector?.languages ? (
+              <View style={styles.detailRow}>
+                <Ionicons name="language-outline" size={18} color={THEME.primary} />
+                <Text style={styles.detailText}>{collector.languages}</Text>
+              </View>
+            ) : null}
+            {collector?.bio ? (
+              <Text style={styles.bioText}>{collector.bio}</Text>
+            ) : null}
+          </View>
+        ) : null}
+
         {/* Menu Sections */}
         <View style={styles.menuSection}>
+          <MenuItem
+            icon="create-outline"
+            label="Edit profile"
+            sublabel="Update vehicle, license, bio"
+            onPress={() => navigation.navigate('ProfileEdit')}
+          />
           <MenuItem 
             icon="notifications-outline" 
             label="Notifications" 
@@ -129,8 +188,8 @@ export default function DriverProfileScreen() {
           <MenuItem 
             icon="car-outline" 
             label="Vehicle Info" 
-            sublabel="Tank capacity & details"
-            onPress={() => Alert.alert('Vehicle Info', 'Coming soon')} 
+            sublabel={vehicleLine || 'Tank capacity & details'}
+            onPress={() => navigation.navigate('ProfileEdit')} 
           />
           <MenuItem 
             icon="shield-checkmark-outline" 
@@ -307,5 +366,44 @@ const styles = StyleSheet.create({
     color: THEME.gray, 
     fontSize: 12, 
     marginTop: 24 
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: THEME.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  editBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.textSecondary,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.grayLight,
+  },
+  detailText: { flex: 1, fontSize: 14, color: THEME.text },
+  bioText: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 13,
+    color: THEME.textSecondary,
+    lineHeight: 20,
   },
 });

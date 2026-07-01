@@ -5,6 +5,8 @@ import { loadCollectorBundle } from '../services/collectorService';
 
 const CollectorContext = createContext(null);
 
+export { CollectorContext };
+
 const EMPTY_STATE = {
   collector: null,
   pickups: [],
