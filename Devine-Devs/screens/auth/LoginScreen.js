@@ -8,45 +8,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Image,
   ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../supabase';
 
-const COLORS = {
-  heroBg:           '#111111',
-  heroCard:         '#1C1C1C',
-  heroText:         '#FFFFFF',
-  heroSubtext:      'rgba(255,255,255,0.55)',
-  formBg:           '#FFFFFF',
-  green:            '#10b981',
-  greenDark:        '#059669',
-  greenLight:       '#D1FAE5',
-  textPrimary:      '#0F172A',
-  textSecondary:    '#64748B',
-  textMuted:        '#94A3B8',
-  inputBorder:      '#E2E8F0',
-  inputBorderFocus: '#10b981',
-  inputBg:          '#F8FAFC',
-  border:           '#E2E8F0',
-  errorBg:          '#FFF1F1',
-  errorBorder:      '#FECACA',
-  errorText:        '#DC2626',
-};
-
-const FONTS = {
-  bold:        'Poppins_700Bold',
-  semiBold:    'Poppins_600SemiBold',
-  regular:     'Poppins_400Regular',
-  bodyRegular: 'Inter_400Regular',
-  bodyMedium:  'Inter_500Medium',
-  bodySemiBold:'Inter_600SemiBold',
-};
+import { AUTH_COLORS, AUTH_FONTS, AUTH_BUTTON_SHADOW } from '../../src/auth/authTheme';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -86,177 +56,116 @@ export default function LoginScreen({ navigation }) {
         style={styles.root}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <StatusBar barStyle="light-content" backgroundColor="#10b981" />
-        
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
+        <StatusBar barStyle="dark-content" backgroundColor={AUTH_COLORS.white} />
+
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 34, paddingBottom: insets.bottom + 24 },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Hero Section with Green Gradient */}
-          <LinearGradient
-            colors={['#10b981', '#059669', '#047857']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.heroSection, { paddingTop: insets.top + 28 }]}
-          >
-            {/* Logo */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logoCircle}>
-                <Image 
-                  source={require('../../assets/BioLoop_Logo.png')} 
-                  style={styles.logoImage}
-                  resizeMode="cover"
-                />
-              </View>
-              <Text style={styles.logoText}>BioLoop</Text>
+          {/* Logo tile + heading */}
+          <View style={styles.header}>
+            <View style={styles.logoTile}>
+              <Ionicons name="leaf" size={30} color={AUTH_COLORS.white} />
             </View>
+            <Text style={styles.title}>Welcome back</Text>
+            <Text style={styles.subtitle}>Sign in to keep the loop going.</Text>
+          </View>
 
-            {/* Headline */}
-            <Text style={styles.headline}>Smart Oil Collection</Text>
-            <Text style={styles.subtext}>
-              Intelligent waste oil logistics connecting restaurants, collectors,
-              and biodiesel manufacturers in one unified system.
-            </Text>
+          {/* Email */}
+          <Text style={styles.label}>Email address</Text>
+          <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
+            <Ionicons name="mail-outline" size={20} color={AUTH_COLORS.primary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="you@bioloop.app"
+              placeholderTextColor={AUTH_COLORS.placeholder}
+              value={email}
+              onChangeText={setEmail}
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              returnKeyType="next"
+            />
+          </View>
 
-            {/* Feature pills */}
-            <View style={styles.pillRow}>
-              <FeaturePill icon="analytics-outline" label="AI Monitoring" />
-              <FeaturePill icon="car-outline" label="Smart Routing" />
-              <FeaturePill icon="cash-outline" label="Auto Earnings" />
-            </View>
-          </LinearGradient>
-
-          {/* Form Section */}
-          <View style={styles.formSection}>
-            {/* Welcome Back - Centered */}
-            <View style={styles.formHeaderRow}>
-              <View style={styles.formHeaderCentered}>
-                <Text style={styles.formTitle}>Welcome Back</Text>
-                <Text style={styles.formSubtitle}>Access your BioLoop dashboard</Text>
-              </View>
-            </View>
-
-            {/* Email */}
-            <Text style={styles.fieldLabel}>Email Address</Text>
-            <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
+          {/* Password */}
+          <Text style={styles.label}>Password</Text>
+          <View style={[styles.inputWrap, passwordFocused && styles.inputWrapFocused]}>
+            <Ionicons name="lock-closed-outline" size={20} color={AUTH_COLORS.primary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="••••••••"
+              placeholderTextColor={AUTH_COLORS.placeholder}
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+            />
+            <Pressable onPress={() => setShowPassword((p) => !p)} style={styles.eyeButton}>
               <Ionicons
-                name="mail-outline"
-                size={17}
-                color={emailFocused ? COLORS.green : COLORS.textMuted}
-                style={styles.inputIcon}
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={AUTH_COLORS.iconMuted}
               />
-              <TextInput
-                style={styles.input}
-                placeholder="you@bioloop.app"
-                placeholderTextColor={COLORS.textMuted}
-                value={email}
-                onChangeText={setEmail}
-                onFocus={() => setEmailFocused(true)}
-                onBlur={() => setEmailFocused(false)}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                returnKeyType="next"
-              />
-            </View>
-
-            {/* Password */}
-            <View style={styles.passwordLabelRow}>
-              <Text style={styles.fieldLabel}>Password</Text>
-              <Pressable
-                style={styles.forgotRow}
-                onPress={() => navigation.navigate('ForgotPassword')}
-              >
-                <Ionicons name="lock-open-outline" size={12} color={COLORS.green} />
-                <Text style={styles.forgotLink}>Forgot password?</Text>
-              </Pressable>
-            </View>
-            
-            <View style={[styles.inputWrap, passwordFocused && styles.inputWrapFocused]}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={17}
-                color={passwordFocused ? COLORS.green : COLORS.textMuted}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor={COLORS.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setPasswordFocused(false)}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-              />
-              <Pressable
-                onPress={() => setShowPassword((p) => !p)}
-                style={styles.eyeButton}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={18}
-                  color={COLORS.textMuted}
-                />
-              </Pressable>
-            </View>
-
-            {/* Error message */}
-            {error ? (
-              <View style={styles.errorCard}>
-                <Ionicons name="alert-circle-outline" size={15} color={COLORS.errorText} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-
-            {/* Sign in button - Updated to match header color */}
-            <Pressable 
-              style={[styles.signInButton, isSubmitting && { opacity: 0.7 }]} 
-              onPress={handleLogin}
-              disabled={isSubmitting}
-            >
-              <LinearGradient
-                colors={['#10b981', '#059669']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.signInGradient}
-              >
-                <Ionicons 
-                  name={isSubmitting ? "hourglass-outline" : "log-in-outline"} 
-                  size={18} 
-                  color="#FFFFFF" 
-                />
-                <Text style={styles.signInButtonText}>
-                  {isSubmitting ? 'Signing in...' : 'Sign In'}
-                </Text>
-              </LinearGradient>
             </Pressable>
+          </View>
 
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
+          {/* Forgot password */}
+          <Pressable
+            style={styles.forgotRow}
+            onPress={() => navigation.navigate('ForgotPassword')}
+          >
+            <Text style={styles.forgotLink}>Forgot password?</Text>
+          </Pressable>
+
+          {/* Error message */}
+          {error ? (
+            <View style={styles.errorCard}>
+              <Ionicons name="alert-circle-outline" size={15} color={AUTH_COLORS.errorText} />
+              <Text style={styles.errorText}>{error}</Text>
             </View>
+          ) : null}
 
-            {/* Register link */}
-            <View style={styles.registerRow}>
-              <Text style={styles.registerText}>Don't have an account? </Text>
-              <Pressable
-                style={styles.registerLinkRow}
-                onPress={() => navigation.navigate('SignUp')}
-              >
-                <Text style={styles.registerLink}>Create an account</Text>
-                <Ionicons name="arrow-forward" size={13} color={COLORS.green} />
-              </Pressable>
-            </View>
+          {/* Sign in button */}
+          <Pressable
+            style={[styles.primaryButton, isSubmitting && { opacity: 0.7 }]}
+            onPress={handleLogin}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isSubmitting ? 'Signing in...' : 'Sign in'}
+            </Text>
+            <Ionicons
+              name={isSubmitting ? 'hourglass-outline' : 'arrow-forward'}
+              size={20}
+              color={AUTH_COLORS.white}
+            />
+          </Pressable>
 
-            <View style={{ height: insets.bottom + 20 }} />
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Register link */}
+          <View style={styles.registerRow}>
+            <Text style={styles.registerText}>New to BioLoop? </Text>
+            <Pressable onPress={() => navigation.navigate('SignUp')}>
+              <Text style={styles.registerLink}>Create an account</Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -264,232 +173,137 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-function FeaturePill({ icon, label }) {
-  return (
-    <View style={styles.pill}>
-      <Ionicons name={icon} size={12} color="rgba(255,255,255,0.9)" />
-      <Text style={styles.pillText}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: AUTH_COLORS.white,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 28,
   },
-  heroSection: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+  header: {
+    alignItems: 'center',
+    marginBottom: 38,
   },
-  logoContainer: {
-    flexDirection: 'row',
+  logoTile: {
+    width: 66,
+    height: 66,
+    borderRadius: 22,
+    backgroundColor: AUTH_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    marginBottom: 40,
+    ...AUTH_BUTTON_SHADOW,
   },
-  logoCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  logoImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  logoText: {
-    fontFamily: FONTS.bold,
-    fontSize: 28,
-    color: '#fff',
-    letterSpacing: 1,
-  },
-  headline: {
-    fontFamily: FONTS.bold,
-    fontSize: 32,
-    color: '#fff',
-    lineHeight: 40,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtext: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 20,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  pillRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 25,
-  },
-  pillText: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 12,
-    color: '#fff',
-  },
-  formSection: {
-    flex: 1,
-    backgroundColor: COLORS.formBg,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    marginTop: -10,
-  },
-  formHeaderRow: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  formHeaderCentered: {
-    alignItems: 'center',
-  },
-  formTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 28,
-    color: COLORS.textPrimary,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  formSubtitle: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  fieldLabel: {
-    fontFamily: FONTS.bodySemiBold,
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+  title: {
+    fontFamily: AUTH_FONTS.extraBold,
+    fontSize: 33,
+    color: AUTH_COLORS.ink,
+    letterSpacing: -0.7,
+    marginTop: 24,
     marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontFamily: AUTH_FONTS.medium,
+    fontSize: 15.5,
+    color: AUTH_COLORS.body,
+    textAlign: 'center',
+  },
+  label: {
+    fontFamily: AUTH_FONTS.bold,
+    fontSize: 11,
+    color: AUTH_COLORS.body,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    marginBottom: 9,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: AUTH_COLORS.inputBg,
     borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-    borderRadius: 14,
+    borderColor: AUTH_COLORS.inputBorder,
+    borderRadius: 18,
     marginBottom: 16,
     overflow: 'hidden',
   },
   inputWrapFocused: {
-    borderColor: COLORS.inputBorderFocus,
+    borderColor: AUTH_COLORS.primary,
     borderWidth: 2,
   },
-  inputIcon: { 
-    paddingLeft: 14 
+  inputIcon: {
+    paddingLeft: 18,
   },
   input: {
     flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    fontFamily: FONTS.bodyRegular,
-    fontSize: 15,
-    color: COLORS.textPrimary,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    fontFamily: AUTH_FONTS.medium,
+    fontSize: 16,
+    color: AUTH_COLORS.ink,
   },
-  eyeButton: { 
-    paddingHorizontal: 14, 
-    paddingVertical: 13 
-  },
-  passwordLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  eyeButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 15,
   },
   forgotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 8,
+    alignSelf: 'flex-end',
+    marginTop: -2,
+    marginBottom: 22,
   },
   forgotLink: {
-    fontFamily: FONTS.bodySemiBold,
-    fontSize: 12,
-    color: COLORS.green,
+    fontFamily: AUTH_FONTS.bold,
+    fontSize: 14,
+    color: AUTH_COLORS.primary,
   },
   errorCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: COLORS.errorBg,
+    backgroundColor: AUTH_COLORS.errorBg,
     borderWidth: 1,
-    borderColor: COLORS.errorBorder,
+    borderColor: AUTH_COLORS.errorBorder,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
   },
   errorText: {
-    fontFamily: FONTS.bodyMedium,
+    fontFamily: AUTH_FONTS.medium,
     fontSize: 13,
-    color: COLORS.errorText,
+    color: AUTH_COLORS.errorText,
     flex: 1,
   },
-  signInButton: {
-    borderRadius: 14,
-    marginBottom: 20,
-    overflow: 'hidden',
-  },
-  signInGradient: {
+  primaryButton: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 16,
+    gap: 10,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: AUTH_COLORS.primary,
+    ...AUTH_BUTTON_SHADOW,
   },
-  signInButtonText: {
-    fontFamily: FONTS.bold,
-    color: '#FFFFFF',
-    fontSize: 15,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+  primaryButtonText: {
+    fontFamily: AUTH_FONTS.bold,
+    color: AUTH_COLORS.white,
+    fontSize: 17,
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
+    gap: 14,
+    marginVertical: 26,
   },
-  dividerLine: { 
-    flex: 1, 
-    height: 1, 
-    backgroundColor: COLORS.border 
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: AUTH_COLORS.divider,
   },
   dividerText: {
-    fontFamily: FONTS.bodyRegular,
+    fontFamily: AUTH_FONTS.semiBold,
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: '#9AA89F',
   },
   registerRow: {
     flexDirection: 'row',
@@ -498,18 +312,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   registerText: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  registerLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    fontFamily: AUTH_FONTS.medium,
+    fontSize: 15,
+    color: AUTH_COLORS.body,
   },
   registerLink: {
-    fontFamily: FONTS.bodySemiBold,
-    fontSize: 13,
-    color: COLORS.green,
+    fontFamily: AUTH_FONTS.extraBold,
+    fontSize: 15,
+    color: AUTH_COLORS.primary,
   },
 });

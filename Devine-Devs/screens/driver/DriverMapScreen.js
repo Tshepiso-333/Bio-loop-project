@@ -1,14 +1,21 @@
 // Devine-Devs/screens/driver/DriverMapScreen.js
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, StatusBar,
+  View,
+  Text,
+  StyleSheet,
+  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { PICKUPS, DRIVER } from '../../data/driverData';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 
-// Theme colours (matching manufacturer)
+
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCx1-oD7fBleLvm2qNwJ609ZUwWxVz4boM';
+
+
+
 const THEME = {
   primary: '#10b981',
   primaryDark: '#059669',
@@ -20,287 +27,309 @@ const THEME = {
   textSecondary: '#6B7280',
   gray: '#9CA3AF',
   grayLight: '#E5E7EB',
-  grayMid: '#9CA3AF',
-  pending: '#F59E0B',
-  pendingBg: '#FEF3C7',
-  inProgress: '#3B82F6',
-  inProgressBg: '#DBEAFE',
-  completed: '#10B981',
-  completedBg: '#D1FAE5',
 };
 
-const MapPlaceholder = ({ stops }) => (
-  <LinearGradient
-    colors={[THEME.primaryLight, THEME.primary + '15']}
-    start={{ x: 0, y: 0 }}
-    end={{ x: 1, y: 1 }}
-    style={styles.mapPlaceholder}
-  >
-    <View style={styles.mapInner}>
-      <View style={styles.mapIconCircle}>
-        <Ionicons name="map-outline" size={36} color={THEME.primary} />
-      </View>
-      <Text style={styles.mapLabel}>Route Map</Text>
-      <Text style={styles.mapSub}>Install react-native-maps to enable</Text>
-    </View>
-    <View style={styles.dotGrid}>
-      {stops.map((s, i) => (
-        <View
-          key={s.id}
-          style={[
-            styles.dot,
-            s.status === 'completed' && styles.dotCompleted,
-            s.status === 'in_progress' && styles.dotActive,
-          ]}
-        >
-          <Text style={styles.dotText}>
-            {s.status === 'completed' ? '✓' : i + 1}
-          </Text>
-        </View>
-      ))}
-    </View>
-  </LinearGradient>
-);
-
 export default function DriverMapScreen() {
-  const remainingStops = PICKUPS.filter(p => p.status !== 'completed').length;
-  const totalDistance = 12.4;
+  const mapRef = useRef(null);
+  const [location, setLocation] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [speed, setSpeed] = useState(0);
 
+  useEffect(() => {
+    let subscriber = null;
+
+    const startTracking = async () => {
+      // 1. Ask for permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg(
+          'Location permission was denied. Please enable it in your device settings to use the map.'
+        );
+        setLoading(false);
+        return;
+      }
+
+      // 2. Get initial position immediately
+      const initial = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      setLocation(initial.coords);
+      setSpeed(initial.coords.speed > 0 ? initial.coords.speed * 3.6 : 0);
+      setLoading(false);
+
+      // 3. Watch position — updates as the driver moves
+      subscriber = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 3000,   // every 3 seconds
+          distanceInterval: 5,  // or every 5 metres, whichever comes first
+        },
+        (newLocation) => {
+          const coords = newLocation.coords;
+          setLocation(coords);
+          setSpeed(coords.speed > 0 ? coords.speed * 3.6 : 0);
+
+          // Keep map centered on the driver as they move
+          if (mapRef.current) {
+            mapRef.current.animateToRegion(
+              {
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+              },
+              500
+            );
+          }
+        }
+      );
+    };
+
+    startTracking();
+
+    // 4. Cleanup — stop watching when screen is left
+    return () => {
+      if (subscriber) {
+        subscriber.remove();
+      }
+    };
+  }, []);
+
+  // ── Loading state ──────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
+        <View style={styles.loadingIconCircle}>
+          <ActivityIndicator size="large" color={THEME.primary} />
+        </View>
+        <Text style={styles.loadingTitle}>Finding your location</Text>
+        <Text style={styles.loadingText}>Please wait a moment...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Permission denied / error state ───────────────────────────────────────
+  if (errorMsg) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
+        <View style={styles.errorIconCircle}>
+          <Text style={styles.errorIcon}>📍</Text>
+        </View>
+        <Text style={styles.errorTitle}>Location Access Needed</Text>
+        <Text style={styles.errorText}>{errorMsg}</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Map ────────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
-      
-      <MapPlaceholder stops={PICKUPS} />
-      
-      <View style={styles.sheet}>
-        <LinearGradient
-          colors={[THEME.primary + '10', THEME.white]}
-          style={styles.routeHeader}
-        >
-          <View>
-            <Text style={styles.routeTitle}>{DRIVER.route}</Text>
-            <Text style={styles.routeSub}>
-              {remainingStops} stops remaining · {totalDistance} km
+
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        }}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        showsCompass={true}
+        showsScale={true}
+        showsTraffic={false}
+      >
+        {/* Driver marker — moves with GPS */}
+        {location && (
+          <Marker
+            coordinate={{
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }}
+            title="Your location"
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.markerWrap}>
+              <View style={styles.markerPulse} />
+              <View style={styles.markerOuter}>
+                <View style={styles.markerInner} />
+              </View>
+            </View>
+          </Marker>
+        )}
+      </MapView>
+
+      {/* Speed badge at the bottom */}
+      {location && (
+        <View style={styles.speedBadge}>
+          <View style={styles.speedLeft}>
+            <Text style={styles.speedValue}>
+              {speed > 0 ? Math.round(speed) : '0'}
+            </Text>
+            <Text style={styles.speedUnit}>km/h</Text>
+          </View>
+          <View style={styles.speedDivider} />
+          <View style={styles.speedRight}>
+            <Text style={styles.speedLabel}>
+              {speed > 0 ? 'Moving' : 'Stationary'}
             </Text>
           </View>
-          <TouchableOpacity style={styles.navigateBtn} activeOpacity={0.8}>
-            <LinearGradient
-              colors={[THEME.primary, THEME.primaryDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.navigateGradient}
-            >
-              <Ionicons name="navigate" size={15} color={THEME.white} />
-              <Text style={styles.navigateBtnText}>  Navigate</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </LinearGradient>
-        
-        <Text style={styles.stopsLabel}>ROUTE STOPS</Text>
-        
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {PICKUPS.map((item, index) => (
-            <View key={item.id} style={styles.stopRow}>
-              <View style={[
-                styles.stopNumber,
-                item.status === 'completed' && styles.stopNumberDone,
-                item.status === 'in_progress' && styles.stopNumberActive,
-              ]}>
-                {item.status === 'completed'
-                  ? <Ionicons name="checkmark" size={14} color={THEME.white} />
-                  : <Text style={[styles.stopNumberText, item.status === 'in_progress' && { color: THEME.white }]}>
-                      {index + 1}
-                    </Text>
-                }
-              </View>
-              <View style={styles.stopInfo}>
-                <Text style={[styles.stopName, item.status === 'completed' && styles.stopNameDone]}>
-                  {item.name}
-                </Text>
-                <Text style={styles.stopAddress}>{item.address}</Text>
-              </View>
-              <Text style={styles.stopLiters}>{item.estimatedLiters} L</Text>
-            </View>
-          ))}
-          <View style={{ height: 30 }} />
-        </ScrollView>
-      </View>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: THEME.white 
-  },
-  mapPlaceholder: {
-    height: 280,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  mapInner: { 
-    alignItems: 'center', 
-    marginBottom: 20 
-  },
-  mapIconCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+  container: {
+    flex: 1,
     backgroundColor: THEME.white,
+  },
+  map: {
+    flex: 1,
+  },
+
+  // Loading
+  centered: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: THEME.white,
+    paddingHorizontal: 32,
   },
-  mapLabel: { 
-    fontSize: 16, 
-    fontWeight: '600', 
-    color: THEME.primaryDark, 
-    marginTop: 12 
-  },
-  mapSub: { 
-    fontSize: 12, 
-    color: THEME.textSecondary, 
-    marginTop: 4 
-  },
-  dotGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+  loadingIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: THEME.primaryLight,
+    alignItems: 'center',
     justifyContent: 'center',
-    maxWidth: 280,
+    marginBottom: 16,
   },
-  dot: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  loadingTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: THEME.text,
+    marginBottom: 6,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: THEME.textSecondary,
+  },
+
+  // Error
+  errorIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: THEME.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  errorIcon: {
+    fontSize: 32,
+  },
+  errorTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: THEME.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 13,
+    color: THEME.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Marker
+  markerWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
+  },
+  markerPulse: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: THEME.primary + '30',
+  },
+  markerOuter: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: THEME.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: THEME.white,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  dotCompleted: { 
-    backgroundColor: THEME.completed 
+  markerInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: THEME.white,
   },
-  dotActive: { 
-    backgroundColor: THEME.inProgress 
-  },
-  dotText: { 
-    color: THEME.white, 
-    fontSize: 12, 
-    fontWeight: '700' 
-  },
-  sheet: { 
-    flex: 1, 
-    backgroundColor: THEME.white, 
-    paddingTop: 8 
-  },
-  routeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    marginHorizontal: 16,
-    borderRadius: 16,
-    marginBottom: 8,
-  },
-  routeTitle: { 
-    fontSize: 17, 
-    fontWeight: '700', 
-    color: THEME.text 
-  },
-  routeSub: { 
-    fontSize: 12, 
-    color: THEME.textSecondary, 
-    marginTop: 2 
-  },
-  navigateBtn: {
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  navigateGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  navigateBtnText: { 
-    color: THEME.white, 
-    fontWeight: '600', 
-    fontSize: 13 
-  },
-  stopsLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: THEME.gray,
-    letterSpacing: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
-  },
-  stopRow: {
+
+  // Speed badge
+  speedBadge: {
+    position: 'absolute',
+    bottom: 36,
+    alignSelf: 'center',
+    backgroundColor: THEME.white,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: THEME.grayLight,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
     gap: 14,
   },
-  stopNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: THEME.offWhite,
-    borderWidth: 1.5,
-    borderColor: THEME.grayMid,
-    alignItems: 'center',
-    justifyContent: 'center',
+  speedLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 3,
   },
-  stopNumberDone: { 
-    backgroundColor: THEME.primary, 
-    borderColor: THEME.primary 
+  speedValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: THEME.primary,
+    lineHeight: 26,
   },
-  stopNumberActive: { 
-    backgroundColor: THEME.inProgress, 
-    borderColor: THEME.inProgress 
+  speedUnit: {
+    fontSize: 12,
+    color: THEME.textSecondary,
+    fontWeight: '500',
+    marginBottom: 2,
   },
-  stopNumberText: { 
-    fontSize: 12, 
-    fontWeight: '700', 
-    color: THEME.text 
+  speedDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: THEME.grayLight,
   },
-  stopInfo: { 
-    flex: 1 
-  },
-  stopName: { 
-    fontSize: 14, 
-    fontWeight: '600', 
-    color: THEME.text 
-  },
-  stopNameDone: { 
-    color: THEME.gray, 
-    textDecorationLine: 'line-through' 
-  },
-  stopAddress: { 
-    fontSize: 12, 
-    color: THEME.textSecondary, 
-    marginTop: 2 
-  },
-  stopLiters: { 
-    fontSize: 13, 
-    color: THEME.textSecondary, 
-    fontWeight: '500' 
+  speedRight: {},
+  speedLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: THEME.text,
   },
 });

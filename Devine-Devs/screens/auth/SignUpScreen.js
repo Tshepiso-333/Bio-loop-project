@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   TextInput,
@@ -8,51 +8,39 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Image,
   ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../supabase'; // Un-commented your client import
 
-const COLORS = {
-  heroBg:           '#111111',
-  heroCard:         '#1C1C1C',
-  heroText:         '#FFFFFF',
-  heroSubtext:      'rgba(255,255,255,0.55)',
-  formBg:           '#FFFFFF',
-  green:            '#10b981',
-  greenDark:        '#059669',
-  greenLight:       '#D1FAE5',
-  textPrimary:      '#0F172A',
-  textSecondary:    '#64748B',
-  textMuted:        '#94A3B8',
-  inputBorder:      '#E2E8F0',
-  inputBorderFocus: '#10b981',
-  inputBg:          '#F8FAFC',
-  border:           '#E2E8F0',
-  errorBg:          '#FFF1F1',
-  errorBorder:      '#FECACA',
-  errorText:        '#DC2626',
-};
+import { AUTH_COLORS, AUTH_FONTS, AUTH_BUTTON_SHADOW } from '../../src/auth/authTheme';
+import RolePickerModal from '../../src/auth/components/RolePickerModal';
 
-const FONTS = {
-  bold:        'Poppins_700Bold',
-  semiBold:    'Poppins_600SemiBold',
-  regular:     'Poppins_400Regular',
-  bodyRegular: 'Inter_400Regular',
-  bodyMedium:  'Inter_500Medium',
-  bodySemiBold:'Inter_600SemiBold',
-};
-
+// Role keys ('restaurant' | 'driver' | 'manufacturer') are sent to Supabase via
+// options.data.role — they must not change. `desc` is presentational only.
 const ROLES = [
-  { key: 'restaurant', label: 'Restaurant', icon: 'restaurant-outline' },
-  { key: 'driver', label: 'Driver', icon: 'car-outline' },
-  { key: 'manufacturer', label: 'Manufacturer', icon: 'flask-outline' },
+  {
+    key: 'restaurant',
+    label: 'Restaurant',
+    icon: 'restaurant-outline',
+    desc: 'I have used cooking oil to be collected.',
+  },
+  {
+    key: 'driver',
+    label: 'Driver',
+    icon: 'car-outline',
+    desc: 'I collect used oil from restaurants.',
+  },
+  {
+    key: 'manufacturer',
+    label: 'Manufacturer',
+    icon: 'flask-outline',
+    desc: 'I turn used oil into clean biodiesel.',
+  },
 ];
 
 export default function SignUpScreen({ navigation }) {
@@ -69,6 +57,21 @@ export default function SignUpScreen({ navigation }) {
   const [surnameFocused, setSurnameFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+
+  // Role pop-up: opens automatically on arrival (from "Create an account") when
+  // no role is selected yet. Selecting a card drives the existing setRole.
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  useEffect(() => {
+    if (!role) setShowRoleModal(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSelectRole = (key) => {
+    setRole(key); // existing setter — single source of truth for role
+    setShowRoleModal(false);
+  };
+
+  const selectedRole = ROLES.find((r) => r.key === role);
 
   const insets = useSafeAreaInsets();
 
@@ -138,313 +141,369 @@ export default function SignUpScreen({ navigation }) {
         style={styles.root}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <StatusBar barStyle="light-content" backgroundColor="#10b981" />
+        <StatusBar barStyle="dark-content" backgroundColor={AUTH_COLORS.white} />
 
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 24 },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Hero Section with Green Gradient */}
-          <LinearGradient
-            colors={['#10b981', '#059669', '#047857']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.heroSection, { paddingTop: insets.top + 28 }]}
+          {/* Back chevron */}
+          <Pressable
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            disabled={loading}
           >
-            {/* Back button */}
-            <Pressable
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-              disabled={loading}
-            >
-              <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-            </Pressable>
+            <Ionicons name="chevron-back" size={20} color={AUTH_COLORS.ink} />
+          </Pressable>
 
-            {/* Logo */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logoCircle}>
-                <Image
-                  source={require('../../assets/BioLoop_Logo.png')}
-                  style={styles.logoImage}
-                  resizeMode="cover"
-                />
-              </View>
-              <Text style={styles.logoText}>BioLoop</Text>
-            </View>
+          {/* Heading */}
+          <View style={styles.heading}>
+            <Text style={styles.title}>Create account</Text>
+            <Text style={styles.subtitle}>Just a few details to get you started.</Text>
+          </View>
 
-            {/* Headline */}
-            <Text style={styles.headline}>Join BioLoop</Text>
-            <Text style={styles.subtext}>
-              Create an account to start collecting, supplying, or
-              processing used cooking oil with our smart network.
-            </Text>
-          </LinearGradient>
-
-          {/* Form Section */}
-          <View style={styles.formSection}>
-            <View style={styles.formHeaderRow}>
-              <View style={styles.formHeaderCentered}>
-                <Text style={styles.formTitle}>Create Account</Text>
-                <Text style={styles.formSubtitle}>Get started with BioLoop</Text>
-              </View>
-            </View>
-
-            {/* Name */}
-            <Text style={styles.fieldLabel}>Name</Text>
-            <View style={[styles.inputWrap, nameFocused && styles.inputWrapFocused]}>
-              <Ionicons
-                name="person-outline"
-                size={17}
-                color={nameFocused ? COLORS.green : COLORS.textMuted}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Jane"
-                placeholderTextColor={COLORS.textMuted}
-                value={name}
-                onChangeText={setName}
-                onFocus={() => setNameFocused(true)}
-                onBlur={() => setNameFocused(false)}
-                autoCapitalize="words"
-                returnKeyType="next"
-                editable={!loading}
-              />
-            </View>
-
-            {/* Surname */}
-            <Text style={styles.fieldLabel}>Surname</Text>
-            <View style={[styles.inputWrap, surnameFocused && styles.inputWrapFocused]}>
-              <Ionicons
-                name="person-outline"
-                size={17}
-                color={surnameFocused ? COLORS.green : COLORS.textMuted}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Doe"
-                placeholderTextColor={COLORS.textMuted}
-                value={surname}
-                onChangeText={setSurname}
-                onFocus={() => setSurnameFocused(true)}
-                onBlur={() => setSurnameFocused(false)}
-                autoCapitalize="words"
-                returnKeyType="next"
-                editable={!loading}
-              />
-            </View>
-
-            {/* Email */}
-            <Text style={styles.fieldLabel}>Email Address</Text>
-            <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
-              <Ionicons
-                name="mail-outline"
-                size={17}
-                color={emailFocused ? COLORS.green : COLORS.textMuted}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="you@bioloop.app"
-                placeholderTextColor={COLORS.textMuted}
-                value={email}
-                onChangeText={setEmail}
-                onFocus={() => setEmailFocused(true)}
-                onBlur={() => setEmailFocused(false)}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                returnKeyType="next"
-                editable={!loading}
-              />
-            </View>
-
-            {/* Password */}
-            <Text style={styles.fieldLabel}>Create Password</Text>
-            <View style={[styles.inputWrap, passwordFocused && styles.inputWrapFocused]}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={17}
-                color={passwordFocused ? COLORS.green : COLORS.textMuted}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••"
-                placeholderTextColor={COLORS.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setPasswordFocused(false)}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
-                onSubmitEditing={handleSignUp}
-                editable={!loading}
-              />
+          {/* Role badge + change */}
+          <View style={styles.badgeRow}>
+            {selectedRole ? (
+              <>
+                <View style={styles.badge}>
+                  <View style={styles.badgeIcon}>
+                    <Ionicons name={selectedRole.icon} size={16} color={AUTH_COLORS.white} />
+                  </View>
+                  <Text style={styles.badgeText}>Signing up as {selectedRole.label}</Text>
+                </View>
+                <Pressable onPress={() => setShowRoleModal(true)} disabled={loading}>
+                  <Text style={styles.changeLink}>Change</Text>
+                </Pressable>
+              </>
+            ) : (
               <Pressable
-                onPress={() => setShowPassword((p) => !p)}
-                style={styles.eyeButton}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={18}
-                  color={COLORS.textMuted}
-                />
-              </Pressable>
-            </View>
-
-            {/* Role selector */}
-            <Text style={styles.fieldLabel}>I am signing up as a...</Text>
-            <View style={styles.roleRow}>
-              {ROLES.map((r) => {
-                const active = role === r.key;
-                return (
-                  <Pressable
-                    key={r.key}
-                    style={[styles.roleChip, active && styles.roleChipActive]}
-                    onPress={() => setRole(r.key)}
-                    disabled={loading}
-                  >
-                    <Ionicons
-                      name={r.icon}
-                      size={16}
-                      color={active ? '#FFFFFF' : COLORS.textSecondary}
-                    />
-                    <Text style={[styles.roleChipText, active && styles.roleChipTextActive]}>
-                      {r.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Error message */}
-            {error ? (
-              <View style={styles.errorCard}>
-                <Ionicons name="alert-circle-outline" size={15} color={COLORS.errorText} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-
-            {/* Sign up button */}
-            <Pressable
-              style={[styles.signInButton, loading && { opacity: 0.7 }]}
-              onPress={handleSignUp}
-              disabled={loading}
-            >
-              <LinearGradient
-                colors={['#10b981', '#059669']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.signInGradient}
-              >
-                <Ionicons
-                  name={loading ? 'hourglass-outline' : 'person-add-outline'}
-                  size={18}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.signInButtonText}>
-                  {loading ? 'Creating Account...' : 'Sign Up'}
-                </Text>
-              </LinearGradient>
-            </Pressable>
-
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Back to sign in */}
-            <View style={styles.registerRow}>
-              <Text style={styles.registerText}>Already have an account? </Text>
-              <Pressable
-                style={styles.registerLinkRow}
-                onPress={() => navigation.goBack()}
+                style={styles.chooseBadge}
+                onPress={() => setShowRoleModal(true)}
                 disabled={loading}
               >
-                <Text style={styles.registerLink}>Back to sign in</Text>
-                <Ionicons name="arrow-forward" size={13} color={COLORS.green} />
+                <Text style={styles.chooseBadgeText}>Choose your role</Text>
+                <Ionicons name="chevron-forward" size={16} color={AUTH_COLORS.primary} />
               </Pressable>
-            </View>
+            )}
+          </View>
 
-            <View style={{ height: insets.bottom + 20 }} />
+          {/* Name + Surname */}
+          <View style={styles.nameRow}>
+            <View style={styles.nameCol}>
+              <Text style={styles.label}>Name</Text>
+              <View style={[styles.inputWrap, nameFocused && styles.inputWrapFocused]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Jane"
+                  placeholderTextColor={AUTH_COLORS.placeholder}
+                  value={name}
+                  onChangeText={setName}
+                  onFocus={() => setNameFocused(true)}
+                  onBlur={() => setNameFocused(false)}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  editable={!loading}
+                />
+              </View>
+            </View>
+            <View style={styles.nameCol}>
+              <Text style={styles.label}>Surname</Text>
+              <View style={[styles.inputWrap, surnameFocused && styles.inputWrapFocused]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Doe"
+                  placeholderTextColor={AUTH_COLORS.placeholder}
+                  value={surname}
+                  onChangeText={setSurname}
+                  onFocus={() => setSurnameFocused(true)}
+                  onBlur={() => setSurnameFocused(false)}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  editable={!loading}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Email */}
+          <Text style={styles.label}>Email address</Text>
+          <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
+            <Ionicons name="mail-outline" size={19} color={AUTH_COLORS.primary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="you@bioloop.app"
+              placeholderTextColor={AUTH_COLORS.placeholder}
+              value={email}
+              onChangeText={setEmail}
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              returnKeyType="next"
+              editable={!loading}
+            />
+          </View>
+
+          {/* Password */}
+          <Text style={styles.label}>Create password</Text>
+          <View style={[styles.inputWrap, passwordFocused && styles.inputWrapFocused]}>
+            <Ionicons name="lock-closed-outline" size={19} color={AUTH_COLORS.primary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="••••••••"
+              placeholderTextColor={AUTH_COLORS.placeholder}
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleSignUp}
+              editable={!loading}
+            />
+            <Pressable onPress={() => setShowPassword((p) => !p)} style={styles.eyeButton}>
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={19}
+                color={AUTH_COLORS.iconMuted}
+              />
+            </Pressable>
+          </View>
+
+          {/* Error message */}
+          {error ? (
+            <View style={styles.errorCard}>
+              <Ionicons name="alert-circle-outline" size={15} color={AUTH_COLORS.errorText} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {/* Create account button */}
+          <Pressable
+            style={[styles.primaryButton, loading && { opacity: 0.7 }]}
+            onPress={handleSignUp}
+            disabled={loading}
+          >
+            <Text style={styles.primaryButtonText}>
+              {loading ? 'Creating account...' : 'Create account'}
+            </Text>
+            <Ionicons
+              name={loading ? 'hourglass-outline' : 'arrow-forward'}
+              size={19}
+              color={AUTH_COLORS.white}
+            />
+          </Pressable>
+
+          {/* Back to sign in */}
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <Pressable onPress={() => navigation.goBack()} disabled={loading}>
+              <Text style={styles.footerLink}>Sign in</Text>
+            </Pressable>
           </View>
         </ScrollView>
+
+        {/* Role-selection pop-up (presentational) */}
+        <RolePickerModal
+          visible={showRoleModal}
+          role={role}
+          roles={ROLES}
+          onSelect={handleSelectRole}
+          onClose={() => setShowRoleModal(false)}
+        />
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f9fafb' },
-  scrollContent: { flexGrow: 1 },
-  heroSection: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+  root: {
+    flex: 1,
+    backgroundColor: AUTH_COLORS.white,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: AUTH_COLORS.selectedBg,
+    borderWidth: 1.5,
+    borderColor: AUTH_COLORS.inputBorder,
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'center',
   },
-  logoContainer: {
+  heading: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 22,
+  },
+  title: {
+    fontFamily: AUTH_FONTS.extraBold,
+    fontSize: 30,
+    color: AUTH_COLORS.ink,
+    letterSpacing: -0.5,
+    marginBottom: 7,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontFamily: AUTH_FONTS.medium,
+    fontSize: 15,
+    color: AUTH_COLORS.body,
+    textAlign: 'center',
+  },
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    marginBottom: 22,
   },
-  logoCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+  badge: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 9,
+    backgroundColor: AUTH_COLORS.roleCircle,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingLeft: 8,
+    paddingRight: 15,
+  },
+  badgeIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: AUTH_COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontFamily: AUTH_FONTS.bold,
+    fontSize: 13.5,
+    color: AUTH_COLORS.primary,
+  },
+  changeLink: {
+    fontFamily: AUTH_FONTS.bold,
+    fontSize: 13.5,
+    color: AUTH_COLORS.primary,
+    textDecorationLine: 'underline',
+  },
+  chooseBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: AUTH_COLORS.roleCircle,
+    borderRadius: 999,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+  },
+  chooseBadgeText: {
+    fontFamily: AUTH_FONTS.bold,
+    fontSize: 13.5,
+    color: AUTH_COLORS.primary,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  nameCol: {
+    flex: 1,
+  },
+  label: {
+    fontFamily: AUTH_FONTS.bold,
+    fontSize: 11,
+    color: AUTH_COLORS.body,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+    marginBottom: 9,
+  },
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: AUTH_COLORS.inputBg,
+    borderWidth: 1.5,
+    borderColor: AUTH_COLORS.inputBorder,
+    borderRadius: 16,
+    marginBottom: 16,
     overflow: 'hidden',
   },
-  logoImage: { width: 56, height: 56, borderRadius: 28 },
-  logoText: { fontFamily: FONTS.bold, fontSize: 28, color: '#fff', letterSpacing: 1 },
-  headline: { fontFamily: FONTS.bold, fontSize: 32, color: '#fff', textAlign: 'center', marginBottom: 12 },
-  subtext: { fontFamily: FONTS.bodyRegular, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 20, textAlign: 'center' },
-  formSection: { flex: 1, backgroundColor: COLORS.formBg, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 24, paddingTop: 28, marginTop: -10 },
-  formHeaderRow: { alignItems: 'center', marginBottom: 24 },
-  formHeaderCentered: { alignItems: 'center' },
-  formTitle: { fontFamily: FONTS.bold, fontSize: 28, color: COLORS.textPrimary, marginBottom: 6 },
-  formSubtitle: { fontFamily: FONTS.bodyRegular, fontSize: 14, color: COLORS.textSecondary },
-  fieldLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.inputBg, borderWidth: 1.5, borderColor: COLORS.inputBorder, borderRadius: 14, marginBottom: 16, overflow: 'hidden' },
-  inputWrapFocused: { borderColor: COLORS.inputBorderFocus, borderWidth: 2 },
-  inputIcon: { paddingLeft: 14 },
-  input: { flex: 1, paddingHorizontal: 12, paddingVertical: 14, fontFamily: FONTS.bodyRegular, fontSize: 15, color: COLORS.textPrimary },
-  eyeButton: { paddingHorizontal: 14, paddingVertical: 13 },
-  roleRow: { flexDirection: 'row', gap: 8, marginBottom: 20, flexWrap: 'wrap' },
-  roleChip: { flex: 1, minWidth: 100, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.inputBg, borderWidth: 1.5, borderColor: COLORS.inputBorder, paddingVertical: 12, paddingHorizontal: 8, borderRadius: 12 },
-  roleChipActive: { backgroundColor: COLORS.green, borderColor: COLORS.greenDark },
-  roleChipText: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.textSecondary },
-  roleChipTextActive: { color: '#FFFFFF', fontFamily: FONTS.bodySemiBold },
-  errorCard: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.errorBg, borderWidth: 1, borderColor: COLORS.errorBorder, borderRadius: 12, padding: 12, marginBottom: 16 },
-  errorText: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.errorText, flex: 1 },
-  signInButton: { borderRadius: 14, marginBottom: 20, overflow: 'hidden' },
-  signInGradient: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 16 },
-  signInButtonText: { fontFamily: FONTS.bold, color: '#FFFFFF', fontSize: 15, letterSpacing: 0.5, textTransform: 'uppercase' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
-  dividerText: { fontFamily: FONTS.bodyRegular, fontSize: 13, color: COLORS.textMuted },
-  registerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  registerText: { fontFamily: FONTS.bodyRegular, fontSize: 13, color: COLORS.textSecondary },
-  registerLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  registerLink: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.green },
+  inputWrapFocused: {
+    borderColor: AUTH_COLORS.primary,
+    borderWidth: 2,
+  },
+  inputIcon: {
+    paddingLeft: 16,
+  },
+  input: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 15,
+    fontFamily: AUTH_FONTS.medium,
+    fontSize: 15.5,
+    color: AUTH_COLORS.ink,
+  },
+  eyeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: AUTH_COLORS.errorBg,
+    borderWidth: 1,
+    borderColor: AUTH_COLORS.errorBorder,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  errorText: {
+    fontFamily: AUTH_FONTS.medium,
+    fontSize: 13,
+    color: AUTH_COLORS.errorText,
+    flex: 1,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: AUTH_COLORS.primary,
+    marginTop: 14,
+    ...AUTH_BUTTON_SHADOW,
+  },
+  primaryButtonText: {
+    fontFamily: AUTH_FONTS.bold,
+    color: AUTH_COLORS.white,
+    fontSize: 17,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 22,
+  },
+  footerText: {
+    fontFamily: AUTH_FONTS.medium,
+    fontSize: 14.5,
+    color: AUTH_COLORS.body,
+  },
+  footerLink: {
+    fontFamily: AUTH_FONTS.extraBold,
+    fontSize: 14.5,
+    color: AUTH_COLORS.primary,
+  },
 });
