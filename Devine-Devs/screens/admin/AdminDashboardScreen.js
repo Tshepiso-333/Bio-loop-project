@@ -1,931 +1,927 @@
-// screens/admin/AdminDashboardScreen.js
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
   Text,
   TextInput,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  StatusBar,
-  Modal,
-  Image,
+  View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
+import { useAdminContext } from '../../src/contexts/AdminContext';
+import DispatchBoard from '../../src/components/admin/DispatchBoard';
+
+const COLORS = {
+  bg: '#F4F4EF',
+  card: '#FFFFFF',
+  green: '#10b981',
+  greenDark: '#059669',
+  red: '#dc2626',
+  amber: '#f59e0b',
+  blue: '#2563eb',
+  text: '#0f172a',
+  muted: '#64748b',
+  border: '#e2e8f0',
+};
+
+const ROLE_FILTERS = ['all', 'restaurant', 'collector', 'manufacturer', 'admin'];
+const MAIN_TABS = [
+  { key: 'overview', label: 'Overview', icon: 'grid-outline' },
+  { key: 'users', label: 'Users', icon: 'people-outline' },
+  { key: 'dispatch', label: 'Dispatch', icon: 'navigate-outline' },
+  { key: 'pickups', label: 'Pickups', icon: 'git-branch-outline' },
+  { key: 'finance', label: 'Finance', icon: 'cash-outline' },
+  { key: 'alerts', label: 'Alerts', icon: 'notifications-outline' },
+  { key: 'health', label: 'Health', icon: 'server-outline' },
+];
+const PICKUP_STATUSES = ['pending', 'scheduled', 'in_transit', 'arrival', 'in_progress', 'completed', 'cancelled'];
+const WITHDRAWAL_STATUSES = ['pending', 'approved', 'rejected'];
+const ALERT_TYPES = ['info', 'warning', 'critical'];
+const ALERT_CATEGORIES = ['system', 'delivery', 'quality', 'finance', 'security'];
+const REQUEST_URGENCY = ['low', 'medium', 'high'];
+
+function getStatusColor(status) {
+  if (status === 'active' || status === 'completed' || status === 'approved') return COLORS.green;
+  if (status === 'pending' || status === 'scheduled' || status === 'medium' || status === 'low') return COLORS.amber;
+  if (status === 'inactive' || status === 'cancelled' || status === 'rejected' || status === 'critical') return COLORS.red;
+  return COLORS.blue;
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString();
+}
+
+function formatDateTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString();
+}
+
+function labelFromKey(value) {
+  return String(value ?? '—').replace(/_/g, ' ');
+}
+
+function currency(value) {
+  const parsed = Number(value ?? 0);
+  return new Intl.NumberFormat('en-ZA', {
+    style: 'currency',
+    currency: 'ZAR',
+    maximumFractionDigits: 0,
+  }).format(parsed);
+}
 
 export default function AdminDashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
+  const admin = useAdminContext();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [newUser, setNewUser] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState('restaurant');
-  const [showUserList, setShowUserList] = useState(false);
-  const [userListTitle, setUserListTitle] = useState('');
-  const [userListData, setUserListData] = useState([]);
-
-  const [restaurantUsers, setRestaurantUsers] = useState([
-    { id: '1', name: 'KFC Braamfontein', email: 'kfc.braamfontein@gmail.com', phone: '+27 11 123 4567', status: 'active', joinDate: '2024-01-15' },
-    { id: '2', name: 'Chicken Licken Soweto', email: 'cl.soweto@gmail.com', phone: '+27 11 234 5678', status: 'active', joinDate: '2024-02-10' },
-    { id: '3', name: 'Nandos Sandton', email: 'nandos.sandton@gmail.com', phone: '+27 11 345 6789', status: 'inactive', joinDate: '2024-01-22' },
-  ]);
-
-  const [manufacturerUsers, setManufacturerUsers] = useState([
-    { id: '4', name: 'EcoOil Recycling', email: 'info@ecooil.co.za', phone: '+27 11 456 7890', status: 'active', joinDate: '2024-01-05' },
-    { id: '5', name: 'GreenFuel Manufacturing', email: 'contact@greenfuel.co.za', phone: '+27 11 567 8901', status: 'active', joinDate: '2024-01-18' },
-    { id: '6', name: 'BioWaste Solutions', email: 'hello@biowaste.co.za', phone: '+27 11 678 9012', status: 'pending', joinDate: '2024-02-20' },
-  ]);
-
-  const [drivers, setDrivers] = useState([
-    { id: '7', name: 'Thobile Nkosi', email: 'thobile@bioloop.co.za', phone: '+27 71 234 5678', status: 'active', joinDate: '2024-01-10' },
-    { id: '8', name: 'Sipho Dlamini', email: 'sipho@bioloop.co.za', phone: '+27 72 345 6789', status: 'active', joinDate: '2024-01-25' },
-    { id: '9', name: 'Lerato Molefe', email: 'lerato@bioloop.co.za', phone: '+27 73 456 7890', status: 'inactive', joinDate: '2024-02-01' },
-  ]);
-
-  const [systemStats, setSystemStats] = useState({
-    totalUsers: 9,
-    activeUsers: 6,
-    pendingApprovals: 1,
-    monthlyGrowth: '+15%',
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [alertForm, setAlertForm] = useState({
+    title: '',
+    message: '',
+    userId: '',
+    category: 'system',
+    type: 'info',
+  });
+  const [requestForm, setRequestForm] = useState({
+    restaurantId: '',
+    urgency: 'medium',
+    reason: '',
+    notes: '',
   });
 
-  const allUsers = [...restaurantUsers, ...manufacturerUsers, ...drivers];
+  const stats = useMemo(() => {
+    const activeUsers = admin.users.filter((user) => user.status === 'active').length;
+    const pendingUsers = admin.users.filter((user) => user.status === 'pending').length;
+    const unassignedPickups = admin.pickups.filter((pickup) => !pickup.collector_id || !pickup.manufacturer_id).length;
+    const pendingWithdrawals = admin.withdrawals.filter((withdrawal) => withdrawal.status !== 'approved' && withdrawal.status !== 'rejected').length;
+    const unreadAlerts = admin.alerts.filter((alert) => !alert.is_read).length;
 
-  const getStatsData = (type) => {
-    if (type === 'total') {
-      return allUsers.map(user => ({ name: user.name, email: user.email, status: user.status }));
-    } else if (type === 'active') {
-      return allUsers.filter(user => user.status === 'active').map(user => ({ name: user.name, email: user.email, status: user.status }));
-    } else if (type === 'pending') {
-      return allUsers.filter(user => user.status === 'pending').map(user => ({ name: user.name, email: user.email, status: user.status }));
+    return [
+      {
+        key: 'users',
+        label: `${admin.users.length} users`,
+        breakdown: `${activeUsers} active · ${pendingUsers} pending`,
+        icon: 'people-outline',
+        gradient: [COLORS.green, COLORS.greenDark],
+      },
+      {
+        key: 'unassigned',
+        label: `${unassignedPickups} unassigned`,
+        breakdown: 'Tap to dispatch',
+        icon: 'navigate-outline',
+        gradient: [COLORS.blue, '#1d4ed8'],
+        onPress: () => setActiveTab('dispatch'),
+      },
+      {
+        key: 'withdrawals',
+        label: `${pendingWithdrawals} withdrawals`,
+        breakdown: 'Tap to review',
+        icon: 'cash-outline',
+        gradient: [COLORS.amber, '#b45309'],
+        onPress: () => setActiveTab('finance'),
+      },
+      {
+        key: 'alerts',
+        label: `${unreadAlerts} unread alerts`,
+        breakdown: 'Tap to view',
+        icon: 'notifications-outline',
+        gradient: [COLORS.red, '#991b1b'],
+        onPress: () => setActiveTab('alerts'),
+      },
+    ];
+  }, [admin.users, admin.pickups, admin.withdrawals, admin.alerts]);
+
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return admin.users.filter((user) => {
+      const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+      const matchesSearch =
+        !query ||
+        user.displayName?.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query);
+      return matchesRole && matchesSearch;
+    });
+  }, [admin.users, roleFilter, search]);
+
+  const pendingWithdrawals = useMemo(() =>
+    admin.withdrawals.filter((withdrawal) => withdrawal.status !== 'approved' && withdrawal.status !== 'rejected'),
+    [admin.withdrawals]
+  );
+
+  const withMutation = async (label, action) => {
+    try {
+      await action();
+    } catch (err) {
+      Alert.alert(label, err.message ?? 'Admin action failed. Check RLS policies and permissions.');
     }
-    return [];
   };
 
-  const handleStatPress = (title, type) => {
-    const data = getStatsData(type);
-    setUserListTitle(title);
-    setUserListData(data);
-    setShowUserList(true);
+  const handleSignOut = () => {
+    Alert.alert('Sign out', 'Clear this Supabase session?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
+    ]);
   };
 
-  function addUser() {
-    if (!newUser.trim()) {
-      Alert.alert('Error', 'Please enter a user name');
+  const handleCreateAlert = async () => {
+    if (!alertForm.title.trim() || !alertForm.message.trim() || !alertForm.userId) {
+      Alert.alert('Missing details', 'Choose a user and add a title and message before sending the alert.');
       return;
     }
 
-    const user = {
-      id: Date.now().toString(),
-      name: newUser,
-      email: `${newUser.toLowerCase().replace(/\s/g, '')}@bioloop.co.za`,
-      phone: '+27 XX XXX XXXX',
-      status: 'pending',
-      joinDate: new Date().toISOString().split('T')[0],
-    };
-
-    if (selectedGroup === 'restaurant') {
-      setRestaurantUsers([...restaurantUsers, user]);
-    } else if (selectedGroup === 'manufacturer') {
-      setManufacturerUsers([...manufacturerUsers, user]);
-    } else {
-      setDrivers([...drivers, user]);
-    }
-
-    setSystemStats({
-      totalUsers: systemStats.totalUsers + 1,
-      activeUsers: systemStats.activeUsers,
-      pendingApprovals: systemStats.pendingApprovals + 1,
-      monthlyGrowth: systemStats.monthlyGrowth,
-    });
-
-    setNewUser('');
-    Alert.alert('Success', 'User added successfully!');
-  }
-
-  function deleteUser(id, group) {
-    Alert.alert('Delete User', 'Are you sure you want to delete this user?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          if (group === 'restaurant') {
-            setRestaurantUsers(restaurantUsers.filter((user) => user.id !== id));
-          } else if (group === 'manufacturer') {
-            setManufacturerUsers(manufacturerUsers.filter((user) => user.id !== id));
-          } else {
-            setDrivers(drivers.filter((user) => user.id !== id));
-          }
-          
-          const newTotal = systemStats.totalUsers - 1;
-          const newActive = allUsers.filter(u => u.status === 'active').length;
-          
-          setSystemStats({
-            ...systemStats,
-            totalUsers: newTotal,
-            activeUsers: newActive,
-          });
-          
-          Alert.alert('Deleted', 'User has been removed.');
-        },
-      },
-    ]);
-  }
-
-  function approveUser(id, group) {
-    let updatedUsers;
-    if (group === 'restaurant') {
-      updatedUsers = restaurantUsers.map(user => 
-        user.id === id ? { ...user, status: 'active' } : user
-      );
-      setRestaurantUsers(updatedUsers);
-    } else if (group === 'manufacturer') {
-      updatedUsers = manufacturerUsers.map(user => 
-        user.id === id ? { ...user, status: 'active' } : user
-      );
-      setManufacturerUsers(updatedUsers);
-    } else {
-      updatedUsers = drivers.map(user => 
-        user.id === id ? { ...user, status: 'active' } : user
-      );
-      setDrivers(updatedUsers);
-    }
-    
-    setSystemStats({
-      ...systemStats,
-      pendingApprovals: systemStats.pendingApprovals - 1,
-      activeUsers: systemStats.activeUsers + 1,
-    });
-    
-    Alert.alert('Approved', 'User has been approved.');
-  }
-
-  const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Clear this Supabase session and return to login?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
-    ]);
-  };
-
-  const getCurrentUsers = () => {
-    if (selectedGroup === 'restaurant') return restaurantUsers;
-    if (selectedGroup === 'manufacturer') return manufacturerUsers;
-    return drivers;
-  };
-
-  const filteredUsers = getCurrentUsers().filter((user) =>
-    user.name.toLowerCase().includes(search.toLowerCase()) ||
-    user.email.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'active': return '#10b981';
-      case 'inactive': return '#ef4444';
-      case 'pending': return '#f59e0b';
-      default: return '#6b7280';
+    setSubmitting(true);
+    try {
+      await admin.createAdminAlert({
+        user_id: alertForm.userId,
+        title: alertForm.title.trim(),
+        message: alertForm.message.trim(),
+        category: alertForm.category,
+        type: alertForm.type,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      });
+      setShowAlertModal(false);
+      setAlertForm({ title: '', message: '', userId: '', category: 'system', type: 'info' });
+      Alert.alert('Alert created', 'The notification has been sent to the selected user.');
+    } catch (err) {
+      Alert.alert('Create alert failed', err.message ?? 'Unable to create the alert.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const getStatusBgColor = (status) => {
-    switch(status) {
-      case 'active': return '#D1FAE5';
-      case 'inactive': return '#FEE2E2';
-      case 'pending': return '#FEF3C7';
-      default: return '#F3F4F6';
+  const handleCreateRequest = async () => {
+    if (!requestForm.restaurantId || !requestForm.reason.trim()) {
+      Alert.alert('Missing details', 'Select a restaurant and describe the pickup reason.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await admin.createManualPickupRequest({
+        restaurant_id: requestForm.restaurantId,
+        urgency: requestForm.urgency,
+        reason: requestForm.reason.trim(),
+        notes: requestForm.notes.trim() || null,
+      });
+      setShowRequestModal(false);
+      setRequestForm({ restaurantId: '', urgency: 'medium', reason: '', notes: '' });
+      Alert.alert('Manual request created', 'The pickup request is now available in the admin queue.');
+    } catch (err) {
+      Alert.alert('Create request failed', err.message ?? 'Unable to create the request.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const StatCard = ({ title, value, icon, color, onPress }) => (
-    <TouchableOpacity style={styles.statCard} onPress={onPress} activeOpacity={0.7}>
-      <LinearGradient
-        colors={[color + '15', color + '05']}
-        style={styles.statGradient}
-      >
-        <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
-          <Ionicons name={icon} size={24} color={color} />
-        </View>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statTitle}>{title}</Text>
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-
-  const UserListModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showUserList}
-      onRequestClose={() => setShowUserList(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <LinearGradient
-            colors={['#10b981', '#059669']}
-            style={styles.modalHeader}
-          >
-            <Text style={styles.modalTitle}>{userListTitle}</Text>
-            <TouchableOpacity onPress={() => setShowUserList(false)}>
-              <Ionicons name="close-outline" size={28} color="#fff" />
-            </TouchableOpacity>
-          </LinearGradient>
-          
-          <FlatList
-            data={userListData}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.modalUserItem}>
-                <View style={styles.modalUserAvatar}>
-                  <Text style={styles.modalUserInitial}>
-                    {item.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.modalUserInfo}>
-                  <Text style={styles.modalUserName}>{item.name}</Text>
-                  <Text style={styles.modalUserEmail}>{item.email}</Text>
-                </View>
-                <View style={[styles.modalStatusBadge, { backgroundColor: getStatusBgColor(item.status) }]}>
-                  <Text style={[styles.modalStatusText, { color: getStatusColor(item.status) }]}>
-                    {item.status}
-                  </Text>
-                </View>
-              </View>
-            )}
-            ListEmptyComponent={() => (
-              <View style={styles.modalEmpty}>
-                <Text style={styles.modalEmptyText}>No users found</Text>
-              </View>
-            )}
-          />
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const renderUser = ({ item }) => (
-    <View style={styles.userCard}>
-      <View style={styles.userAvatar}>
-        <Text style={styles.userAvatarText}>
-          {item.name.charAt(0).toUpperCase()}
-        </Text>
-      </View>
-      
-      <View style={styles.userInfo}>
-        <View style={styles.userHeader}>
-          <Text style={styles.userName}>{item.name}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusBgColor(item.status) }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-              {item.status.toUpperCase()}
-            </Text>
-          </View>
-        </View>
-        
-        <Text style={styles.userEmail}>{item.email}</Text>
-        <Text style={styles.userPhone}>{item.phone}</Text>
-        <Text style={styles.userDate}>Joined: {item.joinDate}</Text>
-      </View>
-      
-      <View style={styles.userActions}>
-        {item.status === 'pending' && (
-          <TouchableOpacity 
-            style={styles.approveButton}
-            onPress={() => approveUser(item.id, selectedGroup)}
-          >
-            <Ionicons name="checkmark-circle-outline" size={22} color="#10b981" />
-          </TouchableOpacity>
-        )}
-        
-        <TouchableOpacity 
-          style={styles.deleteButton}
-          onPress={() => deleteUser(item.id, selectedGroup)}
-        >
-          <Ionicons name="trash-outline" size={22} color="#ef4444" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  // Updated Header Component - fills to top, with logo, notification bell, and profile
-  const Header = () => (
+  const renderHeader = () => (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.greenDark} />
       <LinearGradient
-        colors={['#10b981', '#059669', '#047857']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        colors={[COLORS.green, COLORS.greenDark, '#047857']}
         style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
-        <View style={styles.headerContent}>
-          {/* Left side - Logo */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Image 
-                source={require('../../assets/BioLoop_Logo.png')} 
-                style={styles.logoImage}
-                resizeMode="cover"
-              />
-            </View>
-            <View>
-              <Text style={styles.appName}>BioLoop</Text>
-              <Text style={styles.companyName}>Admin Portal</Text>
-            </View>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>BioLoop Admin</Text>
+            <Text style={styles.headerSub}>Operations center for users, pickups, finance, and alerts</Text>
           </View>
-          
-          {/* Right side - Notifications and Profile */}
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.headerSignOutButton} onPress={signOut}>
-              <Ionicons name="log-out-outline" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.notificationButton}>
-              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-              <View style={styles.notificationDot} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.profileCircle}
-              onPress={() => navigation.navigate('AdminSettings')}
-            >
-              <Text style={styles.profileInitial}>AD</Text>
-            </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <Pressable style={styles.headerButton} onPress={() => navigation.navigate('AdminSettings')}>
+              <Ionicons name="settings-outline" size={20} color="#fff" />
+            </Pressable>
+            <Pressable style={styles.headerButton} onPress={handleSignOut}>
+              <Ionicons name="log-out-outline" size={20} color="#fff" />
+            </Pressable>
           </View>
         </View>
       </LinearGradient>
     </>
   );
 
-  return (
-    <View style={styles.container}>
-      <Header />
-      
-      <FlatList
-        data={[{ key: 'content' }]}
-        renderItem={() => (
+  const renderStats = () => (
+    <View style={styles.statsGrid}>
+      {stats.map((item) => {
+        const Wrapper = item.onPress ? Pressable : View;
+        return (
+          <Wrapper key={item.key} style={styles.statCard} onPress={item.onPress}>
+            <View style={styles.statCardTop}>
+              <LinearGradient colors={item.gradient} style={styles.statIcon}>
+                <Ionicons name={item.icon} size={18} color="#fff" />
+              </LinearGradient>
+              {item.onPress ? <Ionicons name="chevron-forward" size={16} color={COLORS.muted} /> : null}
+            </View>
+            <Text style={styles.statValue}>{item.label}</Text>
+            <Text style={styles.statLabel}>{item.breakdown}</Text>
+          </Wrapper>
+        );
+      })}
+    </View>
+  );
+
+  const renderMainTabs = () => (
+    <View style={styles.mainTabs}>
+      {MAIN_TABS.map((tab) => {
+        const active = activeTab === tab.key;
+        return (
+          <Pressable key={tab.key} style={[styles.mainTab, active && styles.mainTabActive]} onPress={() => setActiveTab(tab.key)}>
+            <Ionicons name={tab.icon} size={14} color={active ? '#fff' : COLORS.muted} />
+            <Text style={[styles.mainTabText, active && styles.mainTabTextActive]}>{tab.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+
+  const renderOverview = () => (
+    <View>
+      <View style={styles.heroCard}>
+        <View style={styles.heroHeader}>
           <View>
-            <TouchableOpacity style={styles.testSignOutButton} onPress={handleSignOut}>
-              <Ionicons name="log-out-outline" size={18} color="#dc2626" />
-              <Text style={styles.testSignOutText}>Sign out for auth test</Text>
-            </TouchableOpacity>
+            <Text style={styles.heroTitle}>Live operations</Text>
+            <Text style={styles.heroText}>Review the platform and act on pending work from one place.</Text>
+          </View>
+          <Pressable style={styles.primaryButton} onPress={() => setShowAlertModal(true)}>
+            <Ionicons name="notifications-outline" size={15} color="#fff" />
+            <Text style={styles.primaryButtonText}>Create alert</Text>
+          </Pressable>
+        </View>
 
-            {/* Stats Section */}
-            <View style={styles.statsGrid}>
-              <StatCard 
-                title="Total Users" 
-                value={systemStats.totalUsers} 
-                icon="people-outline" 
-                color="#10b981"
-                onPress={() => handleStatPress('All Users', 'total')}
-              />
-              <StatCard 
-                title="Active Users" 
-                value={systemStats.activeUsers} 
-                icon="checkmark-circle-outline" 
-                color="#10b981"
-                onPress={() => handleStatPress('Active Users', 'active')}
-              />
-              <StatCard 
-                title="Pending" 
-                value={systemStats.pendingApprovals} 
-                icon="time-outline" 
-                color="#f59e0b"
-                onPress={() => handleStatPress('Pending Approvals', 'pending')}
-              />
-              <StatCard 
-                title="Growth" 
-                value={systemStats.monthlyGrowth} 
-                icon="trending-up-outline" 
-                color="#10b981"
-                onPress={() => {}}
-              />
+        <View style={styles.heroActions}>
+          <Pressable style={styles.secondaryButton} onPress={() => setShowRequestModal(true)}>
+            <Ionicons name="add-circle-outline" size={16} color={COLORS.greenDark} />
+            <Text style={styles.secondaryButtonText}>Manual pickup request</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => setActiveTab('health')}>
+            <Ionicons name="server-outline" size={16} color={COLORS.greenDark} />
+            <Text style={styles.secondaryButtonText}>Inspect data health</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Pending work</Text>
+      </View>
+
+      <View style={styles.infoGrid}>
+        <View style={styles.infoCard}>
+          <Text style={styles.infoValue}>{pendingWithdrawals.length}</Text>
+          <Text style={styles.infoLabel}>Finance approvals</Text>
+        </View>
+        <View style={styles.infoCard}>
+          <Text style={styles.infoValue}>{admin.pickups.filter((pickup) => !pickup.collector_id || !pickup.manufacturer_id).length}</Text>
+          <Text style={styles.infoLabel}>Unassigned pickups</Text>
+        </View>
+        <View style={styles.infoCard}>
+          <Text style={styles.infoValue}>{admin.alerts.filter((alert) => !alert.is_read).length}</Text>
+          <Text style={styles.infoLabel}>Unread alerts</Text>
+        </View>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Recent alerts</Text>
+      </View>
+      {admin.alerts.slice(0, 4).map((alert) => (
+        <View key={alert.id} style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={styles.avatar}>
+              <Ionicons name="notifications-outline" size={18} color={COLORS.greenDark} />
             </View>
-
-            {/* User Type Selector */}
-            <View style={styles.groupContainer}>
-              <TouchableOpacity
-                style={[styles.groupButton, selectedGroup === 'restaurant' && styles.activeGroup]}
-                onPress={() => setSelectedGroup('restaurant')}
-              >
-                <Ionicons 
-                  name="restaurant-outline" 
-                  size={18} 
-                  color={selectedGroup === 'restaurant' ? '#10b981' : '#6b7280'} 
-                />
-                <Text style={[styles.groupText, selectedGroup === 'restaurant' && styles.activeGroupText]}>
-                  Rest.
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.groupButton, selectedGroup === 'manufacturer' && styles.activeGroup]}
-                onPress={() => setSelectedGroup('manufacturer')}
-              >
-                <Ionicons 
-                  name="business-outline" 
-                  size={18} 
-                  color={selectedGroup === 'manufacturer' ? '#10b981' : '#6b7280'} 
-                />
-                <Text style={[styles.groupText, selectedGroup === 'manufacturer' && styles.activeGroupText]}>
-                  Mfg.
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.groupButton, selectedGroup === 'driver' && styles.activeGroup]}
-                onPress={() => setSelectedGroup('driver')}
-              >
-                <Ionicons 
-                  name="car-outline" 
-                  size={18} 
-                  color={selectedGroup === 'driver' ? '#10b981' : '#6b7280'} 
-                />
-                <Text style={[styles.groupText, selectedGroup === 'driver' && styles.activeGroupText]}>
-                  Drivers
-                </Text>
-              </TouchableOpacity>
+            <View style={styles.cardMain}>
+              <Text style={styles.cardTitle}>{alert.title}</Text>
+              <Text style={styles.cardSub}>{alert.message}</Text>
+              <Text style={styles.cardMeta}>{formatDateTime(alert.created_at)}</Text>
             </View>
-
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-              <Ionicons name="search-outline" size={20} color="#9ca3af" style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search users..."
-                placeholderTextColor="#9ca3af"
-                value={search}
-                onChangeText={setSearch}
-              />
-            </View>
-
-            {/* Add User Section */}
-            <View style={styles.addSection}>
-              <TextInput
-                style={styles.addInput}
-                placeholder="Enter new user name..."
-                placeholderTextColor="#9ca3af"
-                value={newUser}
-                onChangeText={setNewUser}
-              />
-              <TouchableOpacity style={styles.addButton} onPress={addUser}>
-                <LinearGradient
-                  colors={['#10b981', '#059669']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.addGradient}
-                >
-                  <Ionicons name="add-outline" size={20} color="#fff" />
-                  <Text style={styles.addButtonText}>Add</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-
-            {/* Users List */}
-            <View style={styles.usersSection}>
-              <Text style={styles.sectionTitle}>
-                {selectedGroup === 'restaurant' ? 'Restaurant Users' : 
-                 selectedGroup === 'manufacturer' ? 'Manufacturer Users' : 'Driver Users'}
-              </Text>
-              
-              {filteredUsers.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Ionicons name="people-outline" size={64} color="#d1d5db" />
-                  <Text style={styles.emptyStateText}>No users found</Text>
-                </View>
-              ) : (
-                filteredUsers.map((item) => (
-                  <View key={item.id}>
-                    {renderUser({ item })}
-                  </View>
-                ))
-              )}
+            <View style={[styles.badge, { backgroundColor: `${getStatusColor(alert.type)}22` }]}> 
+              <Text style={[styles.badgeText, { color: getStatusColor(alert.type) }]}>{alert.type}</Text>
             </View>
           </View>
-        )}
-        showsVerticalScrollIndicator={false}
+        </View>
+      ))}
+    </View>
+  );
+
+  const renderUsers = () => (
+    <View>
+      <TextInput
+        style={styles.search}
+        placeholder="Search users by name or email"
+        placeholderTextColor="#94a3b8"
+        value={search}
+        onChangeText={setSearch}
       />
-      
-      <UserListModal />
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+        {ROLE_FILTERS.map((role) => {
+          const active = roleFilter === role;
+          return (
+            <Pressable key={role} style={[styles.filterChip, active && styles.filterChipActive]} onPress={() => setRoleFilter(role)}>
+              <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                {role === 'all' ? 'All roles' : labelFromKey(role)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {filteredUsers.map((user) => (
+        <UserCard
+          key={user.id}
+          user={user}
+          onToggleProfile={() => withMutation('User status', () => admin.updateProfileStatus(user.id, user.status === 'active' ? 'inactive' : 'active'))}
+          onToggleBusinessStatus={() =>
+            user.businessTable && user.business?.id
+              ? withMutation('Business status', () => admin.updateBusinessStatus(user.businessTable, user.business.id, user.business.status === 'active' ? 'inactive' : 'active'))
+              : null
+          }
+          onToggleVerification={() =>
+            user.businessTable && user.business?.id
+              ? withMutation('Verification', () => admin.updateBusinessVerification(user.businessTable, user.business.id, !user.business.is_verified))
+              : null
+          }
+        />
+      ))}
+
+      {filteredUsers.length === 0 ? <EmptyState label="No users match this filter." /> : null}
+    </View>
+  );
+
+  const renderPickups = () => (
+    <View>
+      {admin.pickups.map((pickup) => (
+        <PickupCard
+          key={pickup.id}
+          pickup={pickup}
+          collectors={admin.collectors}
+          manufacturers={admin.manufacturers}
+          onAssignCollector={(collectorId) => withMutation('Assign collector', () => admin.assignPickup(pickup.id, { collector_id: collectorId, status: pickup.status ?? 'scheduled' }))}
+          onAssignManufacturer={(manufacturerId) => withMutation('Assign manufacturer', () => admin.assignPickup(pickup.id, { manufacturer_id: manufacturerId, status: pickup.status ?? 'scheduled' }))}
+          onSetStatus={(status) => withMutation('Pickup status', () => admin.updatePickupStatus(pickup.id, status))}
+        />
+      ))}
+
+      {admin.pickups.length === 0 ? <EmptyState label="No pickups found." /> : null}
+    </View>
+  );
+
+  const renderFinance = () => (
+    <View>
+      <View style={styles.heroCard}>
+        <Text style={styles.heroTitle}>Wallet and payout controls</Text>
+        <Text style={styles.heroText}>Approve or reject incoming withdrawal requests from the live finance queue.</Text>
+      </View>
+      {admin.restaurantWallets.map((wallet) => (
+        <View key={wallet.id} style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={styles.avatar}>
+              <Ionicons name="wallet-outline" size={18} color={COLORS.greenDark} />
+            </View>
+            <View style={styles.cardMain}>
+              <Text style={styles.cardTitle}>Restaurant wallet</Text>
+              <Text style={styles.cardSub}>Wallet ID: {wallet.id}</Text>
+              <Text style={styles.cardMeta}>Balance {currency(wallet.balance)}</Text>
+            </View>
+          </View>
+        </View>
+      ))}
+
+      {pendingWithdrawals.map((withdrawal) => (
+        <View key={withdrawal.id} style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={styles.avatar}>
+              <Ionicons name="cash-outline" size={18} color={COLORS.greenDark} />
+            </View>
+            <View style={styles.cardMain}>
+              <Text style={styles.cardTitle}>{currency(withdrawal.amount)}</Text>
+              <Text style={styles.cardSub}>Method: {withdrawal.method ?? 'manual'}</Text>
+              <Text style={styles.cardMeta}>{formatDateTime(withdrawal.created_at)}</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: `${getStatusColor(withdrawal.status)}22` }]}> 
+              <Text style={[styles.badgeText, { color: getStatusColor(withdrawal.status) }]}>{withdrawal.status}</Text>
+            </View>
+          </View>
+          <View style={styles.actionRow}>
+            <ActionButton label="Approve" icon="checkmark-circle-outline" onPress={() => withMutation('Approve withdrawal', () => admin.updateWithdrawalStatus(withdrawal.id, 'approved'))} />
+            <ActionButton label="Reject" icon="close-circle-outline" onPress={() => withMutation('Reject withdrawal', () => admin.updateWithdrawalStatus(withdrawal.id, 'rejected'))} />
+          </View>
+        </View>
+      ))}
+
+      {pendingWithdrawals.length === 0 ? <EmptyState label="No withdrawals awaiting review." /> : null}
+    </View>
+  );
+
+  const renderAlerts = () => (
+    <View>
+      <View style={styles.heroCard}>
+        <View style={styles.heroHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroTitle}>Alert operations</Text>
+            <Text style={styles.heroText}>Create targeted messages and manage the live alert queue.</Text>
+          </View>
+          <Pressable style={styles.primaryButton} onPress={() => setShowAlertModal(true)}>
+            <Ionicons name="add-outline" size={15} color="#fff" />
+            <Text style={styles.primaryButtonText}>New alert</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {admin.alerts.map((alert) => (
+        <View key={alert.id} style={styles.card}>
+          <View style={styles.cardTop}>
+            <View style={styles.avatar}>
+              <Ionicons name="notifications-outline" size={18} color={COLORS.greenDark} />
+            </View>
+            <View style={styles.cardMain}>
+              <Text style={styles.cardTitle}>{alert.title}</Text>
+              <Text style={styles.cardSub}>{alert.message}</Text>
+              <Text style={styles.cardMeta}>{alert.category} · {formatDateTime(alert.created_at)}</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: `${getStatusColor(alert.type)}22` }]}> 
+              <Text style={[styles.badgeText, { color: getStatusColor(alert.type) }]}>{alert.type}</Text>
+            </View>
+          </View>
+          <View style={styles.actionRow}>
+            <ActionButton label={alert.is_read ? 'Mark unread' : 'Mark read'} icon={alert.is_read ? 'mail-open-outline' : 'mail-outline'} onPress={() => withMutation('Alert update', () => admin.updateAlertRead(alert.id, !alert.is_read))} />
+            <ActionButton label="Delete" icon="trash-outline" onPress={() => Alert.alert('Delete alert', 'Remove this alert?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => withMutation('Delete alert', () => admin.deleteAlert(alert.id)) }])} />
+          </View>
+        </View>
+      ))}
+
+      {admin.alerts.length === 0 ? <EmptyState label="No alerts found." /> : null}
+    </View>
+  );
+
+  const renderHealth = () => (
+    <View>
+      {admin.errors.length > 0 ? (
+        <View style={styles.warningCard}>
+          <Ionicons name="warning-outline" size={18} color={COLORS.amber} />
+          <Text style={styles.warningText}>Some tables could not be read. This usually means RLS policies are missing for admin users.</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Data access overview</Text>
+      </View>
+      {admin.tableOverview.map((table) => (
+        <View key={table.key} style={styles.tableRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.tableName}>{table.label}</Text>
+            {table.error ? <Text style={styles.tableError}>{table.error}</Text> : null}
+          </View>
+          <Text style={[styles.tableCount, table.error && styles.tableCountError]}>{table.count}</Text>
+        </View>
+      ))}
+    </View>
+  );
+
+  return (
+    <View style={styles.root}>
+      {renderHeader()}
+      <ScrollView refreshControl={<RefreshControl refreshing={admin.refreshing} onRefresh={admin.refreshAdmin} />} contentContainerStyle={styles.content}>
+        {activeTab === 'overview' ? renderStats() : null}
+        {renderMainTabs()}
+
+        {admin.loading ? (
+          <View style={styles.loading}>
+            <ActivityIndicator size="large" color={COLORS.green} />
+            <Text style={styles.loadingText}>Loading live admin data...</Text>
+          </View>
+        ) : null}
+
+        {admin.error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{admin.error}</Text>
+          </View>
+        ) : null}
+
+        {!admin.loading && activeTab === 'overview' ? renderOverview() : null}
+        {!admin.loading && activeTab === 'users' ? renderUsers() : null}
+        {!admin.loading && activeTab === 'dispatch' ? (
+          <DispatchBoard
+            admin={admin}
+            ui={{ styles, COLORS, getStatusColor, formatDate, labelFromKey, AssignmentRow, ActionButton, EmptyState }}
+          />
+        ) : null}
+        {!admin.loading && activeTab === 'pickups' ? renderPickups() : null}
+        {!admin.loading && activeTab === 'finance' ? renderFinance() : null}
+        {!admin.loading && activeTab === 'alerts' ? renderAlerts() : null}
+        {!admin.loading && activeTab === 'health' ? renderHealth() : null}
+      </ScrollView>
+
+      <Modal visible={showAlertModal} transparent animationType="slide" onRequestClose={() => setShowAlertModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create alert</Text>
+              <Pressable onPress={() => setShowAlertModal(false)}>
+                <Ionicons name="close-outline" size={22} color={COLORS.muted} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }}>
+              <TextInput
+                style={styles.input}
+                placeholder="Heading"
+                value={alertForm.title}
+                onChangeText={(value) => setAlertForm((prev) => ({ ...prev, title: value }))}
+              />
+              <TextInput
+                style={[styles.input, styles.textarea]}
+                placeholder="Alert message"
+                multiline
+                value={alertForm.message}
+                onChangeText={(value) => setAlertForm((prev) => ({ ...prev, message: value }))}
+              />
+
+              <Text style={styles.sectionMiniTitle}>Target user</Text>
+              <View style={styles.chipRow}>
+                {admin.users.map((user) => {
+                  const active = alertForm.userId === user.id;
+                  return (
+                    <Pressable key={user.id} style={[styles.assignmentChip, active && styles.assignmentChipActive]} onPress={() => setAlertForm((prev) => ({ ...prev, userId: user.id }))}>
+                      <Text style={[styles.assignmentChipText, active && styles.assignmentChipTextActive]}>{user.displayName}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.sectionMiniTitle}>Category</Text>
+              <View style={styles.chipRow}>
+                {ALERT_CATEGORIES.map((category) => {
+                  const active = alertForm.category === category;
+                  return (
+                    <Pressable key={category} style={[styles.assignmentChip, active && styles.assignmentChipActive]} onPress={() => setAlertForm((prev) => ({ ...prev, category }))}>
+                      <Text style={[styles.assignmentChipText, active && styles.assignmentChipTextActive]}>{labelFromKey(category)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.sectionMiniTitle}>Priority</Text>
+              <View style={styles.chipRow}>
+                {ALERT_TYPES.map((type) => {
+                  const active = alertForm.type === type;
+                  return (
+                    <Pressable key={type} style={[styles.assignmentChip, active && styles.assignmentChipActive]} onPress={() => setAlertForm((prev) => ({ ...prev, type }))}>
+                      <Text style={[styles.assignmentChipText, active && styles.assignmentChipTextActive]}>{labelFromKey(type)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.secondaryButton} onPress={() => setShowAlertModal(false)}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.primaryButton} onPress={handleCreateAlert} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryButtonText}>Save alert</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showRequestModal} transparent animationType="slide" onRequestClose={() => setShowRequestModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Manual pickup request</Text>
+              <Pressable onPress={() => setShowRequestModal(false)}>
+                <Ionicons name="close-outline" size={22} color={COLORS.muted} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }}>
+              <Text style={styles.sectionMiniTitle}>Restaurant</Text>
+              <View style={styles.chipRow}>
+                {admin.restaurants.map((restaurant) => {
+                  const active = requestForm.restaurantId === restaurant.id;
+                  return (
+                    <Pressable key={restaurant.id} style={[styles.assignmentChip, active && styles.assignmentChipActive]} onPress={() => setRequestForm((prev) => ({ ...prev, restaurantId: restaurant.id }))}>
+                      <Text style={[styles.assignmentChipText, active && styles.assignmentChipTextActive]}>{restaurant.name ?? 'Restaurant'}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.sectionMiniTitle}>Urgency</Text>
+              <View style={styles.chipRow}>
+                {REQUEST_URGENCY.map((urgency) => {
+                  const active = requestForm.urgency === urgency;
+                  return (
+                    <Pressable key={urgency} style={[styles.assignmentChip, active && styles.assignmentChipActive]} onPress={() => setRequestForm((prev) => ({ ...prev, urgency }))}>
+                      <Text style={[styles.assignmentChipText, active && styles.assignmentChipTextActive]}>{labelFromKey(urgency)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Reason for request"
+                value={requestForm.reason}
+                onChangeText={(value) => setRequestForm((prev) => ({ ...prev, reason: value }))}
+              />
+              <TextInput
+                style={[styles.input, styles.textarea]}
+                placeholder="Additional notes"
+                multiline
+                value={requestForm.notes}
+                onChangeText={(value) => setRequestForm((prev) => ({ ...prev, notes: value }))}
+              />
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.secondaryButton} onPress={() => setShowRequestModal(false)}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.primaryButton} onPress={handleCreateRequest} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryButtonText}>Create request</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+function UserCard({ user, onToggleProfile, onToggleBusinessStatus, onToggleVerification }) {
+  const statusColor = getStatusColor(user.status);
+  const businessStatusColor = getStatusColor(user.business?.status);
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardTop}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{String(user.displayName ?? '?').slice(0, 1).toUpperCase()}</Text>
+        </View>
+        <View style={styles.cardMain}>
+          <Text style={styles.cardTitle}>{user.displayName}</Text>
+          <Text style={styles.cardSub}>{user.email}</Text>
+          <Text style={styles.cardMeta}>{labelFromKey(user.role)} · joined {formatDate(user.created_at)}</Text>
+        </View>
+        <View style={[styles.badge, { backgroundColor: `${statusColor}22` }]}> 
+          <Text style={[styles.badgeText, { color: statusColor }]}>{user.status ?? 'unknown'}</Text>
+        </View>
+      </View>
+
+      {user.business ? (
+        <View style={styles.businessBox}>
+          <Text style={styles.businessText}>Business: {user.business.name ?? user.business.full_name ?? '—'}</Text>
+          <Text style={[styles.businessText, { color: businessStatusColor }]}>Status: {user.business.status ?? 'unknown'} · Verified: {user.business.is_verified ? 'yes' : 'no'}</Text>
+        </View>
+      ) : (
+        <Text style={styles.noBusiness}>No linked business record.</Text>
+      )}
+
+      <View style={styles.actionRow}>
+        <ActionButton label={user.status === 'active' ? 'Suspend user' : 'Activate user'} icon={user.status === 'active' ? 'pause-circle-outline' : 'checkmark-circle-outline'} onPress={onToggleProfile} />
+        <ActionButton label={user.business?.status === 'active' ? 'Suspend business' : 'Activate business'} icon="business-outline" onPress={onToggleBusinessStatus} disabled={!user.business} />
+        <ActionButton label={user.business?.is_verified ? 'Unverify' : 'Verify'} icon="shield-checkmark-outline" onPress={onToggleVerification} disabled={!user.business} />
+      </View>
+    </View>
+  );
+}
+
+function PickupCard({ pickup, collectors, manufacturers, onAssignCollector, onAssignManufacturer, onSetStatus }) {
+  const statusColor = getStatusColor(pickup.status);
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardTop}>
+        <View style={styles.cardMain}>
+          <Text style={styles.cardTitle}>{pickup.restaurants?.name ?? 'Unknown restaurant'}</Text>
+          <Text style={styles.cardSub}>{pickup.restaurants?.address ?? 'No address'}</Text>
+          <Text style={styles.cardMeta}>{formatDate(pickup.pickup_date)} · {pickup.estimated_volume_liters ?? pickup.actual_volume_liters ?? 0}L</Text>
+        </View>
+        <View style={[styles.badge, { backgroundColor: `${statusColor}22` }]}> 
+          <Text style={[styles.badgeText, { color: statusColor }]}>{labelFromKey(pickup.status)}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.sectionMiniTitle}>Driver</Text>
+      <AssignmentRow items={collectors} currentId={pickup.collector_id} getLabel={(collector) => collector.full_name ?? collector.employee_code ?? 'Collector'} onSelect={onAssignCollector} />
+
+      <Text style={styles.sectionMiniTitle}>Manufacturer</Text>
+      <AssignmentRow items={manufacturers} currentId={pickup.manufacturer_id} getLabel={(manufacturer) => manufacturer.name ?? 'Manufacturer'} onSelect={onAssignManufacturer} />
+
+      <Text style={styles.sectionMiniTitle}>Status</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        {PICKUP_STATUSES.map((status) => {
+          const active = pickup.status === status;
+          return (
+            <Pressable key={status} style={[styles.assignmentChip, active && styles.assignmentChipActive]} onPress={() => onSetStatus(status)}>
+              <Text style={[styles.assignmentChipText, active && styles.assignmentChipTextActive]}>{labelFromKey(status)}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+function AssignmentRow({ items, currentId, getLabel, onSelect }) {
+  if (!items.length) {
+    return <Text style={styles.noBusiness}>No records available.</Text>;
+  }
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+      {items.map((item) => {
+        const active = item.id === currentId;
+        return (
+          <Pressable key={item.id} style={[styles.assignmentChip, active && styles.assignmentChipActive]} onPress={() => onSelect(item.id)}>
+            <Text style={[styles.assignmentChipText, active && styles.assignmentChipTextActive]}>{getLabel(item)}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function ActionButton({ label, icon, onPress, disabled = false }) {
+  return (
+    <Pressable style={[styles.actionButton, disabled && styles.actionButtonDisabled]} onPress={disabled ? undefined : onPress}>
+      <Ionicons name={icon} size={14} color={disabled ? '#94a3b8' : COLORS.greenDark} />
+      <Text style={[styles.actionText, disabled && styles.actionTextDisabled]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function EmptyState({ label }) {
+  return (
+    <View style={styles.empty}>
+      <Ionicons name="file-tray-outline" size={32} color="#94a3b8" />
+      <Text style={styles.emptyText}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  header: {
-    paddingBottom: 12,
-  },
-  headerContent: {
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logoCircle: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  logoImage: {
-    width: 41,
-    height: 41,
-    borderRadius: 20.5,
-  },
-  appName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  companyName: {
-    fontSize: 10,
-    color: '#fff',
-    opacity: 0.9,
-    marginTop: 1,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  notificationButton: {
-    position: 'relative',
-    padding: 8,
-  },
-  headerSignOutButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(220,38,38,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-  },
-  profileCircle: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  profileInitial: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 12,
-    marginTop: 14,
-  },
-  testSignOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  testSignOutText: {
-    color: '#dc2626',
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  root: { flex: 1, backgroundColor: COLORS.bg },
+  header: { paddingHorizontal: 20, paddingBottom: 18 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#fff' },
+  headerSub: { marginTop: 4, color: 'rgba(255,255,255,0.85)', fontSize: 13 },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  headerButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  content: { padding: 16, paddingBottom: 32 },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
   statCard: {
     flex: 1,
     minWidth: '45%',
+    backgroundColor: COLORS.card,
     borderRadius: 16,
-    overflow: 'hidden',
+    padding: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
-  statGradient: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  statTitle: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  groupContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 20,
-    gap: 12,
-  },
-  groupButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  activeGroup: {
-    backgroundColor: '#D1FAE5',
-    borderColor: '#10b981',
-  },
-  groupText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  activeGroupText: {
-    color: '#10b981',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#111827',
-  },
-  addSection: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 16,
-    gap: 12,
-  },
-  addInput: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    fontSize: 15,
-    color: '#111827',
-  },
-  addButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  addGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  addButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  usersSection: {
-    paddingHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  userCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
+  statCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  statIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginTop: 8 },
+  statLabel: { fontSize: 11, color: COLORS.muted, marginTop: 2 },
+  mainTabs: { flexDirection: 'row', backgroundColor: '#e8eee9', borderRadius: 14, padding: 4, marginVertical: 14, gap: 4, flexWrap: 'wrap' },
+  mainTab: { flex: 1, minWidth: '30%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10 },
+  mainTabActive: { backgroundColor: COLORS.green },
+  mainTabText: { fontSize: 12, fontWeight: '700', color: COLORS.muted },
+  mainTabTextActive: { color: '#fff' },
+  search: { backgroundColor: COLORS.card, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 14, paddingVertical: 12, color: COLORS.text, marginBottom: 10 },
+  filterRow: { gap: 8, paddingBottom: 10 },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border },
+  filterChipActive: { backgroundColor: COLORS.green, borderColor: COLORS.green },
+  filterChipText: { fontSize: 12, fontWeight: '700', color: COLORS.muted, textTransform: 'capitalize' },
+  filterChipTextActive: { color: '#fff' },
+  heroCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: COLORS.border, marginBottom: 12 },
+  heroHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  heroTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  heroText: { marginTop: 4, fontSize: 12, color: COLORS.muted, lineHeight: 18 },
+  heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  primaryButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.green, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 10 },
+  primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  secondaryButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ecfdf5', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 10 },
+  secondaryButtonText: { color: COLORS.greenDark, fontWeight: '700', fontSize: 12 },
+  sectionHeader: { marginTop: 8, marginBottom: 8 },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+  infoCard: { flex: 1, minWidth: '30%', backgroundColor: '#f8fafc', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: COLORS.border },
+  infoValue: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+  infoLabel: { marginTop: 2, fontSize: 11, color: COLORS.muted },
+  card: {
+    backgroundColor: COLORS.card,
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10b981',
   },
-  userAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#D1FAE5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  userAvatarText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#10b981',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-    flexWrap: 'wrap',
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  userEmail: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 2,
-  },
-  userPhone: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 2,
-  },
-  userDate: {
-    fontSize: 11,
-    color: '#9ca3af',
-  },
-  userActions: {
-    justifyContent: 'center',
-    gap: 8,
-  },
-  approveButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#D1FAE5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FEE2E2',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 12,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  modalUserItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  modalUserAvatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#D1FAE5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  modalUserInitial: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#10b981',
-  },
-  modalUserInfo: {
-    flex: 1,
-  },
-  modalUserName: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#111827',
-  },
-  modalUserEmail: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  modalStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  modalStatusText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  modalEmpty: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  modalEmptyText: {
-    fontSize: 14,
-    color: '#9ca3af',
-  },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#d1fae5', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 18, fontWeight: '800', color: COLORS.greenDark },
+  cardMain: { flex: 1 },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
+  cardSub: { marginTop: 3, fontSize: 12, color: COLORS.muted },
+  cardMeta: { marginTop: 3, fontSize: 11, color: '#94a3b8' },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  businessBox: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 10, marginTop: 12 },
+  businessText: { fontSize: 12, color: COLORS.muted, marginBottom: 2 },
+  noBusiness: { fontSize: 12, color: '#94a3b8', marginTop: 10 },
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: '#ecfdf5' },
+  actionButtonDisabled: { backgroundColor: '#f1f5f9' },
+  actionText: { fontSize: 11, fontWeight: '800', color: COLORS.greenDark },
+  actionTextDisabled: { color: '#94a3b8' },
+  sectionMiniTitle: { marginTop: 12, marginBottom: 6, fontSize: 11, fontWeight: '800', color: COLORS.muted, textTransform: 'uppercase' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingRight: 8 },
+  assignmentChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: COLORS.border },
+  assignmentChipActive: { backgroundColor: COLORS.green, borderColor: COLORS.green },
+  assignmentChipText: { fontSize: 12, fontWeight: '700', color: COLORS.muted, textTransform: 'capitalize' },
+  assignmentChipTextActive: { color: '#fff' },
+  tableRow: { backgroundColor: COLORS.card, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 14, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  tableName: { fontSize: 14, fontWeight: '800', color: COLORS.text, textTransform: 'capitalize' },
+  tableError: { maxWidth: 260, marginTop: 4, fontSize: 11, color: COLORS.red },
+  tableCount: { fontSize: 18, fontWeight: '800', color: COLORS.green },
+  tableCountError: { color: COLORS.red },
+  warningCard: { flexDirection: 'row', gap: 8, backgroundColor: '#fffbeb', borderColor: '#fde68a', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12 },
+  warningText: { flex: 1, color: '#92400e', fontSize: 12, lineHeight: 17 },
+  loading: { alignItems: 'center', padding: 32 },
+  loadingText: { marginTop: 10, color: COLORS.muted },
+  errorCard: { backgroundColor: '#fee2e2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12 },
+  errorText: { color: COLORS.red, fontSize: 12 },
+  empty: { alignItems: 'center', padding: 32 },
+  emptyText: { marginTop: 8, color: COLORS.muted },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15, 23, 42, 0.48)' },
+  modalCard: { backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, maxHeight: '90%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+  input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10, color: COLORS.text },
+  textarea: { minHeight: 90, textAlignVertical: 'top' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
 });

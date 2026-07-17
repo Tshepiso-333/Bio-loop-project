@@ -70,6 +70,9 @@ export default function DriverHomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const { collector, pickups = [], stats } = useCollectorContext();
+  const completedStops = (pickups || []).filter((pickup) => pickup.status === 'completed').length;
+  const totalStops = (pickups || []).length;
+  const totalLiters = stats?.total_liters ?? collector?.total_liters ?? 0;
 
   const todayPickups = (pickups || []).slice(0, 3).map(p => ({
     id: p.id,
@@ -135,7 +138,7 @@ export default function DriverHomeScreen({ navigation }) {
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Good day,</Text>
           <Text style={styles.welcomeName}>{collector?.full_name ?? 'Driver'}</Text>
-          <Text style={styles.welcomeRoute}>{stats?.route_name ?? ''} · {stats?.district ?? ''}</Text>
+          <Text style={styles.welcomeRoute}>{stats?.route_name ?? collector?.route_name ?? ''} · {stats?.district ?? collector?.district ?? ''}</Text>
         </View>
 
         {/* Stats Cards */}
@@ -148,7 +151,7 @@ export default function DriverHomeScreen({ navigation }) {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="water-outline" size={22} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{stats?.todayCollected ?? stats?.litersTotal ?? 0} L</Text>
+              <Text style={styles.statValue}>{totalLiters} L</Text>
               <Text style={styles.statLabel}>Collected today</Text>
             </LinearGradient>
           </View>
@@ -161,7 +164,7 @@ export default function DriverHomeScreen({ navigation }) {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="location-outline" size={22} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{stats?.stopsCompleted ?? 0}/{stats?.stopsTotal ?? 0}</Text>
+              <Text style={styles.statValue}>{completedStops}/{totalStops}</Text>
               <Text style={styles.statLabel}>Stops remaining</Text>
             </LinearGradient>
           </View>
@@ -179,7 +182,7 @@ export default function DriverHomeScreen({ navigation }) {
               </View>
               <View>
                 <Text style={styles.weeklyTitle}>Weekly Total</Text>
-                <Text style={styles.weeklySub}>{stats?.total_liters ?? 0}L · {(pickups || []).length} stops</Text>
+                <Text style={styles.weeklySub}>{totalLiters}L · {totalStops} stops</Text>
               </View>
             </View>
             <Text style={styles.weeklyChange}>+{stats?.weeklyChange ?? '—'}%</Text>

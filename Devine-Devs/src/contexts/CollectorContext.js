@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../AuthContext';
 import { cacheKeys, readCache, writeCache } from '../lib/cache';
-import { loadCollectorBundle } from '../services/collectorService';
+import { loadCollectorBundle, updatePickupStatus as savePickupStatus } from '../services/collectorService';
 
 const CollectorContext = createContext(null);
 
@@ -69,6 +69,30 @@ export const CollectorProvider = ({ children }) => {
     await loadCollectorData(user.id, { fromCache: false });
   }, [user?.id, loadCollectorData]);
 
+  const handleUpdatePickupStatus = useCallback(
+    async (pickupId, status) => {
+      const updatedPickup = await savePickupStatus(pickupId, status);
+
+      setState((prev) => {
+        const next = {
+          ...prev,
+          pickups: prev.pickups.map((pickup) =>
+            pickup.id === pickupId ? updatedPickup : pickup
+          ),
+        };
+
+        if (user?.id) {
+          writeCache(cacheKeys.collector(user.id), next);
+        }
+
+        return next;
+      });
+
+      return updatedPickup;
+    },
+    [user?.id]
+  );
+
   useEffect(() => {
     if (user?.id) {
       loadCollectorData(user.id);
@@ -86,7 +110,8 @@ export const CollectorProvider = ({ children }) => {
     error,
     loadCollectorData,
     refreshCollector,
-  }), [state, loading, refreshing, error, loadCollectorData, refreshCollector]);
+    updatePickupStatus: handleUpdatePickupStatus,
+  }), [state, loading, refreshing, error, loadCollectorData, refreshCollector, handleUpdatePickupStatus]);
 
   return (
     <CollectorContext.Provider value={value}>

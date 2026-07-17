@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
 import { useAuth } from '../../AuthContext';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { useProfile } from '../../src/hooks/useProfile';
+import { getInitials } from '../../src/utils/restaurantViewModels';
 
 // Import all screens - FIXED PATHS
 import QualityScreen from './QualityScreen';
@@ -23,15 +25,20 @@ import AIChatScreen from './AIChatScreen';
 import SuppliersScreen from './SuppliersScreen';
 import AlertsScreen from './AlertsScreen';
 import ProfileScreen from './ProfileScreen';
-//import DeliveryDetailsScreen from './DeliveryDetailsScreen';
 
 const { width } = Dimensions.get('window');
 
 const ManufacturerDashboardScreen = ({ navigation }) => {
   const { signOut } = useAuth();
   const { manufacturer, inventory, tanks, forecasts, pickups, alerts, loading, refreshManufacturer } = useManufacturerContext();
+  const { profile } = useProfile();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState('home');
+
+  const profileInitials = useMemo(
+    () => getInitials(profile?.full_name ?? manufacturer?.contact_person ?? manufacturer?.name, 'MF'),
+    [profile, manufacturer]
+  );
 
   // derive values from bundle with sensible fallbacks
   const currentStock = inventory?.current_stock_liters ?? 0;
@@ -207,11 +214,11 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
   // Pie Chart Component
   const PieChart = () => {
-    const segments = [
-      { percentage: 58, color: '#7EE92D', label: 'Grade A' },
-      { percentage: 32, color: '#f59e0b', label: 'Grade B' },
-      { percentage: 10, color: '#ef4444', label: 'Grade C' },
-    ];
+    const segments = qualityDistribution.map((item) => ({
+      percentage: item.value,
+      color: item.color,
+      label: item.name,
+    }));
     
     let cumulativeAngle = 0;
     
@@ -307,7 +314,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
               <Text style={styles.headerSignOutText}>Logout</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.profileButton}>
-              <Text style={styles.profileInitial}>KB</Text>
+              <Text style={styles.profileInitial}>{profileInitials}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -394,16 +401,16 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                 
                 <View style={styles.forecastDistribution}>
                   <View style={styles.forecastDistItem}>
-                    <View style={[styles.forecastDistBar, { width: `52%`, backgroundColor: '#7EE92D' }]} />
-                    <Text style={[styles.forecastDistLabel, { color: '#9ca3af' }]}>Grade A: 52%</Text>
+                    <View style={[styles.forecastDistBar, { width: `${forecastData['7days'].gradeA}%`, backgroundColor: '#7EE92D' }]} />
+                    <Text style={[styles.forecastDistLabel, { color: '#9ca3af' }]}>Grade A: {forecastData['7days'].gradeA}%</Text>
                   </View>
                   <View style={styles.forecastDistItem}>
-                    <View style={[styles.forecastDistBar, { width: `34%`, backgroundColor: '#f59e0b' }]} />
-                    <Text style={[styles.forecastDistLabel, { color: '#9ca3af' }]}>Grade B: 34%</Text>
+                    <View style={[styles.forecastDistBar, { width: `${forecastData['7days'].gradeB}%`, backgroundColor: '#f59e0b' }]} />
+                    <Text style={[styles.forecastDistLabel, { color: '#9ca3af' }]}>Grade B: {forecastData['7days'].gradeB}%</Text>
                   </View>
                   <View style={styles.forecastDistItem}>
-                    <View style={[styles.forecastDistBar, { width: `14%`, backgroundColor: '#ef4444' }]} />
-                    <Text style={[styles.forecastDistLabel, { color: '#9ca3af' }]}>Grade C: 14%</Text>
+                    <View style={[styles.forecastDistBar, { width: `${forecastData['7days'].gradeC}%`, backgroundColor: '#ef4444' }]} />
+                    <Text style={[styles.forecastDistLabel, { color: '#9ca3af' }]}>Grade C: {forecastData['7days'].gradeC}%</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -435,7 +442,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                   <TouchableOpacity
                     key={delivery.id}
                     style={styles.deliveryCard}
-                    onPress={() => navigation.navigate('DeliveryDetails', { delivery })}
+                    onPress={() => setSelectedTab('suppliers')}
                   >
                     <View style={styles.deliveryContent}>
                       <View style={styles.deliveryInfo}>

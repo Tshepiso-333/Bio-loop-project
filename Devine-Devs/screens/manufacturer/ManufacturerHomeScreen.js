@@ -10,12 +10,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
+import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { useProfile } from '../../src/hooks/useProfile';
 
 const { width, height } = Dimensions.get('window');
 
 function ManufacturerHomeScreen({ navigation, route }) {
-  const userName = route?.params?.userName || 'Kgopotso';
   const { signOut } = useAuth();
+  const { manufacturer } = useManufacturerContext();
+  const { profile } = useProfile();
+  const userName = profile?.full_name || manufacturer?.contact_person || manufacturer?.name || 'there';
 
   const handleGoToDashboard = () => {
     // ✅ FIXED: Navigate to the screen inside the nested ManufacturerStack

@@ -1,5 +1,5 @@
 // Devine-Devs/screens/driver/DriverMapScreen.js
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-
-
-const GOOGLE_MAPS_API_KEY = 'AIzaSyCx1-oD7fBleLvm2qNwJ609ZUwWxVz4boM';
-
-
+import { useCollectorContext } from '../../src/contexts/CollectorContext';
 
 const THEME = {
   primary: '#10b981',
@@ -31,10 +27,35 @@ const THEME = {
 
 export default function DriverMapScreen() {
   const mapRef = useRef(null);
+  const { pickups = [] } = useCollectorContext();
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [speed, setSpeed] = useState(0);
+
+  const pickupMarkers = useMemo(
+    () =>
+      (pickups || [])
+        .filter((pickup) => pickup.status !== 'completed')
+        .map((pickup) => {
+          const latitude = Number(pickup.restaurants?.latitude);
+          const longitude = Number(pickup.restaurants?.longitude);
+
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            return null;
+          }
+
+          return {
+            id: pickup.id,
+            latitude,
+            longitude,
+            title: pickup.restaurants?.name ?? 'Pickup location',
+            description: pickup.restaurants?.address ?? pickup.status ?? '',
+          };
+        })
+        .filter(Boolean),
+    [pickups]
+  );
 
   useEffect(() => {
     let subscriber = null;
@@ -163,7 +184,25 @@ export default function DriverMapScreen() {
             </View>
           </Marker>
         )}
+
+        {pickupMarkers.map((pickup) => (
+          <Marker
+            key={pickup.id}
+            coordinate={{
+              latitude: pickup.latitude,
+              longitude: pickup.longitude,
+            }}
+            title={pickup.title}
+            description={pickup.description}
+            pinColor={THEME.primaryDark}
+          />
+        ))}
       </MapView>
+
+      <View style={styles.pickupBadge}>
+        <Text style={styles.pickupBadgeValue}>{pickupMarkers.length}</Text>
+        <Text style={styles.pickupBadgeLabel}>pickup stops</Text>
+      </View>
 
       {/* Speed badge at the bottom */}
       {location && (
@@ -303,6 +342,31 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
     gap: 14,
+  },
+  pickupBadge: {
+    position: 'absolute',
+    top: 48,
+    right: 16,
+    backgroundColor: THEME.white,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
+    alignItems: 'center',
+  },
+  pickupBadgeValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: THEME.primary,
+  },
+  pickupBadgeLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: THEME.textSecondary,
   },
   speedLeft: {
     flexDirection: 'row',

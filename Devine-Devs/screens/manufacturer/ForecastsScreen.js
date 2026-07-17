@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline, G, Text as SvgText } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { groupPickupsByDay } from '../../src/utils/manufacturerAnalytics';
 
 const { width } = Dimensions.get('window');
 
 const ForecastsScreen = ({ navigation }) => {
   const [forecastPeriod, setForecastPeriod] = useState('7days');
-  const { forecasts = [] } = useManufacturerContext();
+  const { forecasts = [], pickups = [] } = useManufacturerContext();
 
   // Get real forecasts data by period or use empty placeholder
   const getForecastByPeriod = (period) => {
@@ -44,16 +45,8 @@ const ForecastsScreen = ({ navigation }) => {
     '30days': getForecastByPeriod('30days'),
   };
 
-  // Historical/daily data placeholder (no real data source yet)
-  const historicalData = [
-    { day: 'Mon', volume: 0, gradeA: 0 },
-    { day: 'Tue', volume: 0, gradeA: 0 },
-    { day: 'Wed', volume: 0, gradeA: 0 },
-    { day: 'Thu', volume: 0, gradeA: 0 },
-    { day: 'Fri', volume: 0, gradeA: 0 },
-    { day: 'Sat', volume: 0, gradeA: 0 },
-    { day: 'Sun', volume: 0, gradeA: 0 },
-  ];
+  // Historical/daily data derived from the manufacturer's own pickups (last 7 calendar days)
+  const historicalData = useMemo(() => groupPickupsByDay(pickups, 7), [pickups]);
 
 
   // Icons

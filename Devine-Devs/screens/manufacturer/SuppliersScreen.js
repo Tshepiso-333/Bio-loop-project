@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { computeSupplierStats } from '../../src/utils/manufacturerAnalytics';
 
 const { width } = Dimensions.get('window');
 
@@ -25,24 +26,8 @@ const SuppliersScreen = ({ navigation }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const { pickups = [] } = useManufacturerContext();
 
-  // Map real pickups to supplier format or use empty placeholder
-  const suppliersList = (pickups || []).map(p => ({
-    id: p.id,
-    name: p.restaurants?.name ?? 'Unknown',
-    volume: p.estimated_volume_liters ?? p.actual_volume_liters ?? 0,
-    quality: p.quality_grade ?? '—',
-    reliability: 0,
-    deliveries: 0,
-    lastDelivery: p.pickup_date ? new Date(p.pickup_date).toLocaleDateString() : '—',
-    image: null,
-    cuisine: '—',
-    location: p.restaurants?.address ?? '—',
-    contact: p.restaurants?.phone ?? '—',
-    email: p.restaurants?.email ?? '—',
-    joinDate: '—',
-    qualityHistory: [],
-    volumeHistory: [],
-  }));
+  // One card per restaurant, aggregated from real pickups
+  const suppliersList = useMemo(() => computeSupplierStats(pickups), [pickups]);
 
   // Filter based on search or category
   const filteredSuppliers = suppliersList.filter(s => {

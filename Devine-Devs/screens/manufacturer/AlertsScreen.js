@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -18,10 +18,14 @@ const AlertsScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showRead, setShowRead] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
-  const { alerts: contextAlerts = [], refreshManufacturer } = useManufacturerContext();
+  const {
+    alerts: contextAlerts = [],
+    refreshManufacturer,
+    updateAlertReadStatus,
+    deleteAlert: deleteAlertFromContext,
+  } = useManufacturerContext();
 
-  // Map real alerts from context or use empty placeholder
-  const [alerts, setAlerts] = useState((contextAlerts || []).map(a => ({
+  const mapAlert = (a) => ({
     id: a.id,
     title: a.title ?? '—',
     message: a.message ?? '—',
@@ -30,7 +34,14 @@ const AlertsScreen = ({ navigation }) => {
     time: a.created_at ? new Date(a.created_at).toLocaleDateString() : '—',
     read: a.is_read ?? false,
     icon: a.type === 'critical' ? '⚠️' : a.type === 'warning' ? '⚠️' : 'ℹ️',
-  })));
+  });
+
+  // Map real alerts from context or use empty placeholder
+  const [alerts, setAlerts] = useState((contextAlerts || []).map(mapAlert));
+
+  useEffect(() => {
+    setAlerts((contextAlerts || []).map(mapAlert));
+  }, [contextAlerts]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -41,18 +52,34 @@ const AlertsScreen = ({ navigation }) => {
     }
   };
 
-  const markAsRead = (id) => {
-    setAlerts(alerts.map(alert => 
+  const markAsRead = async (id) => {
+    setAlerts(alerts.map(alert =>
       alert.id === id ? { ...alert, read: true } : alert
     ));
+    try {
+      await updateAlertReadStatus(id, true);
+    } catch (err) {
+      console.error('Failed to mark alert as read:', err.message);
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    const unread = alerts.filter(alert => !alert.read);
     setAlerts(alerts.map(alert => ({ ...alert, read: true })));
+    try {
+      await Promise.all(unread.map(alert => updateAlertReadStatus(alert.id, true)));
+    } catch (err) {
+      console.error('Failed to mark all alerts as read:', err.message);
+    }
   };
 
-  const deleteAlert = (id) => {
+  const deleteAlert = async (id) => {
     setAlerts(alerts.filter(alert => alert.id !== id));
+    try {
+      await deleteAlertFromContext(id);
+    } catch (err) {
+      console.error('Failed to delete alert:', err.message);
+    }
   };
 
   const getAlertStyle = (type) => {

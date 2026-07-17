@@ -1,6 +1,9 @@
 import { supabase } from '../../supabase';
 import { pickups as pickupsSchema } from '../lib/dbColumns';
 
+const assignedPickupSelect =
+  '*, restaurants(name, address, latitude, longitude, phone), manufacturers(name)';
+
 export async function getCollectorByOwnerId(ownerUserId) {
   const { data, error } = await supabase
     .from('collectors')
@@ -13,12 +16,9 @@ export async function getCollectorByOwnerId(ownerUserId) {
 }
 
 export async function getAssignedPickups(collectorId) {
-  // Include restaurant and manufacturer summary for UI
-  const select = "*, restaurants(name, address), manufacturers(name)";
-
   const { data, error } = await supabase
     .from(pickupsSchema.table)
-    .select(select)
+    .select(assignedPickupSelect)
     .eq('collector_id', collectorId)
     .order('pickup_date', { ascending: false });
 
@@ -26,10 +26,31 @@ export async function getAssignedPickups(collectorId) {
   return data ?? [];
 }
 
+export async function updatePickupStatus(pickupId, status) {
+  const updates = {
+    status,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (status === 'completed') {
+    updates.completed_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from(pickupsSchema.table)
+    .update(updates)
+    .eq('id', pickupId)
+    .select(assignedPickupSelect)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function getCollectorStats(collectorId) {
   const { data, error } = await supabase
     .from('collectors')
-    .select('id, full_name, rating, total_liters, total_collections, reviews_count')
+    .select('id, full_name, district, route_name, rating, total_liters, total_collections, reviews_count')
     .eq('id', collectorId)
     .maybeSingle();
 
@@ -68,6 +89,7 @@ export async function loadCollectorBundle(ownerUserId) {
 export default {
   getCollectorByOwnerId,
   getAssignedPickups,
+  updatePickupStatus,
   getCollectorStats,
   loadCollectorBundle,
 };

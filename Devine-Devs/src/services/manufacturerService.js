@@ -25,10 +25,10 @@ export async function getManufacturerInventory(manufacturerId) {
 
 export async function getManufacturerTanks(manufacturerId) {
   const { data, error } = await supabase
-    .from('manufacturer_tanks')
+    .from('tanks')
     .select('*')
     .eq('manufacturer_id', manufacturerId)
-    .order('updated_at', { ascending: false });
+    .order('last_updated', { ascending: false });
 
   if (error) throw error;
   return data ?? [];
@@ -47,7 +47,7 @@ export async function getForecasts(manufacturerId) {
 
 export async function getPickupsForManufacturer(manufacturerId) {
   // Join restaurant and collector info for UI convenience
-  const select = "*, restaurants(name, address, phone), collectors(full_name, rating)";
+  const select = "*, restaurants(name, address, phone, email, cuisine, image_url, created_at), collectors(full_name, rating)";
 
   const { data, error } = await supabase
     .from(pickupsSchema.table)
@@ -57,6 +57,28 @@ export async function getPickupsForManufacturer(manufacturerId) {
 
   if (error) throw error;
   return data ?? [];
+}
+
+export async function updateAlertReadStatus(alertId, isRead) {
+  const { data, error } = await supabase
+    .from('alerts')
+    .update({ is_read: isRead })
+    .eq('id', alertId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteAlert(alertId) {
+  const { error } = await supabase
+    .from('alerts')
+    .delete()
+    .eq('id', alertId);
+
+  if (error) throw error;
+  return alertId;
 }
 
 const EMPTY_BUNDLE = {
@@ -100,4 +122,6 @@ export default {
   getForecasts,
   getPickupsForManufacturer,
   loadManufacturerBundle,
+  updateAlertReadStatus,
+  deleteAlert,
 };

@@ -1,6 +1,16 @@
+import { File } from 'expo-file-system';
 import { supabase } from '../../supabase';
 
 const BUCKET = 'profile-images';
+
+const MIME_TYPES = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  heic: 'image/heic',
+};
 
 function extensionFromUri(uri) {
   const match = uri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
@@ -10,19 +20,22 @@ function extensionFromUri(uri) {
 /**
  * Upload a local image URI to Supabase Storage and return the public URL.
  * Requires a public `profile-images` bucket in Supabase.
+ *
+ * Reads the file via expo-file-system's `File.arrayBuffer()` rather than
+ * `fetch(uri).blob().arrayBuffer()` — React Native's Blob polyfill doesn't
+ * implement `.arrayBuffer()`, so that call is always undefined on-device.
  */
 export async function uploadProfileImage({ userId, localUri, folder = 'avatars' }) {
   const ext = extensionFromUri(localUri);
   const path = `${folder}/${userId}/${Date.now()}.${ext}`;
 
-  const response = await fetch(localUri);
-  const blob = await response.blob();
-  const arrayBuffer = await blob.arrayBuffer();
+  const file = new File(localUri);
+  const arrayBuffer = await file.arrayBuffer();
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)
     .upload(path, arrayBuffer, {
-      contentType: blob.type || `image/${ext}`,
+      contentType: MIME_TYPES[ext] ?? `image/${ext}`,
       upsert: true,
     });
 

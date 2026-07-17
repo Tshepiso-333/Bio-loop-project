@@ -7,6 +7,7 @@ import ManufacturerStack from '../../navigation/ManufacturerStack';
 import RestaurantStack from '../../navigation/RestaurantStack';
 import { CollectorProvider } from '../contexts/CollectorContext';
 import { ManufacturerProvider } from '../contexts/ManufacturerContext';
+import { AdminProvider } from '../contexts/AdminContext';
 import ProfileCompletionGate from '../components/profile/ProfileCompletionGate';
 
 function RestaurantArea() {
@@ -39,11 +40,19 @@ function ManufacturerArea() {
   );
 }
 
+function AdminArea() {
+  return (
+    <AdminProvider>
+      <AdminStack />
+    </AdminProvider>
+  );
+}
+
 const ROLE_AREAS = {
   restaurant: RestaurantArea,
   collector: CollectorArea,
   manufacturer: ManufacturerArea,
-  admin: AdminStack,
+  admin: AdminArea,
 };
 
 /**

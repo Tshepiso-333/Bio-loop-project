@@ -163,7 +163,7 @@ Used by: `DriverHomeScreen`, `DriverMapScreen`, `DriverCollectionsScreen`
 | `loadManufacturerBundle(ownerUserId)` | All below in parallel |
 | `getManufacturerByOwnerId(ownerUserId)` | `manufacturers` |
 | `getManufacturerInventory(manufacturerId)` | `manufacturer_inventory` |
-| `getManufacturerTanks(manufacturerId)` | `manufacturer_tanks` |
+| `getManufacturerTanks(manufacturerId)` | `tanks` (filtered by `manufacturer_id`) |
 | `getForecasts(manufacturerId)` | `forecasts` |
 | `getPickupsForManufacturer(manufacturerId)` | `pickups` |
 | `getAlerts(userId)` | `alerts` |
@@ -222,7 +222,7 @@ There is no `restaurant_id` on `profiles`. Always go through `owner_user_id`.
 - Mock data removed from all screens — replaced with real context data or clean placeholders (`"—"`, `0`, `[]`)
 - Role-based navigation and provider wrapping
 - AsyncStorage caching with cache-first UX
-- RLS enabled on newer tables (`tank_readings`, `activity_logs`, `pickup_schedules`, `manufacturer_inventory`, `manufacturer_tanks`, `forecasts`)
+- RLS enabled on newer tables (`tank_readings`, `activity_logs`, `pickup_schedules`, `manufacturer_inventory`, `forecasts`) — `tanks` needs a manufacturer-owner policy added alongside its existing restaurant-owner one now that manufacturer tanks live there too (see `docs/migrations/001_merge_manufacturer_tanks.sql`)
 - Documentation
 
 ### ⚠️ Partial / placeholders in use

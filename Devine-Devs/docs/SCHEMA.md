@@ -83,10 +83,21 @@ Authoritative column names for all Supabase tables. **Use these exact names** in
 
 ## `tanks`
 
+Shared by both restaurants and manufacturers — mirrors the owner-FK pattern
+`pickups` uses (nullable FKs per owner type, exactly one set). A restaurant
+tank has `restaurant_id` set and `manufacturer_id` null; a manufacturer tank
+has `manufacturer_id` set and `restaurant_id` null. Enforced by a check
+constraint (`tanks_owner_check`). See `docs/migrations/001_merge_manufacturer_tanks.sql`.
+
+Manufacturer-owned rows currently leave the sensor columns
+(`temperature_f`, `connectivity`, `sediment_level`, `estimated_days_until_full`)
+null — nothing writes them for manufacturers today.
+
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary |
-| `restaurant_id` | `uuid` | |
+| `restaurant_id` | `uuid` | Nullable — set only for restaurant-owned tanks |
+| `manufacturer_id` | `uuid` | Nullable — set only for manufacturer-owned tanks |
 | `name` | `text` | |
 | `fill_percent` | `numeric` | Nullable |
 | `current_volume_liters` | `numeric` | Nullable |
@@ -223,6 +234,9 @@ Authoritative column names for all Supabase tables. **Use these exact names** in
 
 ## `tank_readings`
 
+`tank_id` can point at either a restaurant-owned or manufacturer-owned
+`tanks` row — it's agnostic to owner type.
+
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary |
@@ -270,19 +284,6 @@ Authoritative column names for all Supabase tables. **Use these exact names** in
 | `manufacturer_id` | `uuid` | Unique |
 | `current_stock_liters` | `numeric` | |
 | `stock_change_pct` | `numeric` | Nullable |
-| `updated_at` | `timestamptz` | Nullable |
-
----
-
-## `manufacturer_tanks`
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | Primary |
-| `manufacturer_id` | `uuid` | |
-| `name` | `text` | |
-| `fill_percent` | `numeric` | |
-| `is_active` | `bool` | |
 | `updated_at` | `timestamptz` | Nullable |
 
 ---

@@ -1,7 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../AuthContext';
 import { cacheKeys, readCache, writeCache } from '../lib/cache';
-import { loadManufacturerBundle } from '../services/manufacturerService';
+import {
+  loadManufacturerBundle,
+  updateAlertReadStatus,
+  deleteAlert as deleteAlertService,
+} from '../services/manufacturerService';
 
 const ManufacturerContext = createContext(null);
 
@@ -73,6 +77,31 @@ export const ManufacturerProvider = ({ children }) => {
     await loadManufacturerData(user.id, { fromCache: false });
   }, [user?.id, loadManufacturerData]);
 
+  const handleUpdateAlertReadStatus = useCallback(async (alertId, isRead) => {
+    const updated = await updateAlertReadStatus(alertId, isRead);
+    setState((prev) => {
+      const next = {
+        ...prev,
+        alerts: prev.alerts.map((a) => (a.id === alertId ? updated : a)),
+      };
+      if (user?.id) writeCache(cacheKeys.manufacturer(user.id), next);
+      return next;
+    });
+    return updated;
+  }, [user?.id]);
+
+  const handleDeleteAlert = useCallback(async (alertId) => {
+    await deleteAlertService(alertId);
+    setState((prev) => {
+      const next = {
+        ...prev,
+        alerts: prev.alerts.filter((a) => a.id !== alertId),
+      };
+      if (user?.id) writeCache(cacheKeys.manufacturer(user.id), next);
+      return next;
+    });
+  }, [user?.id]);
+
   useEffect(() => {
     if (user?.id) {
       loadManufacturerData(user.id);
@@ -90,7 +119,9 @@ export const ManufacturerProvider = ({ children }) => {
     error,
     loadManufacturerData,
     refreshManufacturer,
-  }), [state, loading, refreshing, error, loadManufacturerData, refreshManufacturer]);
+    updateAlertReadStatus: handleUpdateAlertReadStatus,
+    deleteAlert: handleDeleteAlert,
+  }), [state, loading, refreshing, error, loadManufacturerData, refreshManufacturer, handleUpdateAlertReadStatus, handleDeleteAlert]);
 
   return (
     <ManufacturerContext.Provider value={value}>

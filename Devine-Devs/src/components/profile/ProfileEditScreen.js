@@ -13,21 +13,21 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { useAuth } from '../../AuthContext';
-import { useProfile } from '../hooks/useProfile';
+import { useAuth } from '../../../AuthContext';
+import { useProfile } from '../../hooks/useProfile';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileField from './ProfileField';
 import {
   buildFormState,
   getFieldsForRole,
   parseFormPayload,
-} from '../lib/profileFields';
-import { getProfileCompletionStatus } from '../lib/profileCompletion';
-import { saveRoleProfile } from '../services/profileService';
-import { uploadProfileImage } from '../services/storageService';
-import RestaurantContext from '../contexts/RestaurantContext';
-import CollectorContext from '../contexts/CollectorContext';
-import ManufacturerContext from '../contexts/ManufacturerContext';
+} from '../../lib/profileFields';
+import { getProfileCompletionStatus } from '../../lib/profileCompletion';
+import { saveRoleProfile } from '../../services/profileService';
+import { uploadProfileImage } from '../../services/storageService';
+import { RestaurantContext } from '../../contexts/RestaurantContext';
+import { CollectorContext } from '../../contexts/CollectorContext';
+import { ManufacturerContext } from '../../contexts/ManufacturerContext';
 
 const THEME = {
   primary: '#10b981',
@@ -98,7 +98,7 @@ export default function ProfileEditScreen({
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          mediaTypes: ['images'],
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.85,

@@ -1,5 +1,5 @@
 // Devine-Devs/screens/driver/DriverCollectionsScreen.js
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, StatusBar, Alert, Image,
@@ -104,20 +104,20 @@ const CollectionCard = ({ item, onCall, onAction }) => {
 export default function DriverCollectionsScreen() {
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState('All');
-  const { pickups: assignedPickups = [] } = useCollectorContext();
-  const [pickups, setPickups] = useState([]);
+  const { pickups: assignedPickups = [], updatePickupStatus } = useCollectorContext();
 
-  React.useEffect(() => {
-    const mapped = (assignedPickups || []).map(p => ({
+  const pickups = useMemo(
+    () => (assignedPickups || []).map(p => ({
       id: p.id,
       name: p.restaurants?.name ?? 'Unknown',
       address: p.restaurants?.address ?? '',
+      phone: p.restaurants?.phone ?? '',
       time: p.pickup_time_start ?? '',
       estimatedLiters: p.estimated_volume_liters ?? p.actual_volume_liters ?? 0,
       status: p.status ?? 'pending',
-    }));
-    setPickups(mapped);
-  }, [assignedPickups]);
+    })),
+    [assignedPickups]
+  );
 
   const filtered = pickups.filter(p => {
     if (activeFilter === 'All') return true;
@@ -127,13 +127,21 @@ export default function DriverCollectionsScreen() {
     return true;
   });
 
-  const handleAction = (item) => {
-    setPickups(prev => prev.map(p => {
-      if (p.id !== item.id) return p;
-      if (p.status === 'pending') return { ...p, status: 'in_progress' };
-      if (p.status === 'in_progress') return { ...p, status: 'completed' };
-      return p;
-    }));
+  const handleAction = async (item) => {
+    const nextStatus =
+      item.status === 'pending'
+        ? 'in_progress'
+        : item.status === 'in_progress'
+          ? 'completed'
+          : item.status;
+
+    if (nextStatus === item.status) return;
+
+    try {
+      await updatePickupStatus(item.id, nextStatus);
+    } catch (err) {
+      Alert.alert('Update failed', err.message ?? 'Could not update pickup status.');
+    }
   };
 
   const scheduledCount = pickups.filter(p => p.status !== 'completed').length;
@@ -184,7 +192,7 @@ export default function DriverCollectionsScreen() {
           <CollectionCard
             key={item.id}
             item={item}
-            onCall={() => Alert.alert('Call', `Calling ${item.name}...`)}
+            onCall={() => Alert.alert('Call', item.phone ? `Calling ${item.phone}...` : `Calling ${item.name}...`)}
             onAction={() => handleAction(item)}
           />
         ))}

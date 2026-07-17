@@ -1,7 +1,17 @@
 node_modules/
 .env
+.env.payfast
 dist/
 build/
 bin/
 obj/
 *.log
+
+# Internal planning/handoff docs — not meant to be committed
+docs/ADMIN_README.md
+docs/BACKEND_HANDBOOK.md
+docs/BACKEND_READINESS_HANDOFF.md
+docs/BUSINESS_LOGIC_QUESTIONS.md
+docs/DISPATCH_ROADMAP.md
+docs/PAYFAST_INTEGRATION.md
+docs/migrations/

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline, Text as SvgText } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { groupPickupsByMonth, computeSupplierStats } from '../../src/utils/manufacturerAnalytics';
 
 const { width } = Dimensions.get('window');
 
@@ -73,12 +74,28 @@ const QualityScreen = ({ navigation }) => {
     },
   ];
 
-  const qualityTrends = [
-    { month: 'Jan', gradeA: 0, gradeB: 0, gradeC: 0 },
-    { month: 'Feb', gradeA: 0, gradeB: 0, gradeC: 0 },
-    { month: 'Mar', gradeA: 0, gradeB: 0, gradeC: 0 },
-    { month: 'Apr', gradeA: 0, gradeB: 0, gradeC: 0 },
-  ];
+  const qualityTrends = useMemo(() => groupPickupsByMonth(pickups, 4), [pickups]);
+
+  const topGradeASuppliers = useMemo(() => {
+    return computeSupplierStats(pickups)
+      .filter((s) => s.quality === 'A')
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, 2)
+      .map((s) => s.name);
+  }, [pickups]);
+
+  const topSupplierText = topGradeASuppliers.length > 0
+    ? topGradeASuppliers.join(' and ')
+    : 'your top-performing suppliers';
+
+  const gradeATrendDelta = useMemo(() => {
+    if (qualityTrends.length < 2) return null;
+    const pct = (bucket) => {
+      const total = bucket.gradeA + bucket.gradeB + bucket.gradeC;
+      return total > 0 ? (bucket.gradeA / total) * 100 : 0;
+    };
+    return Math.round(pct(qualityTrends[qualityTrends.length - 1]) - pct(qualityTrends[0]));
+  }, [qualityTrends]);
 
 
   // Icons
@@ -360,7 +377,7 @@ const QualityScreen = ({ navigation }) => {
               <CheckCircleIcon color="#fff" size={24} />
               <View>
                 <Text style={styles.gradeTitle}>Grade A Oil Sources</Text>
-                <Text style={styles.gradeTotal}>Total: 5,800 L (58%)</Text>
+                <Text style={styles.gradeTotal}>Total: {qualityDistribution[0].totalVolume.toLocaleString()} L ({qualityDistribution[0].value}%)</Text>
               </View>
             </View>
           </LinearGradient>
@@ -389,7 +406,7 @@ const QualityScreen = ({ navigation }) => {
               <AlertTriangleIcon color="#fff" size={24} />
               <View>
                 <Text style={styles.gradeTitle}>Grade B Oil Sources</Text>
-                <Text style={styles.gradeTotal}>Total: 3,200 L (32%)</Text>
+                <Text style={styles.gradeTotal}>Total: {qualityDistribution[1].totalVolume.toLocaleString()} L ({qualityDistribution[1].value}%)</Text>
               </View>
             </View>
           </LinearGradient>
@@ -418,7 +435,7 @@ const QualityScreen = ({ navigation }) => {
               <AlertTriangleIcon color="#fff" size={24} />
               <View>
                 <Text style={styles.gradeTitle}>Grade C Oil Sources</Text>
-                <Text style={styles.gradeTotal}>Total: 1,000 L (10%)</Text>
+                <Text style={styles.gradeTotal}>Total: {qualityDistribution[2].totalVolume.toLocaleString()} L ({qualityDistribution[2].value}%)</Text>
               </View>
             </View>
           </LinearGradient>
@@ -446,9 +463,8 @@ const QualityScreen = ({ navigation }) => {
             <TrendingUpIcon color="#7EE92D" size={28} />
             <Text style={styles.recommendationTitle}>Quality Improvement Suggestion</Text>
             <Text style={styles.recommendationText}>
-              Grade A quality has increased by 6% over the last 4 months. 
-              Schedule more pickups from Golden Dragon and Spice Junction 
-              to maintain high-quality standards. Grade C oil can be processed 
+              Grade A quality has {gradeATrendDelta === null ? 'been tracked' : `changed by ${gradeATrendDelta >= 0 ? '+' : ''}${gradeATrendDelta}%`} over the last 4 months.
+              Schedule more pickups from {topSupplierText} to maintain high-quality standards. Grade C oil can be processed
               for industrial use.
             </Text>
           </LinearGradient>
