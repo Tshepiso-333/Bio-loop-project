@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, StatusBar, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -9,21 +8,18 @@ import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
-
-const THEME = {
-  primary: '#10b981',
-  primaryDark: '#059669',
-  bg: '#F9FAFB',
-  card: '#FFFFFF',
-  text: '#111827',
-  muted: '#6B7280',
-};
+import {
+  REST_COLORS,
+  REST_FONTS,
+  REST_RADII,
+  REST_SHADOWS,
+} from '../../src/restaurant/restaurantTheme';
 
 function InfoRow({ icon, label, value }) {
   if (!value) return null;
   return (
     <View style={styles.infoRow}>
-      <Ionicons name={icon} size={18} color={THEME.primary} />
+      <Ionicons name={icon} size={18} color={REST_COLORS.primary} />
       <View style={styles.infoText}>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value}</Text>
@@ -51,25 +47,22 @@ export default function RestaurantProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient
-        colors={[THEME.primary, THEME.primaryDark]}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
-      >
+      <StatusBar barStyle="dark-content" backgroundColor={REST_COLORS.page} />
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <ProfileAvatar name={displayName} imageUrl={imageUrl} size={84} />
         <Text style={styles.name}>{displayName}</Text>
         {restaurant?.owner_name ? (
           <Text style={styles.subtitle}>Owner: {restaurant.owner_name}</Text>
         ) : null}
         <VerifiedBadge isVerified={restaurant?.is_verified} style={styles.verified} />
-      </LinearGradient>
+      </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <TouchableOpacity
           style={styles.editBtn}
           onPress={() => navigation.navigate('ProfileEdit')}
         >
-          <Ionicons name="create-outline" size={18} color="#fff" />
+          <Ionicons name="create-outline" size={18} color={REST_COLORS.white} />
           <Text style={styles.editBtnText}>Edit profile</Text>
         </TouchableOpacity>
 
@@ -99,7 +92,7 @@ export default function RestaurantProfileScreen() {
         </View>
 
         <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+          <Ionicons name="log-out-outline" size={18} color={REST_COLORS.negative} />
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -108,10 +101,27 @@ export default function RestaurantProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: THEME.bg },
-  header: { alignItems: 'center', paddingBottom: 24, paddingHorizontal: 20 },
-  name: { marginTop: 12, fontSize: 22, fontWeight: '700', color: '#fff' },
-  subtitle: { marginTop: 4, fontSize: 13, color: 'rgba(255,255,255,0.85)' },
+  container: { flex: 1, backgroundColor: REST_COLORS.page },
+  header: {
+    alignItems: 'center',
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    backgroundColor: REST_COLORS.page,
+    borderBottomWidth: 1,
+    borderBottomColor: REST_COLORS.border,
+  },
+  name: {
+    marginTop: 12,
+    fontSize: 22,
+    fontFamily: REST_FONTS.extraBold,
+    color: REST_COLORS.ink,
+  },
+  subtitle: {
+    marginTop: 4,
+    fontSize: 13,
+    fontFamily: REST_FONTS.medium,
+    color: REST_COLORS.body,
+  },
   verified: { marginTop: 10 },
   content: { padding: 16, paddingBottom: 32 },
   editBtn: {
@@ -119,23 +129,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: THEME.primary,
-    borderRadius: 12,
+    backgroundColor: REST_COLORS.primary,
+    borderRadius: REST_RADII.pill,
     paddingVertical: 14,
     marginBottom: 12,
+    ...REST_SHADOWS.button,
   },
-  editBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  editBtnText: { color: REST_COLORS.white, fontFamily: REST_FONTS.bold, fontSize: 15 },
   card: {
-    backgroundColor: THEME.card,
-    borderRadius: 14,
+    backgroundColor: REST_COLORS.card,
+    borderRadius: REST_RADII.card,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: REST_COLORS.border,
+    ...REST_SHADOWS.card,
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: THEME.text, marginBottom: 12 },
+  cardTitle: { fontSize: 16, fontFamily: REST_FONTS.bold, color: REST_COLORS.ink, marginBottom: 12 },
   infoRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
   infoText: { flex: 1 },
-  infoLabel: { fontSize: 11, color: THEME.muted, textTransform: 'uppercase', letterSpacing: 0.4 },
-  infoValue: { marginTop: 2, fontSize: 14, color: THEME.text, lineHeight: 20 },
+  infoLabel: { fontSize: 12, fontFamily: REST_FONTS.semiBold, color: REST_COLORS.muted },
+  infoValue: {
+    marginTop: 2,
+    fontSize: 14,
+    fontFamily: REST_FONTS.medium,
+    color: REST_COLORS.ink,
+    lineHeight: 20,
+  },
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -144,5 +164,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginTop: 4,
   },
-  signOutText: { color: '#DC2626', fontWeight: '600', fontSize: 15 },
+  signOutText: { color: REST_COLORS.negative, fontFamily: REST_FONTS.semiBold, fontSize: 15 },
 });
