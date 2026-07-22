@@ -11,6 +11,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
+import { updateCollectorLocation } from '../../src/services/collectorService';
+
+const LOCATION_PERSIST_INTERVAL_MS = 20000; // don't write to the DB on every 3s GPS tick
 
 const THEME = {
   primary: '#10b981',
@@ -27,11 +30,35 @@ const THEME = {
 
 export default function DriverMapScreen() {
   const mapRef = useRef(null);
-  const { pickups = [] } = useCollectorContext();
+  const { pickups = [], collector } = useCollectorContext();
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [speed, setSpeed] = useState(0);
+
+  // Refs (not state) so the watchPositionAsync closure below — set up once on
+  // mount — always sees the latest collector id and last-persist time without
+  // needing to tear down and restart the GPS subscription.
+  const collectorIdRef = useRef(null);
+  const lastPersistedAtRef = useRef(0);
+
+  useEffect(() => {
+    collectorIdRef.current = collector?.id ?? null;
+  }, [collector?.id]);
+
+  const persistLocation = (coords) => {
+    const collectorId = collectorIdRef.current;
+    if (!collectorId) return;
+
+    const now = Date.now();
+    if (now - lastPersistedAtRef.current < LOCATION_PERSIST_INTERVAL_MS) return;
+    lastPersistedAtRef.current = now;
+
+    updateCollectorLocation(collectorId, {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+    }).catch((err) => console.error('Error persisting collector location:', err.message));
+  };
 
   const pickupMarkers = useMemo(
     () =>
@@ -78,6 +105,7 @@ export default function DriverMapScreen() {
       setLocation(initial.coords);
       setSpeed(initial.coords.speed > 0 ? initial.coords.speed * 3.6 : 0);
       setLoading(false);
+      persistLocation(initial.coords);
 
       // 3. Watch position — updates as the driver moves
       subscriber = await Location.watchPositionAsync(
@@ -90,6 +118,7 @@ export default function DriverMapScreen() {
           const coords = newLocation.coords;
           setLocation(coords);
           setSpeed(coords.speed > 0 ? coords.speed * 3.6 : 0);
+          persistLocation(coords);
 
           // Keep map centered on the driver as they move
           if (mapRef.current) {

@@ -124,12 +124,6 @@ export async function ensureRoleBusinessRecord(userId, role, baseProfile = {}) {
       .single();
     if (error) throw error;
 
-    await supabase
-      .from('restaurant_wallets')
-      .insert({ restaurant_id: data.id, balance: 0 })
-      .select('id')
-      .maybeSingle();
-
     return data;
   }
 

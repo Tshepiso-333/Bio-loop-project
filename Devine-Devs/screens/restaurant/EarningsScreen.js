@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Pressable,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -74,7 +75,26 @@ export default function EarningsScreen() {
     loading,
     refreshing,
     refreshRestaurant,
+    requestWithdrawal,
   } = useRestaurant();
+  const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
+
+  const unpaidEarnings = useMemo(
+    () => (earnings ?? []).filter((row) => !row.withdrawal_id).reduce((sum, row) => sum + Number(row.amount ?? 0), 0),
+    [earnings]
+  );
+
+  const handleRequestWithdrawal = async () => {
+    setRequestingWithdrawal(true);
+    try {
+      await requestWithdrawal();
+      Alert.alert('Withdrawal requested', 'Your request has been sent for review.');
+    } catch (err) {
+      Alert.alert('Could not request withdrawal', err.message ?? 'Please try again.');
+    } finally {
+      setRequestingWithdrawal(false);
+    }
+  };
 
   const profileInitials = useMemo(
     () => getInitials(profile?.full_name, 'RS'),
@@ -131,6 +151,9 @@ export default function EarningsScreen() {
           balance={balance}
           activeTab={withdrawTab}
           onTabSelect={setWithdrawTab}
+          unpaidEarnings={unpaidEarnings}
+          onRequestWithdrawal={handleRequestWithdrawal}
+          requesting={requestingWithdrawal}
         />
 
         {marketRatesView.grades.length > 0 ? (
@@ -161,7 +184,7 @@ export default function EarningsScreen() {
 
 // ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
 
-function BalanceCard({ balance, activeTab, onTabSelect }) {
+function BalanceCard({ balance, activeTab, onTabSelect, unpaidEarnings, onRequestWithdrawal, requesting }) {
   return (
     <View style={styles.balanceCard}>
       <View style={styles.balanceLabelRow}>
@@ -200,6 +223,21 @@ function BalanceCard({ balance, activeTab, onTabSelect }) {
           </Text>
         </Pressable>
       </View>
+
+      {activeTab === 'withdraw' ? (
+        <View style={styles.withdrawPanel}>
+          <Text style={styles.withdrawPanelText}>R {unpaidEarnings.toFixed(2)} available to withdraw</Text>
+          <Pressable
+            style={[styles.withdrawRequestBtn, (requesting || unpaidEarnings <= 0) && styles.withdrawRequestBtnDisabled]}
+            onPress={onRequestWithdrawal}
+            disabled={requesting || unpaidEarnings <= 0}
+          >
+            <Text style={styles.withdrawRequestBtnText}>
+              {requesting ? 'Requesting…' : 'Request withdrawal'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -434,6 +472,14 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.textSecondary,
   },
   balanceTabTextActive: { color: '#FFFFFF' },
+  withdrawPanel: { marginTop: 14, alignItems: 'center', alignSelf: 'stretch' },
+  withdrawPanelText: { fontFamily: FONTS.bodyRegular, fontSize: 12, color: COLORS.textSecondary, marginBottom: 10 },
+  withdrawRequestBtn: {
+    backgroundColor: COLORS.green, borderRadius: 12,
+    paddingVertical: 12, alignSelf: 'stretch', alignItems: 'center',
+  },
+  withdrawRequestBtnDisabled: { opacity: 0.5 },
+  withdrawRequestBtnText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: '#FFFFFF' },
 
   // Shared card
   card: {

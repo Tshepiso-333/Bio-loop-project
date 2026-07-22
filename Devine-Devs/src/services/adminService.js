@@ -1,5 +1,7 @@
 import { supabase } from '../../supabase';
 import { collectors, manufacturers, profiles, restaurants } from '../lib/dbColumns';
+import { resolveManufacturerForPickup } from './manufacturerRoutingService';
+import { finalizeWithdrawal, finalizePickupEarnings } from './payoutService';
 
 const TABLES = {
   profiles: profiles.table,
@@ -10,7 +12,8 @@ const TABLES = {
   manualPickupRequests: 'manual_pickup_requests',
   tanks: 'tanks',
   qualityLogs: 'quality_logs',
-  restaurantWallets: 'restaurant_wallets',
+  restaurantWallets: 'restaurant_balances',
+  collectorWallets: 'collector_balances',
   earnings: 'earnings',
   withdrawals: 'withdrawals',
   alerts: 'alerts',
@@ -21,6 +24,7 @@ const TABLES = {
   manufacturerInventory: 'manufacturer_inventory',
   forecasts: 'forecasts',
   aiChatMessages: 'ai_chat_messages',
+  platformSettings: 'platform_settings',
 };
 
 async function readList(key, query) {
@@ -50,6 +54,7 @@ export async function loadAdminBundle() {
     readList('tanks', supabase.from(TABLES.tanks).select('*')),
     readList('qualityLogs', supabase.from(TABLES.qualityLogs).select('*').order('created_at', { ascending: false })),
     readList('restaurantWallets', supabase.from(TABLES.restaurantWallets).select('*')),
+    readList('collectorWallets', supabase.from(TABLES.collectorWallets).select('*')),
     readList('earnings', supabase.from(TABLES.earnings).select('*').order('created_at', { ascending: false })),
     readList('withdrawals', supabase.from(TABLES.withdrawals).select('*').order('created_at', { ascending: false })),
     readList('alerts', supabase.from(TABLES.alerts).select('*').order('created_at', { ascending: false })),
@@ -60,6 +65,7 @@ export async function loadAdminBundle() {
     readList('manufacturerInventory', supabase.from(TABLES.manufacturerInventory).select('*')),
     readList('forecasts', supabase.from(TABLES.forecasts).select('*').order('created_at', { ascending: false })),
     readList('aiChatMessages', supabase.from(TABLES.aiChatMessages).select('*').order('created_at', { ascending: false })),
+    readList('platformSettings', supabase.from(TABLES.platformSettings).select('*').limit(1)),
   ]);
 
   const bundle = reads.reduce((acc, result) => {
@@ -130,12 +136,13 @@ export async function updateBusinessStatus(table, id, status) {
   return data;
 }
 
-export async function updateBusinessVerification(table, id, isVerified) {
+export async function updateBusinessVerification(table, id, isVerified, notes) {
   const { data, error } = await supabase
     .from(table)
     .update({
       is_verified: isVerified,
       verified_at: isVerified ? new Date().toISOString() : null,
+      verification_notes: notes ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -164,21 +171,30 @@ export async function assignPickup(pickupId, payload) {
 }
 
 export async function updatePickupStatus(pickupId, status) {
-  return assignPickup(pickupId, {
+  const pickup = await assignPickup(pickupId, {
     status,
     completed_at: status === 'completed' ? new Date().toISOString() : undefined,
   });
+
+  if (status === 'completed') {
+    await finalizePickupEarnings(pickup);
+  }
+
+  return pickup;
 }
 
 export async function updateWithdrawalStatus(withdrawalId, status) {
   const { data, error } = await supabase
     .from(TABLES.withdrawals)
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .eq('id', withdrawalId)
     .select('*')
     .single();
 
   if (error) throw error;
+
+  await finalizeWithdrawal(data, status);
+
   return data;
 }
 
@@ -218,10 +234,25 @@ export async function deleteAlert(alertId) {
 }
 
 export async function convertManualRequestToPickup(manualRequest) {
+  let qualityGrade = null;
+  if (manualRequest.tank_id) {
+    const { data: tank, error: tankError } = await supabase
+      .from(TABLES.tanks)
+      .select('quality_grade')
+      .eq('id', manualRequest.tank_id)
+      .maybeSingle();
+    if (tankError) throw tankError;
+    qualityGrade = tank?.quality_grade ?? null;
+  }
+
+  const manufacturerId = await resolveManufacturerForPickup(manualRequest.restaurant_id, qualityGrade);
+
   const { data, error } = await supabase
     .from(TABLES.pickups)
     .insert({
       restaurant_id: manualRequest.restaurant_id,
+      manufacturer_id: manufacturerId,
+      quality_grade: qualityGrade,
       tank_id: manualRequest.tank_id ?? null,
       urgency: manualRequest.urgency ?? null,
       pickup_type: 'manual',
@@ -262,6 +293,18 @@ export async function assignCollectorToPickup(pickupId, collector) {
   const pickup = await assignPickup(pickupId, { collector_id: collector.id, status: 'scheduled' });
   await notifyCollectorAssignment(collector, pickup);
   return pickup;
+}
+
+export async function updateRestaurantPrimaryManufacturer(restaurantId, manufacturerId) {
+  const { data, error } = await supabase
+    .from(TABLES.restaurants)
+    .update({ primary_manufacturer_id: manufacturerId })
+    .eq('id', restaurantId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 export async function createManualPickupRequest(payload) {

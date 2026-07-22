@@ -9,10 +9,14 @@ import React, {
 import { useAuth } from '../../AuthContext';
 import { cacheKeys, readCache, writeCache } from '../lib/cache';
 import {
+  cancelPickup,
   createManualPickupRequest,
   createPickupRequest,
   loadRestaurantBundle,
+  updateTankFillPercent,
+  updateTankGrade,
 } from '../services/restaurantService';
+import { requestWithdrawal } from '../services/payoutService';
 
 const RestaurantContext = createContext(null);
 
@@ -140,6 +144,77 @@ export const RestaurantProvider = ({ children }) => {
     [state.restaurant?.id, state.tank?.id]
   );
 
+  const handleUpdateTankGrade = useCallback(
+    async (grade) => {
+      const tankId = state.tank?.id;
+      if (!tankId) {
+        throw new Error('Tank record not found');
+      }
+
+      const tank = await updateTankGrade(tankId, grade);
+
+      setState((prev) => {
+        const next = { ...prev, tank };
+        if (user?.id) {
+          writeCache(cacheKeys.restaurant(user.id), next);
+        }
+        return next;
+      });
+
+      return tank;
+    },
+    [state.tank?.id, user?.id]
+  );
+
+  const handleUpdateTankFillPercent = useCallback(
+    async (fillPercent) => {
+      const tankId = state.tank?.id;
+      if (!tankId) {
+        throw new Error('Tank record not found');
+      }
+
+      const tank = await updateTankFillPercent(tankId, fillPercent);
+
+      setState((prev) => {
+        const next = { ...prev, tank };
+        if (user?.id) {
+          writeCache(cacheKeys.restaurant(user.id), next);
+        }
+        return next;
+      });
+
+      return tank;
+    },
+    [state.tank?.id, user?.id]
+  );
+
+  const handleCancelPickup = useCallback(
+    async (pickupId, reason) => {
+      const updatedPickup = await cancelPickup(pickupId, user?.id, reason);
+
+      setState((prev) => {
+        const next = {
+          ...prev,
+          pickups: prev.pickups.map((pickup) => (pickup.id === pickupId ? updatedPickup : pickup)),
+        };
+        if (user?.id) writeCache(cacheKeys.restaurant(user.id), next);
+        return next;
+      });
+
+      return updatedPickup;
+    },
+    [user?.id]
+  );
+
+  const handleRequestWithdrawal = useCallback(async () => {
+    const restaurantId = state.restaurant?.id;
+    if (!restaurantId) throw new Error('Restaurant record not found');
+
+    const withdrawal = await requestWithdrawal({ restaurantId });
+    await refreshRestaurant();
+    return withdrawal;
+  }, [state.restaurant?.id, refreshRestaurant]);
+
   useEffect(() => {
     if (user?.id) {
       loadRestaurantData(user.id);
@@ -160,6 +235,10 @@ export const RestaurantProvider = ({ children }) => {
       refreshRestaurant,
       createPickupRequest: handleCreatePickupRequest,
       createManualPickupRequest: handleCreateManualPickupRequest,
+      updateTankGrade: handleUpdateTankGrade,
+      updateTankFillPercent: handleUpdateTankFillPercent,
+      cancelPickup: handleCancelPickup,
+      requestWithdrawal: handleRequestWithdrawal,
     }),
     [
       state,
@@ -170,6 +249,10 @@ export const RestaurantProvider = ({ children }) => {
       refreshRestaurant,
       handleCreatePickupRequest,
       handleCreateManualPickupRequest,
+      handleUpdateTankGrade,
+      handleUpdateTankFillPercent,
+      handleCancelPickup,
+      handleRequestWithdrawal,
     ]
   );
 

@@ -1,5 +1,5 @@
 // Devine-Devs/screens/driver/DriverHomeScreen.js
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   StatusBar,
   Image,
+  Switch,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,10 +71,46 @@ const PickupCard = ({ item, onPress }) => (
 export default function DriverHomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
-  const { collector, pickups = [], stats } = useCollectorContext();
+  const {
+    collector,
+    pickups = [],
+    stats,
+    wallet,
+    earnings = [],
+    toggleDutyStatus,
+    requestWithdrawal,
+  } = useCollectorContext();
   const completedStops = (pickups || []).filter((pickup) => pickup.status === 'completed').length;
   const totalStops = (pickups || []).length;
   const totalLiters = stats?.total_liters ?? collector?.total_liters ?? 0;
+  const [togglingDuty, setTogglingDuty] = useState(false);
+  const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
+  const unpaidEarnings = earnings
+    .filter((row) => !row.withdrawal_id)
+    .reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+
+  const handleToggleDuty = async (value) => {
+    setTogglingDuty(true);
+    try {
+      await toggleDutyStatus(value);
+    } catch (err) {
+      Alert.alert('Could not update status', err.message ?? 'Please try again.');
+    } finally {
+      setTogglingDuty(false);
+    }
+  };
+
+  const handleRequestWithdrawal = async () => {
+    setRequestingWithdrawal(true);
+    try {
+      await requestWithdrawal();
+      Alert.alert('Withdrawal requested', 'Your request has been sent for review.');
+    } catch (err) {
+      Alert.alert('Could not request withdrawal', err.message ?? 'Please try again.');
+    } finally {
+      setRequestingWithdrawal(false);
+    }
+  };
 
   const todayPickups = (pickups || []).slice(0, 3).map(p => ({
     id: p.id,
@@ -139,6 +177,36 @@ export default function DriverHomeScreen({ navigation }) {
           <Text style={styles.welcomeText}>Good day,</Text>
           <Text style={styles.welcomeName}>{collector?.full_name ?? 'Driver'}</Text>
           <Text style={styles.welcomeRoute}>{stats?.route_name ?? collector?.route_name ?? ''} · {stats?.district ?? collector?.district ?? ''}</Text>
+        </View>
+
+        {/* On-duty toggle */}
+        <View style={styles.dutyRow}>
+          <View>
+            <Text style={styles.dutyLabel}>{collector?.is_on_duty ? 'On duty' : 'Off duty'}</Text>
+            <Text style={styles.dutySub}>{collector?.is_on_duty ? 'You can be assigned pickups' : 'Turn on to receive assignments'}</Text>
+          </View>
+          <Switch
+            value={!!collector?.is_on_duty}
+            onValueChange={handleToggleDuty}
+            disabled={togglingDuty}
+            trackColor={{ true: THEME.primary, false: THEME.grayLight }}
+          />
+        </View>
+
+        {/* Earnings */}
+        <View style={styles.earningsCard}>
+          <View>
+            <Text style={styles.earningsLabel}>Wallet balance</Text>
+            <Text style={styles.earningsValue}>R {Number(wallet?.balance ?? 0).toFixed(2)}</Text>
+            <Text style={styles.earningsSub}>R {unpaidEarnings.toFixed(2)} unpaid</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.withdrawBtn, (requestingWithdrawal || unpaidEarnings <= 0) && styles.withdrawBtnDisabled]}
+            onPress={handleRequestWithdrawal}
+            disabled={requestingWithdrawal || unpaidEarnings <= 0}
+          >
+            <Text style={styles.withdrawBtnText}>{requestingWithdrawal ? 'Requesting…' : 'Request withdrawal'}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stats Cards */}
@@ -345,10 +413,51 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: 'Inter_400Regular',
   },
-  scroll: { 
-    flex: 1, 
-    backgroundColor: THEME.offWhite 
+  scroll: {
+    flex: 1,
+    backgroundColor: THEME.offWhite
   },
+  dutyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: THEME.white,
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  dutyLabel: { fontSize: 15, fontWeight: '700', color: THEME.text },
+  dutySub: { fontSize: 12, color: THEME.textSecondary, marginTop: 2 },
+  earningsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: THEME.white,
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  earningsLabel: { fontSize: 12, color: THEME.textSecondary },
+  earningsValue: { fontSize: 20, fontWeight: '700', color: THEME.text, marginTop: 2 },
+  earningsSub: { fontSize: 12, color: THEME.primary, marginTop: 2 },
+  withdrawBtn: {
+    backgroundColor: THEME.primary, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  withdrawBtnDisabled: { opacity: 0.5 },
+  withdrawBtnText: { color: THEME.white, fontSize: 12, fontWeight: '600' },
   statsRow: { 
     flexDirection: 'row', 
     paddingHorizontal: 16, 

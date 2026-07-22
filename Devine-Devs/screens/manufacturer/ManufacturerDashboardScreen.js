@@ -462,9 +462,9 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                       <View style={styles.deliveryTimeInfo}>
                         <Text style={styles.etaText}>{delivery.eta}</Text>
                         <View style={styles.statusContainer}>
-                          <View style={[styles.statusDot, { backgroundColor: delivery.status === 'in-transit' ? '#7EE92D' : '#999' }]} />
-                          <Text style={[styles.statusText, { color: delivery.status === 'in-transit' ? '#7EE92D' : '#666' }]}>
-                            {delivery.status === 'in-transit' ? 'In Transit' : 'Scheduled'}
+                          <View style={[styles.statusDot, { backgroundColor: delivery.status === 'in_transit' ? '#7EE92D' : '#999' }]} />
+                          <Text style={[styles.statusText, { color: delivery.status === 'in_transit' ? '#7EE92D' : '#666' }]}>
+                            {delivery.status === 'in_transit' ? 'In Transit' : 'Scheduled'}
                           </Text>
                         </View>
                       </View>

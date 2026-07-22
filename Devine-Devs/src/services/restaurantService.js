@@ -1,5 +1,9 @@
 import { supabase } from '../../supabase';
 import { pickups as pickupsSchema, profiles, restaurants } from '../lib/dbColumns';
+import { resolveManufacturerForPickup } from './manufacturerRoutingService';
+import { notifyAllAdmins } from './notificationService';
+
+const FILL_PERCENT_TRIGGER = 85;
 
 export async function getRestaurantByOwnerId(ownerUserId) {
   const { data, error } = await supabase
@@ -20,6 +24,79 @@ export async function getTank(restaurantId) {
     .order('last_updated', { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateTankGrade(tankId, grade) {
+  const { data, error } = await supabase
+    .from('tanks')
+    .update({ quality_grade: grade })
+    .eq('id', tankId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateTankFillPercent(tankId, fillPercent) {
+  const { data: previousTank, error: previousError } = await supabase
+    .from('tanks')
+    .select('fill_percent')
+    .eq('id', tankId)
+    .maybeSingle();
+
+  if (previousError) throw previousError;
+
+  const { data: tank, error } = await supabase
+    .from('tanks')
+    .update({ fill_percent: fillPercent, last_updated: new Date().toISOString() })
+    .eq('id', tankId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  const wasBelowTrigger = Number(previousTank?.fill_percent ?? 0) < FILL_PERCENT_TRIGGER;
+  const isAtOrAboveTrigger = Number(fillPercent) >= FILL_PERCENT_TRIGGER;
+
+  if (wasBelowTrigger && isAtOrAboveTrigger && tank.restaurant_id) {
+    const { error: requestError } = await supabase
+      .from('manual_pickup_requests')
+      .insert({
+        restaurant_id: tank.restaurant_id,
+        tank_id: tank.id,
+        urgency: 'urgent',
+        reason: `Tank reached ${fillPercent}% capacity`,
+        is_auto_generated: true,
+      });
+
+    if (requestError) throw requestError;
+
+    await notifyAllAdmins({
+      title: 'Tank auto-triggered a pickup request',
+      message: `A tank crossed ${FILL_PERCENT_TRIGGER}% and automatically requested a pickup.`,
+      category: 'delivery',
+    });
+  }
+
+  return tank;
+}
+
+export async function cancelPickup(pickupId, cancelledByUserId, reason) {
+  const { data, error } = await supabase
+    .from(pickupsSchema.table)
+    .update({
+      status: 'cancelled',
+      cancelled_by: cancelledByUserId ?? null,
+      cancellation_reason: reason ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', pickupId)
+    .select(pickupsSchema.collectorJoin)
+    .single();
 
   if (error) throw error;
   return data;
@@ -63,7 +140,7 @@ export async function getPickupSchedules(restaurantId) {
 
 export async function getWallet(restaurantId) {
   const { data, error } = await supabase
-    .from('restaurant_wallets')
+    .from('restaurant_balances')
     .select('*')
     .eq('restaurant_id', restaurantId)
     .maybeSingle();
@@ -159,10 +236,25 @@ export async function createPickupRequest(restaurantId, payload = {}) {
     payload;
   const timeFields = parseTimeWindow(time_window);
 
+  let qualityGrade = null;
+  if (tank_id) {
+    const { data: tank, error: tankError } = await supabase
+      .from('tanks')
+      .select('quality_grade')
+      .eq('id', tank_id)
+      .maybeSingle();
+    if (tankError) throw tankError;
+    qualityGrade = tank?.quality_grade ?? null;
+  }
+
+  const manufacturerId = await resolveManufacturerForPickup(restaurantId, qualityGrade);
+
   const { data, error } = await supabase
     .from('pickups')
     .insert({
       restaurant_id: restaurantId,
+      manufacturer_id: manufacturerId,
+      quality_grade: qualityGrade,
       status: status ?? 'scheduled',
       pickup_type: pickup_type ?? 'scheduled',
       pickup_date: pickup_date ?? new Date().toISOString().slice(0, 10),
@@ -195,6 +287,13 @@ export async function createManualPickupRequest(restaurantId, payload = {}) {
     .single();
 
   if (error) throw error;
+
+  await notifyAllAdmins({
+    title: 'New manual pickup request',
+    message: `A restaurant submitted an urgent pickup request: ${reason ?? 'no reason given'}.`,
+    category: 'delivery',
+  });
+
   return data;
 }
 

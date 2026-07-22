@@ -42,16 +42,16 @@ const MAIN_TABS = [
   { key: 'alerts', label: 'Alerts', icon: 'notifications-outline' },
   { key: 'health', label: 'Health', icon: 'server-outline' },
 ];
-const PICKUP_STATUSES = ['pending', 'scheduled', 'in_transit', 'arrival', 'in_progress', 'completed', 'cancelled'];
+const PICKUP_STATUSES = ['pending', 'assigned', 'scheduled', 'in_transit', 'arrival', 'in_progress', 'completed', 'cancelled'];
 const WITHDRAWAL_STATUSES = ['pending', 'approved', 'rejected'];
 const ALERT_TYPES = ['info', 'warning', 'critical'];
-const ALERT_CATEGORIES = ['system', 'delivery', 'quality', 'finance', 'security'];
-const REQUEST_URGENCY = ['low', 'medium', 'high'];
+const ALERT_CATEGORIES = ['inventory', 'delivery', 'quality', 'info'];
+const REQUEST_URGENCY = ['standard', 'urgent'];
 
 function getStatusColor(status) {
   if (status === 'active' || status === 'completed' || status === 'approved') return COLORS.green;
-  if (status === 'pending' || status === 'scheduled' || status === 'medium' || status === 'low') return COLORS.amber;
-  if (status === 'inactive' || status === 'cancelled' || status === 'rejected' || status === 'critical') return COLORS.red;
+  if (status === 'pending' || status === 'scheduled' || status === 'standard') return COLORS.amber;
+  if (status === 'inactive' || status === 'cancelled' || status === 'rejected' || status === 'critical' || status === 'urgent') return COLORS.red;
   return COLORS.blue;
 }
 
@@ -96,15 +96,20 @@ export default function AdminDashboardScreen({ navigation }) {
     title: '',
     message: '',
     userId: '',
-    category: 'system',
+    category: 'info',
     type: 'info',
   });
   const [requestForm, setRequestForm] = useState({
     restaurantId: '',
-    urgency: 'medium',
+    urgency: 'standard',
     reason: '',
     notes: '',
   });
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationTarget, setVerificationTarget] = useState(null);
+  const [verificationNotes, setVerificationNotes] = useState('');
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({ commission_pct: '0', driver_flat_rate_per_pickup: '0' });
 
   const stats = useMemo(() => {
     const activeUsers = admin.users.filter((user) => user.status === 'active').length;
@@ -198,7 +203,7 @@ export default function AdminDashboardScreen({ navigation }) {
         created_at: new Date().toISOString(),
       });
       setShowAlertModal(false);
-      setAlertForm({ title: '', message: '', userId: '', category: 'system', type: 'info' });
+      setAlertForm({ title: '', message: '', userId: '', category: 'info', type: 'info' });
       Alert.alert('Alert created', 'The notification has been sent to the selected user.');
     } catch (err) {
       Alert.alert('Create alert failed', err.message ?? 'Unable to create the alert.');
@@ -222,10 +227,74 @@ export default function AdminDashboardScreen({ navigation }) {
         notes: requestForm.notes.trim() || null,
       });
       setShowRequestModal(false);
-      setRequestForm({ restaurantId: '', urgency: 'medium', reason: '', notes: '' });
+      setRequestForm({ restaurantId: '', urgency: 'standard', reason: '', notes: '' });
       Alert.alert('Manual request created', 'The pickup request is now available in the admin queue.');
     } catch (err) {
       Alert.alert('Create request failed', err.message ?? 'Unable to create the request.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openVerificationModal = (user) => {
+    setVerificationTarget(user);
+    setVerificationNotes(user.business?.verification_notes ?? '');
+    setShowVerificationModal(true);
+  };
+
+  const handleConfirmVerification = async () => {
+    if (!verificationTarget?.businessTable || !verificationTarget?.business?.id) return;
+
+    setSubmitting(true);
+    try {
+      await admin.updateBusinessVerification(
+        verificationTarget.businessTable,
+        verificationTarget.business.id,
+        !verificationTarget.business.is_verified,
+        verificationNotes.trim() || null
+      );
+      setShowVerificationModal(false);
+      setVerificationTarget(null);
+      setVerificationNotes('');
+    } catch (err) {
+      Alert.alert('Verification failed', err.message ?? 'Unable to update verification.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openSettingsModal = () => {
+    const current = admin.platformSettings?.[0];
+    setSettingsForm({
+      commission_pct: String(current?.commission_pct ?? 0),
+      driver_flat_rate_per_pickup: String(current?.driver_flat_rate_per_pickup ?? 0),
+    });
+    setShowSettingsModal(true);
+  };
+
+  const handleSaveSettings = async () => {
+    const settingsId = admin.platformSettings?.[0]?.id;
+    if (!settingsId) {
+      Alert.alert('Settings not found', 'platform_settings row is missing — check the migration ran.');
+      return;
+    }
+
+    const commissionPct = Number(settingsForm.commission_pct);
+    const driverRate = Number(settingsForm.driver_flat_rate_per_pickup);
+    if (Number.isNaN(commissionPct) || Number.isNaN(driverRate)) {
+      Alert.alert('Invalid values', 'Enter numbers for both fields.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await admin.updatePlatformSettings(settingsId, {
+        commission_pct: commissionPct,
+        driver_flat_rate_per_pickup: driverRate,
+      });
+      setShowSettingsModal(false);
+    } catch (err) {
+      Alert.alert('Save failed', err.message ?? 'Unable to update settings.');
     } finally {
       setSubmitting(false);
     }
@@ -392,9 +461,11 @@ export default function AdminDashboardScreen({ navigation }) {
               : null
           }
           onToggleVerification={() =>
-            user.businessTable && user.business?.id
-              ? withMutation('Verification', () => admin.updateBusinessVerification(user.businessTable, user.business.id, !user.business.is_verified))
-              : null
+            user.businessTable && user.business?.id ? openVerificationModal(user) : null
+          }
+          manufacturers={admin.manufacturers}
+          onAssignManufacturer={(manufacturerId) =>
+            withMutation('Primary manufacturer', () => admin.updateRestaurantPrimaryManufacturer(user.business.id, manufacturerId))
           }
         />
       ))}
@@ -424,8 +495,16 @@ export default function AdminDashboardScreen({ navigation }) {
   const renderFinance = () => (
     <View>
       <View style={styles.heroCard}>
-        <Text style={styles.heroTitle}>Wallet and payout controls</Text>
-        <Text style={styles.heroText}>Approve or reject incoming withdrawal requests from the live finance queue.</Text>
+        <View style={styles.heroHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroTitle}>Wallet and payout controls</Text>
+            <Text style={styles.heroText}>Approve or reject incoming withdrawal requests from the live finance queue.</Text>
+          </View>
+          <Pressable style={styles.primaryButton} onPress={openSettingsModal}>
+            <Ionicons name="options-outline" size={15} color="#fff" />
+            <Text style={styles.primaryButtonText}>Settings</Text>
+          </Pressable>
+        </View>
       </View>
       {admin.restaurantWallets.map((wallet) => (
         <View key={wallet.id} style={styles.card}>
@@ -441,28 +520,50 @@ export default function AdminDashboardScreen({ navigation }) {
           </View>
         </View>
       ))}
-
-      {pendingWithdrawals.map((withdrawal) => (
-        <View key={withdrawal.id} style={styles.card}>
+      {(admin.collectorWallets ?? []).map((wallet) => (
+        <View key={wallet.id} style={styles.card}>
           <View style={styles.cardTop}>
             <View style={styles.avatar}>
-              <Ionicons name="cash-outline" size={18} color={COLORS.greenDark} />
+              <Ionicons name="wallet-outline" size={18} color={COLORS.greenDark} />
             </View>
             <View style={styles.cardMain}>
-              <Text style={styles.cardTitle}>{currency(withdrawal.amount)}</Text>
-              <Text style={styles.cardSub}>Method: {withdrawal.method ?? 'manual'}</Text>
-              <Text style={styles.cardMeta}>{formatDateTime(withdrawal.created_at)}</Text>
+              <Text style={styles.cardTitle}>Driver wallet</Text>
+              <Text style={styles.cardSub}>Wallet ID: {wallet.id}</Text>
+              <Text style={styles.cardMeta}>Balance {currency(wallet.balance)}</Text>
             </View>
-            <View style={[styles.badge, { backgroundColor: `${getStatusColor(withdrawal.status)}22` }]}> 
-              <Text style={[styles.badgeText, { color: getStatusColor(withdrawal.status) }]}>{withdrawal.status}</Text>
-            </View>
-          </View>
-          <View style={styles.actionRow}>
-            <ActionButton label="Approve" icon="checkmark-circle-outline" onPress={() => withMutation('Approve withdrawal', () => admin.updateWithdrawalStatus(withdrawal.id, 'approved'))} />
-            <ActionButton label="Reject" icon="close-circle-outline" onPress={() => withMutation('Reject withdrawal', () => admin.updateWithdrawalStatus(withdrawal.id, 'rejected'))} />
           </View>
         </View>
       ))}
+
+      {pendingWithdrawals.map((withdrawal) => {
+        const isCollector = !!withdrawal.collector_id;
+        const owner = isCollector
+          ? admin.collectors.find((c) => c.id === withdrawal.collector_id)
+          : admin.restaurants.find((r) => r.id === withdrawal.restaurant_id);
+        const ownerName = owner?.full_name ?? owner?.name ?? (isCollector ? 'Unknown driver' : 'Unknown restaurant');
+
+        return (
+          <View key={withdrawal.id} style={styles.card}>
+            <View style={styles.cardTop}>
+              <View style={styles.avatar}>
+                <Ionicons name="cash-outline" size={18} color={COLORS.greenDark} />
+              </View>
+              <View style={styles.cardMain}>
+                <Text style={styles.cardTitle}>{currency(withdrawal.amount)} · {ownerName}</Text>
+                <Text style={styles.cardSub}>{isCollector ? 'Driver payout' : 'Restaurant payout'} · Method: {withdrawal.method ?? 'manual'}</Text>
+                <Text style={styles.cardMeta}>{formatDateTime(withdrawal.created_at)}</Text>
+              </View>
+              <View style={[styles.badge, { backgroundColor: `${getStatusColor(withdrawal.status)}22` }]}>
+                <Text style={[styles.badgeText, { color: getStatusColor(withdrawal.status) }]}>{withdrawal.status}</Text>
+              </View>
+            </View>
+            <View style={styles.actionRow}>
+              <ActionButton label="Approve" icon="checkmark-circle-outline" onPress={() => withMutation('Approve withdrawal', () => admin.updateWithdrawalStatus(withdrawal.id, 'approved'))} />
+              <ActionButton label="Reject" icon="close-circle-outline" onPress={() => withMutation('Reject withdrawal', () => admin.updateWithdrawalStatus(withdrawal.id, 'rejected'))} />
+            </View>
+          </View>
+        );
+      })}
 
       {pendingWithdrawals.length === 0 ? <EmptyState label="No withdrawals awaiting review." /> : null}
     </View>
@@ -702,11 +803,84 @@ export default function AdminDashboardScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={showVerificationModal} transparent animationType="slide" onRequestClose={() => setShowVerificationModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {verificationTarget?.business?.is_verified ? 'Unverify' : 'Verify'} {verificationTarget?.displayName}
+              </Text>
+              <Pressable onPress={() => setShowVerificationModal(false)}>
+                <Ionicons name="close-outline" size={22} color={COLORS.muted} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.sectionMiniTitle}>Notes (optional)</Text>
+            <TextInput
+              style={[styles.input, styles.textarea]}
+              placeholder="Why is this account being verified or unverified?"
+              multiline
+              value={verificationNotes}
+              onChangeText={setVerificationNotes}
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.secondaryButton} onPress={() => setShowVerificationModal(false)}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.primaryButton} onPress={handleConfirmVerification} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryButtonText}>Confirm</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showSettingsModal} transparent animationType="slide" onRequestClose={() => setShowSettingsModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Platform settings</Text>
+              <Pressable onPress={() => setShowSettingsModal(false)}>
+                <Ionicons name="close-outline" size={22} color={COLORS.muted} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.sectionMiniTitle}>Commission % (taken from manufacturer payment)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0"
+              keyboardType="numeric"
+              value={settingsForm.commission_pct}
+              onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, commission_pct: value }))}
+            />
+
+            <Text style={styles.sectionMiniTitle}>Driver flat rate per pickup (R)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0"
+              keyboardType="numeric"
+              value={settingsForm.driver_flat_rate_per_pickup}
+              onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, driver_flat_rate_per_pickup: value }))}
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.secondaryButton} onPress={() => setShowSettingsModal(false)}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.primaryButton} onPress={handleSaveSettings} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryButtonText}>Save</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-function UserCard({ user, onToggleProfile, onToggleBusinessStatus, onToggleVerification }) {
+function UserCard({ user, onToggleProfile, onToggleBusinessStatus, onToggleVerification, manufacturers, onAssignManufacturer }) {
   const statusColor = getStatusColor(user.status);
   const businessStatusColor = getStatusColor(user.business?.status);
 
@@ -721,7 +895,7 @@ function UserCard({ user, onToggleProfile, onToggleBusinessStatus, onToggleVerif
           <Text style={styles.cardSub}>{user.email}</Text>
           <Text style={styles.cardMeta}>{labelFromKey(user.role)} · joined {formatDate(user.created_at)}</Text>
         </View>
-        <View style={[styles.badge, { backgroundColor: `${statusColor}22` }]}> 
+        <View style={[styles.badge, { backgroundColor: `${statusColor}22` }]}>
           <Text style={[styles.badgeText, { color: statusColor }]}>{user.status ?? 'unknown'}</Text>
         </View>
       </View>
@@ -734,6 +908,18 @@ function UserCard({ user, onToggleProfile, onToggleBusinessStatus, onToggleVerif
       ) : (
         <Text style={styles.noBusiness}>No linked business record.</Text>
       )}
+
+      {user.role === 'restaurant' && user.business ? (
+        <>
+          <Text style={styles.sectionMiniTitle}>Primary manufacturer</Text>
+          <AssignmentRow
+            items={manufacturers}
+            currentId={user.business.primary_manufacturer_id}
+            getLabel={(manufacturer) => manufacturer.name ?? 'Manufacturer'}
+            onSelect={onAssignManufacturer}
+          />
+        </>
+      ) : null}
 
       <View style={styles.actionRow}>
         <ActionButton label={user.status === 'active' ? 'Suspend user' : 'Activate user'} icon={user.status === 'active' ? 'pause-circle-outline' : 'checkmark-circle-outline'} onPress={onToggleProfile} />

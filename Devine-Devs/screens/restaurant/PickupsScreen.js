@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Pressable,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,6 +33,8 @@ const PROGRESS_STEPS = [
   { key: 'in_transit', label: 'In Transit' },
   { key: 'arrival', label: 'Arrival' },
 ];
+
+const CANNOT_CANCEL_STATUSES = ['in_transit', 'arrival', 'in_progress', 'completed', 'cancelled'];
 
 // ─── THEME COLOURS (matching manufacturer) ───────────────────────────────────
 
@@ -85,7 +88,9 @@ export default function PickupsScreen() {
     loading,
     refreshing,
     refreshRestaurant,
+    cancelPickup,
   } = useRestaurant();
+  const [cancelling, setCancelling] = useState(false);
 
   const profileInitials = useMemo(
     () => getInitials(profile?.full_name, 'RS'),
@@ -95,10 +100,36 @@ export default function PickupsScreen() {
     () => mapActivePickupCard(getActivePickup(pickups)),
     [pickups]
   );
+  const upcomingPickupRaw = useMemo(() => getUpcomingPickup(pickups), [pickups]);
   const upcomingPickup = useMemo(
-    () => mapUpcomingPickupCard(getUpcomingPickup(pickups)),
-    [pickups]
+    () => mapUpcomingPickupCard(upcomingPickupRaw),
+    [upcomingPickupRaw]
   );
+
+  const handleCancelPickup = () => {
+    if (!upcomingPickupRaw) return;
+    Alert.alert(
+      'Cancel pickup',
+      'Cancel this scheduled pickup? This cannot be undone.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Cancel pickup',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await cancelPickup(upcomingPickupRaw.id, 'Cancelled by restaurant');
+            } catch (err) {
+              Alert.alert('Could not cancel', err.message ?? 'Please try again.');
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
+  };
   const upcomingCycle = useMemo(
     () => mapUpcomingCycle(pickupSchedules[0]),
     [pickupSchedules]
@@ -153,7 +184,12 @@ export default function PickupsScreen() {
           <>
             <ManualRequestCard />
             {upcomingPickup ? (
-              <UpcomingPickupCard pickup={upcomingPickup} />
+              <UpcomingPickupCard
+                pickup={upcomingPickup}
+                canCancel={!CANNOT_CANCEL_STATUSES.includes(upcomingPickupRaw?.status)}
+                onCancel={handleCancelPickup}
+                cancelling={cancelling}
+              />
             ) : (
               <RestaurantEmptyBanner message="No upcoming pickups scheduled." />
             )}
@@ -288,7 +324,7 @@ function ManualRequestCard() {
   );
 }
 
-function UpcomingPickupCard({ pickup }) {
+function UpcomingPickupCard({ pickup, canCancel, onCancel, cancelling }) {
   return (
     <View style={styles.card}>
       <View style={styles.pickupBadgeRow}>
@@ -342,6 +378,12 @@ function UpcomingPickupCard({ pickup }) {
           <Text style={styles.pickupMetaValue}>{pickup.estimatedVolume}</Text>
         </View>
       </View>
+
+      {canCancel ? (
+        <Pressable style={styles.cancelPickupBtn} onPress={onCancel} disabled={cancelling}>
+          <Text style={styles.cancelPickupBtnText}>{cancelling ? 'Cancelling…' : 'Cancel pickup'}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -523,6 +565,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   driverAvatarText: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.green },
+
+  cancelPickupBtn: { marginTop: 14, alignItems: 'center', paddingVertical: 10 },
+  cancelPickupBtnText: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: '#DC2626' },
 
   cycleSectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
   cycleSectionLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.textMuted, letterSpacing: 0.8, textTransform: 'uppercase' },

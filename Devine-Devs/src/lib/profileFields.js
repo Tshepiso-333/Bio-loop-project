@@ -1,5 +1,7 @@
 /** Form field configs for profile edit / completion screens. */
 
+import { DISTRICTS } from './districts';
+
 export const BASE_PROFILE_FIELDS = [
   { key: 'full_name', label: 'Full name', placeholder: 'Your full name', required: true },
   { key: 'phone', label: 'Phone', placeholder: '+27 ...', keyboardType: 'phone-pad', required: true },
@@ -17,7 +19,7 @@ export const COLLECTOR_FIELDS = [
   { key: 'drivers_license_number', label: "Driver's license", placeholder: 'License number', required: true },
   { key: 'years_experience', label: 'Years experience', placeholder: '5', keyboardType: 'numeric', required: true },
   { key: 'languages', label: 'Languages', placeholder: 'English, Zulu', required: true },
-  { key: 'district', label: 'District', placeholder: 'Central District' },
+  { key: 'district', label: 'District', type: 'select', options: DISTRICTS, required: true },
   { key: 'route_name', label: 'Route name', placeholder: 'Route #12' },
   { key: 'bio', label: 'Bio', placeholder: 'Experience and notes', multiline: true, required: true },
   { key: 'profile_image_url', label: 'Profile photo', type: 'image', imageTarget: 'business' },
@@ -37,7 +39,7 @@ export const RESTAURANT_FIELDS = [
     required: true,
   },
   { key: 'address', label: 'Address', placeholder: 'Street address' },
-  { key: 'district', label: 'District', placeholder: 'District' },
+  { key: 'district', label: 'District', type: 'select', options: DISTRICTS },
   { key: 'cuisine', label: 'Cuisine', placeholder: 'Italian, Fast food...' },
   { key: 'website_url', label: 'Website', placeholder: 'https://...' },
   { key: 'google_business_url', label: 'Google Business URL', placeholder: 'https://...' },

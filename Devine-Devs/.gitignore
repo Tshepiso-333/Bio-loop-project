@@ -1,6 +1,7 @@
 node_modules/
 .env
 .env.payfast
+.env.supabase-mcp
 dist/
 build/
 bin/

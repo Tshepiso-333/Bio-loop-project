@@ -12,8 +12,10 @@ import {
   updateBusinessVerification,
   updatePickupStatus,
   updateProfileStatus,
+  updateRestaurantPrimaryManufacturer,
   updateWithdrawalStatus,
 } from '../services/adminService';
+import { updatePlatformSettings } from '../services/payoutService';
 
 const AdminContext = createContext(null);
 
@@ -38,6 +40,8 @@ const EMPTY_STATE = {
   manufacturerInventory: [],
   forecasts: [],
   aiChatMessages: [],
+  collectorWallets: [],
+  platformSettings: [],
   tableOverview: [],
   errors: [],
 };
@@ -91,8 +95,8 @@ export function AdminProvider({ children }) {
         runMutation(() => updateProfileStatus(userId, status)),
       updateBusinessStatus: (table, id, status) =>
         runMutation(() => updateBusinessStatus(table, id, status)),
-      updateBusinessVerification: (table, id, isVerified) =>
-        runMutation(() => updateBusinessVerification(table, id, isVerified)),
+      updateBusinessVerification: (table, id, isVerified, notes) =>
+        runMutation(() => updateBusinessVerification(table, id, isVerified, notes)),
       assignPickup: (pickupId, payload) =>
         runMutation(() => assignPickup(pickupId, payload)),
       updatePickupStatus: (pickupId, status) =>
@@ -111,6 +115,10 @@ export function AdminProvider({ children }) {
         runMutation(() => convertManualRequestToPickup(manualRequest)),
       assignCollectorToPickup: (pickupId, collector) =>
         runMutation(() => assignCollectorToPickup(pickupId, collector)),
+      updateRestaurantPrimaryManufacturer: (restaurantId, manufacturerId) =>
+        runMutation(() => updateRestaurantPrimaryManufacturer(restaurantId, manufacturerId)),
+      updatePlatformSettings: (settingsId, payload) =>
+        runMutation(() => updatePlatformSettings(settingsId, payload)),
     }),
     [state, loading, refreshing, error, loadAdminData, refreshAdmin, runMutation]
   );

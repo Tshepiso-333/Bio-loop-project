@@ -1,7 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../AuthContext';
 import { cacheKeys, readCache, writeCache } from '../lib/cache';
-import { loadCollectorBundle, updatePickupStatus as savePickupStatus } from '../services/collectorService';
+import {
+  loadCollectorBundle,
+  updatePickupStatus as savePickupStatus,
+  toggleDutyStatus as saveDutyStatus,
+  declinePickup as saveDeclinePickup,
+} from '../services/collectorService';
+import { requestWithdrawal } from '../services/payoutService';
 
 const CollectorContext = createContext(null);
 
@@ -12,6 +18,9 @@ const EMPTY_STATE = {
   pickups: [],
   stats: null,
   alerts: [],
+  wallet: null,
+  earnings: [],
+  withdrawals: [],
 };
 
 export const CollectorProvider = ({ children }) => {
@@ -27,6 +36,9 @@ export const CollectorProvider = ({ children }) => {
       pickups: bundle.pickups ?? [],
       stats: bundle.stats ?? null,
       alerts: bundle.alerts ?? [],
+      wallet: bundle.wallet ?? null,
+      earnings: bundle.earnings ?? [],
+      withdrawals: bundle.withdrawals ?? [],
     });
   }, []);
 
@@ -93,6 +105,51 @@ export const CollectorProvider = ({ children }) => {
     [user?.id]
   );
 
+  const handleToggleDutyStatus = useCallback(
+    async (isOnDuty) => {
+      const collectorId = state.collector?.id;
+      if (!collectorId) throw new Error('Collector record not found');
+
+      const updatedCollector = await saveDutyStatus(collectorId, isOnDuty);
+
+      setState((prev) => {
+        const next = { ...prev, collector: updatedCollector };
+        if (user?.id) writeCache(cacheKeys.collector(user.id), next);
+        return next;
+      });
+
+      return updatedCollector;
+    },
+    [state.collector?.id, user?.id]
+  );
+
+  const handleDeclinePickup = useCallback(
+    async (pickupId, reason) => {
+      const updatedPickup = await saveDeclinePickup(pickupId, reason);
+
+      setState((prev) => {
+        const next = {
+          ...prev,
+          pickups: prev.pickups.filter((pickup) => pickup.id !== pickupId),
+        };
+        if (user?.id) writeCache(cacheKeys.collector(user.id), next);
+        return next;
+      });
+
+      return updatedPickup;
+    },
+    [user?.id]
+  );
+
+  const handleRequestWithdrawal = useCallback(async () => {
+    const collectorId = state.collector?.id;
+    if (!collectorId) throw new Error('Collector record not found');
+
+    const withdrawal = await requestWithdrawal({ collectorId });
+    await refreshCollector();
+    return withdrawal;
+  }, [state.collector?.id, refreshCollector]);
+
   useEffect(() => {
     if (user?.id) {
       loadCollectorData(user.id);
@@ -111,7 +168,21 @@ export const CollectorProvider = ({ children }) => {
     loadCollectorData,
     refreshCollector,
     updatePickupStatus: handleUpdatePickupStatus,
-  }), [state, loading, refreshing, error, loadCollectorData, refreshCollector, handleUpdatePickupStatus]);
+    toggleDutyStatus: handleToggleDutyStatus,
+    declinePickup: handleDeclinePickup,
+    requestWithdrawal: handleRequestWithdrawal,
+  }), [
+    state,
+    loading,
+    refreshing,
+    error,
+    loadCollectorData,
+    refreshCollector,
+    handleUpdatePickupStatus,
+    handleToggleDutyStatus,
+    handleDeclinePickup,
+    handleRequestWithdrawal,
+  ]);
 
   return (
     <CollectorContext.Provider value={value}>

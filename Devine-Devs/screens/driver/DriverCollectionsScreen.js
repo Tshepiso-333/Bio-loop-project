@@ -45,9 +45,10 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const CollectionCard = ({ item, onCall, onAction }) => {
+const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
   const actionDisabled = item.status === 'completed';
   const actionLabel = item.status === 'pending' ? 'Start' : item.status === 'in_progress' ? 'Complete' : 'Done';
+  const canDecline = item.status === 'pending';
 
   return (
     <View style={styles.card}>
@@ -97,6 +98,11 @@ const CollectionCard = ({ item, onCall, onAction }) => {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      {canDecline ? (
+        <TouchableOpacity style={styles.declineBtn} onPress={onDecline} activeOpacity={0.7}>
+          <Text style={styles.declineBtnText}>Decline this pickup</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 };
@@ -104,7 +110,7 @@ const CollectionCard = ({ item, onCall, onAction }) => {
 export default function DriverCollectionsScreen() {
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState('All');
-  const { pickups: assignedPickups = [], updatePickupStatus } = useCollectorContext();
+  const { pickups: assignedPickups = [], updatePickupStatus, declinePickup } = useCollectorContext();
 
   const pickups = useMemo(
     () => (assignedPickups || []).map(p => ({
@@ -142,6 +148,27 @@ export default function DriverCollectionsScreen() {
     } catch (err) {
       Alert.alert('Update failed', err.message ?? 'Could not update pickup status.');
     }
+  };
+
+  const handleDecline = (item) => {
+    Alert.alert(
+      'Decline pickup',
+      `Decline the pickup at ${item.name}? It will go back to the dispatch queue for another driver.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await declinePickup(item.id, 'Declined by driver');
+            } catch (err) {
+              Alert.alert('Could not decline', err.message ?? 'Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const scheduledCount = pickups.filter(p => p.status !== 'completed').length;
@@ -194,6 +221,7 @@ export default function DriverCollectionsScreen() {
             item={item}
             onCall={() => Alert.alert('Call', item.phone ? `Calling ${item.phone}...` : `Calling ${item.name}...`)}
             onAction={() => handleAction(item)}
+            onDecline={() => handleDecline(item)}
           />
         ))}
         {filtered.length === 0 && (
@@ -410,8 +438,18 @@ const styles = StyleSheet.create({
     fontWeight: '600', 
     color: THEME.white 
   },
-  actionBtnTextDisabled: { 
-    color: THEME.gray 
+  actionBtnTextDisabled: {
+    color: THEME.gray
+  },
+  declineBtn: {
+    marginTop: 10,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  declineBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#DC2626',
   },
   emptyState: { 
     alignItems: 'center', 

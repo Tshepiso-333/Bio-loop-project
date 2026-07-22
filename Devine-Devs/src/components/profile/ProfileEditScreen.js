@@ -195,6 +195,31 @@ export default function ProfileEditScreen({
           ? (text) => updateBase(field.key, text)
           : (text) => updateBusiness(field.key, text);
 
+        if (field.type === 'select') {
+          return (
+            <View key={field.key} style={styles.selectWrap}>
+              <Text style={styles.selectLabel}>
+                {field.label}
+                {isCompletion && field.required ? <Text style={styles.selectRequired}> *</Text> : null}
+              </Text>
+              <View style={styles.chipRow}>
+                {field.options.map((option) => {
+                  const active = value === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => onChange(option)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{option}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        }
+
         return (
           <ProfileField
             key={field.key}
@@ -335,6 +360,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: THEME.muted,
   },
+  selectWrap: { marginBottom: 14 },
+  selectLabel: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 8 },
+  selectRequired: { color: '#DC2626' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  chipActive: { backgroundColor: THEME.primary, borderColor: THEME.primary },
+  chipText: { fontSize: 13, fontWeight: '600', color: '#334155' },
+  chipTextActive: { color: '#fff' },
   saveBtn: {
     backgroundColor: THEME.primary,
     borderRadius: 14,

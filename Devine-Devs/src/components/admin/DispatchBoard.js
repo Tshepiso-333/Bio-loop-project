@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const URGENCY_ORDER = { high: 0, medium: 1, low: 2 };
+const URGENCY_ORDER = { urgent: 0, standard: 1 };
 
 function withMutation(label, action) {
   return action().catch((err) => {
@@ -17,6 +17,10 @@ function sortCollectorsByDistrict(collectors, district) {
     const bMatch = b.district === district ? 0 : 1;
     return aMatch - bMatch;
   });
+}
+
+function onDutyCollectors(collectors) {
+  return collectors.filter((collector) => collector.is_on_duty && collector.status === 'active');
 }
 
 export default function DispatchBoard({ admin, ui }) {
@@ -68,7 +72,10 @@ export default function DispatchBoard({ admin, ui }) {
               </View>
               <View style={styles.cardMain}>
                 <Text style={styles.cardTitle}>{restaurant?.name ?? 'Unknown restaurant'}</Text>
-                <Text style={styles.cardSub}>{request.reason ?? 'No reason given'}</Text>
+                <Text style={styles.cardSub}>
+                  {request.is_auto_generated ? 'Auto-triggered at 85% tank fill · ' : ''}
+                  {request.reason ?? 'No reason given'}
+                </Text>
                 <Text style={styles.cardMeta}>{formatDate(request.created_at)}</Text>
               </View>
               <View style={[styles.badge, { backgroundColor: `${getStatusColor(request.urgency)}22` }]}>
@@ -94,7 +101,7 @@ export default function DispatchBoard({ admin, ui }) {
       <Text style={styles.sectionMiniTitle}>Unassigned pickups</Text>
       {unassignedPickups.map((pickup) => {
         const restaurant = restaurantsById[pickup.restaurant_id] ?? pickup.restaurants;
-        const sortedCollectors = sortCollectorsByDistrict(admin.collectors, restaurant?.district);
+        const sortedCollectors = sortCollectorsByDistrict(onDutyCollectors(admin.collectors), restaurant?.district);
         return (
           <View key={pickup.id} style={styles.card}>
             <View style={styles.cardTop}>
@@ -107,7 +114,7 @@ export default function DispatchBoard({ admin, ui }) {
               </View>
               <View style={[styles.badge, { backgroundColor: `${getStatusColor(pickup.urgency)}22` }]}>
                 <Text style={[styles.badgeText, { color: getStatusColor(pickup.urgency) }]}>
-                  {labelFromKey(pickup.urgency ?? 'normal')}
+                  {labelFromKey(pickup.urgency ?? 'standard')}
                 </Text>
               </View>
             </View>
