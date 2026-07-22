@@ -1,3 +1,4 @@
+// screens/manufacturer/ForecastsScreen.js
 import React, { useMemo, useState } from 'react';
 import {
   View,
@@ -8,7 +9,6 @@ import {
   Dimensions,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline, G, Text as SvgText } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
@@ -232,7 +232,7 @@ const ForecastsScreen = ({ navigation }) => {
     );
   };
 
-  // Header Component
+  // Header Component - Updated to fill to the top and navigate to home
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#059669" />
@@ -245,7 +245,7 @@ const ForecastsScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('ManufacturerDashboardScreen')}
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
@@ -260,7 +260,7 @@ const ForecastsScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <ScrollView 
@@ -411,7 +411,7 @@ const ForecastsScreen = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

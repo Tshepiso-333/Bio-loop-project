@@ -1,3 +1,4 @@
+// screens/manufacturer/SuppliersScreen.js
 import React, { useMemo, useState } from 'react';
 import {
   View,
@@ -11,7 +12,6 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
@@ -97,7 +97,7 @@ const SuppliersScreen = ({ navigation }) => {
     </Svg>
   );
 
-  // Header Component
+  // Header Component - Updated to fill to the top and navigate to home
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#7c3aed" />
@@ -110,7 +110,7 @@ const SuppliersScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('ManufacturerDashboardScreen')}
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
@@ -211,7 +211,7 @@ const SuppliersScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <View style={styles.searchContainer}>
@@ -344,7 +344,7 @@ const SuppliersScreen = ({ navigation }) => {
       </ScrollView>
 
       <SupplierDetailModal />
-    </SafeAreaView>
+    </View>
   );
 };
 

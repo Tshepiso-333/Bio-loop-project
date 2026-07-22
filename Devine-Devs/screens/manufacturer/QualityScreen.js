@@ -1,3 +1,4 @@
+// screens/manufacturer/QualityScreen.js
 import React, { useMemo, useState } from 'react';
 import {
   View,
@@ -8,7 +9,6 @@ import {
   Dimensions,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, Line, Polyline, Text as SvgText } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
@@ -303,7 +303,7 @@ const QualityScreen = ({ navigation }) => {
     );
   };
 
-  // Header Component
+  // Header Component - Updated to fill to the top
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#059669" />
@@ -331,7 +331,7 @@ const QualityScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <ScrollView 
@@ -470,7 +470,7 @@ const QualityScreen = ({ navigation }) => {
           </LinearGradient>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

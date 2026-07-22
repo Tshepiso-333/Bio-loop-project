@@ -1,3 +1,4 @@
+// screens/manufacturer/ManufacturerDashboardScreen.js
 import React, { useMemo, useState } from 'react';
 import {
   View,
@@ -12,13 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
 import { useAuth } from '../../AuthContext';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import { getInitials } from '../../src/utils/restaurantViewModels';
 
-// Import all screens - FIXED PATHS
+// Import all screens
 import QualityScreen from './QualityScreen';
 import ForecastsScreen from './ForecastsScreen';
 import AIChatScreen from './AIChatScreen';
@@ -27,6 +29,20 @@ import AlertsScreen from './AlertsScreen';
 import ProfileScreen from './ProfileScreen';
 
 const { width } = Dimensions.get('window');
+
+// Theme colours
+const THEME = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  primaryDarker: '#047857',
+  primaryLight: '#D1FAE5',
+  white: '#FFFFFF',
+  offWhite: '#F9FAFB',
+  text: '#111827',
+  textSecondary: '#6B7280',
+  gray: '#9CA3AF',
+  grayLight: '#E5E7EB',
+};
 
 const ManufacturerDashboardScreen = ({ navigation }) => {
   const { signOut } = useAuth();
@@ -122,14 +138,14 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
   };
 
   // Icons for Bottom Navigation
-  const HomeIcon = ({ color = '#fff', size = 22 }) => (
+  const HomeIcon = ({ color = '#fff', size = 24 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z" stroke={color} strokeWidth={1.6} strokeLinejoin="round"/>
       <Path d="M9 21V12h6v9" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"/>
     </Svg>
   );
 
-  const ForecastIcon = ({ color = '#fff', size = 22 }) => (
+  const ForecastIcon = ({ color = '#fff', size = 24 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Rect x="2" y="4" width="20" height="16" rx="2" stroke={color} strokeWidth={1.6}/>
       <Path d="M7 15L9 12L12 14L16 9L18 11" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"/>
@@ -140,7 +156,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
     </Svg>
   );
 
-  const AIChatIcon = ({ color = '#fff', size = 22 }) => (
+  const AIChatIcon = ({ color = '#fff', size = 28 }) => (
     <View style={styles.aiIconContainer}>
       <Image 
         source={require('../../assets/BioLoop_Logo.png')} 
@@ -150,7 +166,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
     </View>
   );
 
-  const SuppliersIcon = ({ color = '#fff', size = 22 }) => (
+  const SuppliersIcon = ({ color = '#fff', size = 24 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx="8" cy="7" r="3" stroke={color} strokeWidth={1.6}/>
       <Circle cx="16" cy="7" r="3" stroke={color} strokeWidth={1.6}/>
@@ -166,14 +182,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
     </Svg>
   );
 
-  const ProfileIcon = ({ color = '#fff', size = 22 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth={1.6}/>
-      <Path d="M5 20v-2a7 7 0 0114 0v2" stroke={color} strokeWidth={1.6} strokeLinecap="round"/>
-    </Svg>
-  );
-
-  const ChartIcon = ({ color = '#fff', size = 22 }) => (
+  const ChartIcon = ({ color = '#fff', size = 24 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Rect x="3" y="3" width="18" height="18" rx="2" stroke={color} strokeWidth={1.6}/>
       <Line x1="3" y1="9" x2="21" y2="9" stroke={color} strokeWidth={1.6}/>
@@ -211,6 +220,66 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
       <Path d="M12 3L2 21h20L12 3z" stroke={color} strokeWidth={1.6} strokeLinejoin="round"/>
     </Svg>
   );
+
+  // Professional Header Component (styled like DriverHomeScreen)
+  const MainHeader = () => {
+    // Only show header on home tab
+    if (selectedTab !== 'home') return null;
+    
+    const unreadCount = alerts?.filter(a => !a.is_read).length || 0;
+    
+    return (
+      <>
+        <StatusBar barStyle="light-content" backgroundColor={THEME.primaryDark} />
+        <LinearGradient
+          colors={[THEME.primary, THEME.primaryDark, THEME.primaryDarker]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            {/* Left side - Logo */}
+            <View style={styles.logoContainer}>
+              <View style={styles.logoCircle}>
+                <Image 
+                  source={require('../../assets/BioLoop_Logo.png')} 
+                  style={styles.logoImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <View>
+                <Text style={styles.appName}>BioLoop</Text>
+                <Text style={styles.companyName}>Manufacturer Portal</Text>
+              </View>
+            </View>
+            
+            {/* Right side - Notifications and Profile */}
+            <View style={styles.headerRight}>
+              {/* Notifications Button */}
+              <TouchableOpacity 
+                style={styles.notificationButton}
+                onPress={() => setSelectedTab('alerts')}
+              >
+                <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+                {unreadCount > 0 && (
+                  <View style={styles.notificationDot}>
+                    <Text style={styles.notificationBadgeText}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              
+              {/* Profile Button */}
+              <View style={styles.profileCircle}>
+                <Text style={styles.profileInitial}>{profileInitials}</Text>
+              </View>
+            </View>
+          </View>
+        </LinearGradient>
+      </>
+    );
+  };
 
   // Pie Chart Component
   const PieChart = () => {
@@ -284,43 +353,6 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
       </View>
     );
   };
-
-  // Header Component
-  const MainHeader = () => (
-    <>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-      <LinearGradient
-        colors={['#ffffff', '#10b981', '#059669', '#047857']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerTop}>
-            <View style={styles.logoContainer}>
-              <View style={styles.logoCircle}>
-                <Image 
-                  source={require('../../assets/BioLoop_Logo.png')} 
-                  style={styles.logoImage}
-                  resizeMode="cover"
-                />
-              </View>
-              <View>
-                <Text style={styles.appName}>BioLoop</Text>
-                <Text style={styles.companyName}>GreenFuel Manufacturing</Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.headerSignOutButton} onPress={signOut}>
-              <Text style={styles.headerSignOutText}>Logout</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.profileButton}>
-              <Text style={styles.profileInitial}>{profileInitials}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </LinearGradient>
-    </>
-  );
 
   // Render different content based on selected tab
   const renderContent = () => {
@@ -493,70 +525,61 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <MainHeader />
       
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        style={styles.scrollView}
+        contentContainerStyle={selectedTab === 'home' ? styles.scrollContent : {}}
       >
         <View style={styles.content}>
           {renderContent()}
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - Centered with AI Chat in middle */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem} onPress={() => setSelectedTab('home')}>
           <View style={[styles.navIconContainer, selectedTab === 'home' && styles.activeNavIcon]}>
-            <HomeIcon color={selectedTab === 'home' ? '#10b981' : '#6b7280'} size={22} />
+            <HomeIcon color={selectedTab === 'home' ? '#10b981' : '#6b7280'} size={24} />
           </View>
           <Text style={[styles.navLabel, selectedTab === 'home' && styles.activeNavLabel]}>Home</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} onPress={() => setSelectedTab('quality')}>
           <View style={[styles.navIconContainer, selectedTab === 'quality' && styles.activeNavIcon]}>
-            <ChartIcon color={selectedTab === 'quality' ? '#10b981' : '#6b7280'} size={22} />
+            <ChartIcon color={selectedTab === 'quality' ? '#10b981' : '#6b7280'} size={24} />
           </View>
           <Text style={[styles.navLabel, selectedTab === 'quality' && styles.activeNavLabel]}>Quality</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => setSelectedTab('forecasts')}>
-          <View style={[styles.navIconContainer, selectedTab === 'forecasts' && styles.activeNavIcon]}>
-            <ForecastIcon color={selectedTab === 'forecasts' ? '#10b981' : '#6b7280'} size={22} />
-          </View>
-          <Text style={[styles.navLabel, selectedTab === 'forecasts' && styles.activeNavLabel]}>Forecasts</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => setSelectedTab('ai-chat')}>
-          <View style={[styles.navIconContainer, selectedTab === 'ai-chat' && styles.activeNavIcon]}>
-            <AIChatIcon color={selectedTab === 'ai-chat' ? '#10b981' : '#6b7280'} size={22} />
+        {/* AI Chat - Center with special styling */}
+        <TouchableOpacity style={styles.navItemCenter} onPress={() => setSelectedTab('ai-chat')}>
+          <View style={styles.aiChatCenterContainer}>
+            <View style={[styles.navIconContainer, selectedTab === 'ai-chat' && styles.activeNavIcon, styles.aiChatIconContainer]}>
+              <AIChatIcon color={selectedTab === 'ai-chat' ? '#10b981' : '#6b7280'} size={28} />
+            </View>
           </View>
           <Text style={[styles.navLabel, selectedTab === 'ai-chat' && styles.activeNavLabel]}>AI Chat</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.navItem} onPress={() => setSelectedTab('forecasts')}>
+          <View style={[styles.navIconContainer, selectedTab === 'forecasts' && styles.activeNavIcon]}>
+            <ForecastIcon color={selectedTab === 'forecasts' ? '#10b981' : '#6b7280'} size={24} />
+          </View>
+          <Text style={[styles.navLabel, selectedTab === 'forecasts' && styles.activeNavLabel]}>Forecasts</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} onPress={() => setSelectedTab('suppliers')}>
           <View style={[styles.navIconContainer, selectedTab === 'suppliers' && styles.activeNavIcon]}>
-            <SuppliersIcon color={selectedTab === 'suppliers' ? '#10b981' : '#6b7280'} size={22} />
+            <SuppliersIcon color={selectedTab === 'suppliers' ? '#10b981' : '#6b7280'} size={24} />
           </View>
           <Text style={[styles.navLabel, selectedTab === 'suppliers' && styles.activeNavLabel]}>Suppliers</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => setSelectedTab('alerts')}>
-          <View style={[styles.navIconContainer, selectedTab === 'alerts' && styles.activeNavIcon]}>
-            <AlertsIcon color={selectedTab === 'alerts' ? '#10b981' : '#6b7280'} size={22} />
-          </View>
-          <Text style={[styles.navLabel, selectedTab === 'alerts' && styles.activeNavLabel]}>Alerts</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => setSelectedTab('profile')}>
-          <View style={[styles.navIconContainer, selectedTab === 'profile' && styles.activeNavIcon]}>
-            <ProfileIcon color={selectedTab === 'profile' ? '#10b981' : '#6b7280'} size={22} />
-          </View>
-          <Text style={[styles.navLabel, selectedTab === 'profile' && styles.activeNavLabel]}>Profile</Text>
-        </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -566,13 +589,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   header: {
-    paddingTop: 60,
     paddingBottom: 12,
   },
   headerContent: {
     paddingHorizontal: 20,
-  },
-  headerTop: {
+    paddingVertical: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -581,18 +602,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1,
   },
   logoCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#fff',
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: THEME.white,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: THEME.white,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -600,69 +620,73 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   logoImage: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 41,
+    height: 41,
+    borderRadius: 20.5,
   },
   appName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: THEME.white,
   },
   companyName: {
-    fontSize: 11,
-    color: '#fff',
+    fontSize: 10,
+    color: THEME.white,
     opacity: 0.9,
-    marginTop: 2,
+    marginTop: 1,
   },
-  headerSignOutButton: {
-    backgroundColor: 'rgba(220,38,38,0.85)',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    marginHorizontal: 10,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  headerSignOutText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
   },
-  profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
+  notificationDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  notificationBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  profileCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   profileInitial: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#10b981',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  aiIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
   },
-  aiIconImage: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  scrollContent: {
+    paddingBottom: 80,
   },
   content: {
     flex: 1,
-    paddingBottom: 80,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -967,7 +991,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: '#fff',
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 8,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
@@ -978,7 +1002,14 @@ const styles = StyleSheet.create({
   },
   navItem: {
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
+    flex: 1,
+  },
+  navItemCenter: {
+    alignItems: 'center',
+    gap: 2,
+    flex: 1,
+    marginTop: -20,
   },
   navIconContainer: {
     width: 44,
@@ -987,12 +1018,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  aiChatIconContainer: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 2,
+    borderColor: '#10b981',
+  },
+  aiChatCenterContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   activeNavIcon: {
     backgroundColor: '#10b98120',
   },
   navLabel: {
     fontSize: 10,
     color: '#6b7280',
+    marginTop: 1,
   },
   activeNavLabel: {
     color: '#10b981',

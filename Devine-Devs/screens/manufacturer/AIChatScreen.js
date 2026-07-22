@@ -1,3 +1,4 @@
+// screens/manufacturer/AIChatScreen.js
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -12,7 +13,6 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
@@ -113,7 +113,7 @@ const AIChatScreen = ({ navigation }) => {
     { id: 6, text: "Alerts", query: "Show me my alerts" },
   ];
 
-  // Header Component
+  // Header Component - Updated to fill to the top
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#059669" />
@@ -168,7 +168,7 @@ const AIChatScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <KeyboardAvoidingView 
@@ -275,7 +275,7 @@ const AIChatScreen = ({ navigation }) => {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
