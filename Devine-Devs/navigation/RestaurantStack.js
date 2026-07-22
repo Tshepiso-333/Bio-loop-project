@@ -20,12 +20,12 @@ const Stack = createNativeStackNavigator();
 // ─── THEME COLOURS (matching manufacturer and driver) ─────────────────────────
 
 const THEME = {
-  primary: '#10b981',
-  primaryDark: '#059669',
+  primary: '#15643E',
+  primaryDark: '#2E8B5A',
   white: '#FFFFFF',
-  gray: '#9CA3AF',
-  grayLight: '#E5E5EA',
-  border: '#E2E8F0',
+  gray: '#A9B5AD',
+  grayLight: '#E4EDE7',
+  border: '#E4EDE7',
 };
 
 // ─── BOTTOM TAB NAVIGATOR ─────────────────────────────────────────────────────

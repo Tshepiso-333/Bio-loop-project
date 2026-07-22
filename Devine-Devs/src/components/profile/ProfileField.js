@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { ONB_COLORS, ONB_FONTS } from '../../onboarding/onboardingTokens';
 
 export default function ProfileField({
   label,
@@ -11,6 +12,8 @@ export default function ProfileField({
   required = false,
   editable = true,
 }) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>
@@ -18,14 +21,21 @@ export default function ProfileField({
         {required ? <Text style={styles.required}> *</Text> : null}
       </Text>
       <TextInput
-        style={[styles.input, multiline && styles.inputMultiline, !editable && styles.inputDisabled]}
+        style={[
+          styles.input,
+          multiline && styles.inputMultiline,
+          focused && styles.inputFocused,
+          !editable && styles.inputDisabled,
+        ]}
         value={value ?? ''}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor="#A9B5AD"
         multiline={multiline}
         keyboardType={keyboardType}
         editable={editable}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       />
     </View>
   );
@@ -35,20 +45,27 @@ const styles = StyleSheet.create({
   wrap: { marginBottom: 14 },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
+    fontFamily: ONB_FONTS.semiBold,
+    color: '#6B7F75',
     marginBottom: 6,
   },
   required: { color: '#DC2626' },
+  // Matches the auth input style: soft fill, 1.5px border, radius 18,
+  // forest-green 2px border on focus.
   input: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
+    backgroundColor: '#F5F8F6',
+    borderWidth: 1.5,
+    borderColor: '#E4EDE7',
+    borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
-    color: '#0F172A',
+    fontSize: 16,
+    fontFamily: ONB_FONTS.medium,
+    color: '#122A1F',
+  },
+  inputFocused: {
+    borderColor: ONB_COLORS.primary,
+    borderWidth: 2,
   },
   inputMultiline: {
     minHeight: 88,

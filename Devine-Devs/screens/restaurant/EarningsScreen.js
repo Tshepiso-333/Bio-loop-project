@@ -1,17 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  StatusBar,
-  Alert,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
+import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
+import {
+  REST_COLORS,
+  REST_FONTS,
+  REST_RADII,
+  REST_SHADOWS,
+  REST_SPACING,
+} from '../../src/restaurant/restaurantTheme';
 import {
   RestaurantEmptyBanner,
   RestaurantLoadingBanner,
@@ -26,44 +25,7 @@ import {
   mapWithdrawalHistory,
 } from '../../src/utils/restaurantViewModels';
 
-// ─── THEME COLOURS (matching manufacturer) ───────────────────────────────────
-
-const COLORS = {
-  background: '#F4F4EF',
-  card: '#FFFFFF',
-  green: '#10b981',
-  greenLight: '#D1FAE5',
-  greenDark: '#059669',
-  textPrimary: '#0F172A',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  tabActive: '#10b981',
-  tabInactive: '#94A3B8',
-  amber: '#F59E0B',
-  positive: '#10b981',
-  negative: '#DC2626',
-};
-
-const FONTS = {
-  bold: 'Poppins_700Bold',
-  semiBold: 'Poppins_600SemiBold',
-  medium: 'Poppins_500Medium',
-  regular: 'Poppins_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemiBold: 'Inter_600SemiBold',
-  bodyRegular: 'Inter_400Regular',
-};
-
-function Icon({ library = 'Ionicons', name, size, color }) {
-  if (library === 'MaterialCommunityIcons') {
-    return <MaterialCommunityIcons name={name} size={size} color={color} />;
-  }
-  return <Ionicons name={name} size={size} color={color} />;
-}
-
 export default function EarningsScreen() {
-  const insets = useSafeAreaInsets();
   const [withdrawTab, setWithdrawTab] = useState('withdraw');
   const { profile } = useProfile();
   const {
@@ -109,35 +71,9 @@ export default function EarningsScreen() {
     [withdrawals]
   );
 
-  // Header Component with Notifications and Profile
-  const Header = () => (
-    <>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.greenDark} />
-      <LinearGradient
-        colors={[COLORS.green, COLORS.greenDark, '#047857']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
-      >
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Earnings</Text>
-          <View style={styles.headerRight}>
-            <Pressable style={styles.notificationButton}>
-              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-              <View style={styles.notificationDot} />
-            </Pressable>
-            <View style={styles.profileCircle}>
-              <Text style={styles.profileInitial}>{profileInitials}</Text>
-            </View>
-          </View>
-        </View>
-      </LinearGradient>
-    </>
-  );
-
   return (
     <View style={styles.root}>
-      <Header />
+      <RestaurantHeader title="Earnings" avatarInitials={profileInitials} />
 
       <RestaurantRefreshScrollView
         style={styles.scroll}
@@ -188,21 +124,25 @@ function BalanceCard({ balance, activeTab, onTabSelect, unpaidEarnings, onReques
   return (
     <View style={styles.balanceCard}>
       <View style={styles.balanceLabelRow}>
-        <Ionicons name="wallet-outline" size={13} color={COLORS.textMuted} />
-        <Text style={styles.balanceLabel}>{balance.label.toUpperCase()}</Text>
+        <Ionicons name="wallet-outline" size={13} color={REST_COLORS.body} />
+        <Text style={styles.balanceLabel}>{balance.label}</Text>
       </View>
 
       <Text style={styles.balanceAmount}>{balance.amount}</Text>
 
       <View style={styles.balanceTabRow}>
         <Pressable
-          style={[styles.balanceTab, activeTab === 'withdraw' && styles.balanceTabActive]}
+          style={({ pressed }) => [
+            styles.balanceTab,
+            activeTab === 'withdraw' && styles.balanceTabActive,
+            pressed && { opacity: 0.85 },
+          ]}
           onPress={() => onTabSelect('withdraw')}
         >
           <Ionicons
             name="arrow-up-circle-outline"
             size={14}
-            color={activeTab === 'withdraw' ? '#FFFFFF' : COLORS.textSecondary}
+            color={activeTab === 'withdraw' ? REST_COLORS.white : REST_COLORS.body}
           />
           <Text style={[styles.balanceTabText, activeTab === 'withdraw' && styles.balanceTabTextActive]}>
             Withdraw
@@ -210,13 +150,17 @@ function BalanceCard({ balance, activeTab, onTabSelect, unpaidEarnings, onReques
         </Pressable>
 
         <Pressable
-          style={[styles.balanceTab, activeTab === 'history' && styles.balanceTabHistoryActive]}
+          style={({ pressed }) => [
+            styles.balanceTab,
+            activeTab === 'history' && styles.balanceTabActive,
+            pressed && { opacity: 0.85 },
+          ]}
           onPress={() => onTabSelect('history')}
         >
           <Ionicons
             name="time-outline"
             size={14}
-            color={activeTab === 'history' ? '#FFFFFF' : COLORS.textSecondary}
+            color={activeTab === 'history' ? REST_COLORS.white : REST_COLORS.body}
           />
           <Text style={[styles.balanceTabText, activeTab === 'history' && styles.balanceTabTextActive]}>
             History
@@ -247,12 +191,12 @@ function MarketRatesCard({ rates }) {
     <View style={styles.card}>
       <View style={styles.marketHeaderRow}>
         <View style={styles.marketTitleRow}>
-          <Ionicons name="trending-up-outline" size={15} color={COLORS.textPrimary} />
+          <Ionicons name="trending-up-outline" size={15} color={REST_COLORS.ink} />
           <Text style={styles.sectionTitle}>Market Rates</Text>
         </View>
         <View style={styles.updatedBadge}>
-          <Ionicons name="refresh-outline" size={10} color={COLORS.textMuted} />
-          <Text style={styles.updatedText}>{rates.updatedLabel.toUpperCase()}</Text>
+          <Ionicons name="refresh-outline" size={10} color={REST_COLORS.muted} />
+          <Text style={styles.updatedText}>{rates.updatedLabel}</Text>
         </View>
       </View>
 
@@ -290,12 +234,12 @@ function AvgQualityCard({ quality }) {
   return (
     <View style={styles.card}>
       <View style={styles.avgQualityLabelRow}>
-        <Ionicons name="analytics-outline" size={13} color={COLORS.textMuted} />
-        <Text style={styles.avgQualityLabel}>Your Avg Quality</Text>
+        <Ionicons name="analytics-outline" size={13} color={REST_COLORS.muted} />
+        <Text style={styles.avgQualityLabel}>Your avg quality</Text>
       </View>
       <View style={styles.highGradeBadge}>
-        <Ionicons name="star" size={13} color={COLORS.green} />
-        <Text style={styles.highGradeText}>{quality.badge.toUpperCase()}</Text>
+        <Ionicons name="star" size={13} color={REST_COLORS.primary} />
+        <Text style={styles.highGradeText}>{quality.badge}</Text>
       </View>
       <Text style={styles.avgQualityDesc}>{quality.description}</Text>
     </View>
@@ -305,15 +249,9 @@ function AvgQualityCard({ quality }) {
 function RecentEarnings({ items }) {
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHeaderRow}>
-        <View style={styles.sectionTitleRow}>
-          <Ionicons name="receipt-outline" size={16} color={COLORS.textPrimary} />
-          <Text style={styles.sectionTitle}>Recent Earnings</Text>
-        </View>
-        <Pressable style={styles.viewAllRow}>
-          <Text style={styles.viewAll}>View All</Text>
-          <Ionicons name="arrow-forward" size={13} color={COLORS.green} />
-        </Pressable>
+      <View style={styles.sectionTitleRow}>
+        <Ionicons name="receipt-outline" size={16} color={REST_COLORS.ink} />
+        <Text style={styles.sectionTitle}>Recent Earnings</Text>
       </View>
 
       {items.map((item) => (
@@ -327,7 +265,7 @@ function EarningRow({ item }) {
   return (
     <View style={styles.earningRow}>
       <View style={styles.earningIconWrap}>
-        <MaterialCommunityIcons name="truck-outline" size={20} color={COLORS.green} />
+        <MaterialCommunityIcons name="truck-outline" size={20} color={REST_COLORS.primary} />
       </View>
 
       <View style={styles.earningText}>
@@ -350,7 +288,7 @@ function WithdrawalHistory({ items }) {
   return (
     <View style={styles.section}>
       <View style={styles.sectionTitleRow}>
-        <Ionicons name="swap-vertical-outline" size={16} color={COLORS.textPrimary} />
+        <Ionicons name="swap-vertical-outline" size={16} color={REST_COLORS.ink} />
         <Text style={styles.sectionTitle}>Withdrawal History</Text>
       </View>
 
@@ -364,7 +302,7 @@ function WithdrawalHistory({ items }) {
         <View key={item.id} style={styles.tableRow}>
           <Text style={[styles.tableCell, styles.colDate]}>{item.date}</Text>
           <View style={[styles.tableMethodCell, styles.colMethod]}>
-            <Ionicons name={item.methodIcon} size={13} color={COLORS.textSecondary} />
+            <Ionicons name={item.methodIcon} size={13} color={REST_COLORS.body} />
             <Text style={styles.tableCell}>{item.method}</Text>
           </View>
           <Text style={[styles.tableCell, styles.colAmount, styles.withdrawalAmount]}>
@@ -379,86 +317,35 @@ function WithdrawalHistory({ items }) {
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  
-  // Header Styles
-  header: {
-    paddingBottom: 12,
-  },
-  headerContent: {
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 22,
-    color: '#FFFFFF',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  notificationButton: {
-    position: 'relative',
-    padding: 8,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-  },
-  profileCircle: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  profileInitial: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+  root: { flex: 1, backgroundColor: REST_COLORS.page },
 
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
+  scrollContent: { paddingHorizontal: REST_SPACING.screenPadding, paddingTop: 8 },
 
-  // Balance card
+  // Balance card — the hero of this screen
   balanceCard: {
-    backgroundColor: COLORS.card, borderRadius: 16,
-    padding: 20, marginBottom: 12,
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card,
+    padding: 24, marginBottom: REST_SPACING.gap,
+    borderWidth: 1, borderColor: REST_COLORS.border,
     alignItems: 'center',
+    ...REST_SHADOWS.card,
   },
   balanceLabelRow: {
     flexDirection: 'row', alignItems: 'center',
     gap: 5, marginBottom: 6,
   },
   balanceLabel: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 10,
-    color: COLORS.textMuted, letterSpacing: 1,
+    fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.body,
   },
   balanceAmount: {
-    fontFamily: FONTS.bold, fontSize: 40,
-    color: COLORS.textPrimary, marginBottom: 20,
+    fontFamily: REST_FONTS.extraBold, fontSize: 44,
+    color: REST_COLORS.ink, marginBottom: 20,
   },
   balanceTabRow: {
     flexDirection: 'row', gap: 10,
-    backgroundColor: COLORS.background,
-    borderRadius: 12, padding: 4,
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: REST_COLORS.surfaceSoft,
+    borderRadius: REST_RADII.chip, padding: 4,
+    borderWidth: 1, borderColor: REST_COLORS.border,
     alignSelf: 'stretch',
   },
   balanceTab: {
@@ -466,26 +353,26 @@ const styles = StyleSheet.create({
     alignItems: 'center', gap: 6,
     paddingVertical: 10, borderRadius: 9,
   },
-  balanceTabActive: { backgroundColor: COLORS.greenDark },
-  balanceTabHistoryActive: { backgroundColor: '#EA580C' }, // Orange for history tab
+  balanceTabActive: { backgroundColor: REST_COLORS.primary },
   balanceTabText: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.textSecondary,
+    fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.body,
   },
-  balanceTabTextActive: { color: '#FFFFFF' },
+  balanceTabTextActive: { color: REST_COLORS.white },
   withdrawPanel: { marginTop: 14, alignItems: 'center', alignSelf: 'stretch' },
-  withdrawPanelText: { fontFamily: FONTS.bodyRegular, fontSize: 12, color: COLORS.textSecondary, marginBottom: 10 },
+  withdrawPanelText: { fontFamily: REST_FONTS.medium, fontSize: 12, color: REST_COLORS.muted, marginBottom: 10 },
   withdrawRequestBtn: {
-    backgroundColor: COLORS.green, borderRadius: 12,
+    backgroundColor: REST_COLORS.primary, borderRadius: 12,
     paddingVertical: 12, alignSelf: 'stretch', alignItems: 'center',
   },
   withdrawRequestBtnDisabled: { opacity: 0.5 },
-  withdrawRequestBtnText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: '#FFFFFF' },
+  withdrawRequestBtnText: { fontFamily: REST_FONTS.semiBold, fontSize: 14, color: REST_COLORS.white },
 
-  // Shared card
+  // Shared quiet secondary card
   card: {
-    backgroundColor: COLORS.card, borderRadius: 16,
-    padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card,
+    padding: 16, marginBottom: REST_SPACING.gap,
+    borderWidth: 1, borderColor: REST_COLORS.border,
+    ...REST_SHADOWS.card,
   },
 
   // Market rates
@@ -496,32 +383,31 @@ const styles = StyleSheet.create({
   marketTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   updatedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.background,
+    backgroundColor: REST_COLORS.surfaceSoft,
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
-    borderWidth: 1, borderColor: COLORS.border,
+    borderWidth: 1, borderColor: REST_COLORS.border,
   },
   updatedText: {
-    fontFamily: FONTS.bodyMedium, fontSize: 9,
-    color: COLORS.textMuted, letterSpacing: 0.5,
+    fontFamily: REST_FONTS.medium, fontSize: 10, color: REST_COLORS.muted,
   },
   gradesRow: { flexDirection: 'row' },
   gradeCell: { flex: 1, paddingRight: 12 },
   gradeCellRight: {
     paddingRight: 0, paddingLeft: 12,
-    borderLeftWidth: 1, borderLeftColor: COLORS.border,
+    borderLeftWidth: 1, borderLeftColor: REST_COLORS.border,
   },
   gradeLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   gradeDot: { width: 8, height: 8, borderRadius: 4 },
-  gradeLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.textSecondary },
+  gradeLabel: { fontFamily: REST_FONTS.semiBold, fontSize: 12, color: REST_COLORS.body },
   gradeRateRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 1, marginBottom: 4 },
-  gradeRate: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.textPrimary },
+  gradeRate: { fontFamily: REST_FONTS.bold, fontSize: 22, color: REST_COLORS.ink },
   gradeUnit: {
-    fontFamily: FONTS.bodyMedium, fontSize: 12,
-    color: COLORS.textMuted, marginBottom: 3,
+    fontFamily: REST_FONTS.medium, fontSize: 12,
+    color: REST_COLORS.muted, marginBottom: 3,
   },
-  gradeChange: { fontFamily: FONTS.bodyRegular, fontSize: 11, color: COLORS.textMuted },
-  gradeChangePositive: { color: COLORS.positive },
-  gradeChangeNegative: { color: COLORS.negative },
+  gradeChange: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted },
+  gradeChangePositive: { color: REST_COLORS.positive },
+  gradeChangeNegative: { color: REST_COLORS.negative },
 
   // Avg quality
   avgQualityLabelRow: {
@@ -529,76 +415,67 @@ const styles = StyleSheet.create({
     gap: 5, marginBottom: 10,
   },
   avgQualityLabel: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 10,
-    color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.8,
+    fontFamily: REST_FONTS.semiBold, fontSize: 12, color: REST_COLORS.muted,
   },
   highGradeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.greenLight,
+    backgroundColor: REST_COLORS.paleGreen,
     paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 20, marginBottom: 10,
   },
   highGradeText: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 12,
-    color: COLORS.green, letterSpacing: 0.5,
+    fontFamily: REST_FONTS.semiBold, fontSize: 12, color: REST_COLORS.primary,
   },
   avgQualityDesc: {
-    fontFamily: FONTS.bodyRegular, fontSize: 13,
-    color: COLORS.textSecondary, lineHeight: 19,
+    fontFamily: REST_FONTS.medium, fontSize: 13,
+    color: REST_COLORS.body, lineHeight: 19,
   },
 
   // Shared section wrapper
-  section: { marginBottom: 12 },
-  sectionHeaderRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 10,
-  },
+  section: { marginBottom: REST_SPACING.gap },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  sectionTitle: { fontFamily: FONTS.semiBold, fontSize: 16, color: COLORS.textPrimary },
-  viewAllRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewAll: { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.green },
+  sectionTitle: { fontFamily: REST_FONTS.bold, fontSize: 16, color: REST_COLORS.ink },
 
   // Earning rows
   earningRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: REST_COLORS.card,
     borderRadius: 14, padding: 14,
     marginBottom: 8,
-    borderWidth: 1, borderColor: COLORS.border,
+    borderWidth: 1, borderColor: REST_COLORS.border,
   },
   earningIconWrap: {
     width: 40, height: 40, borderRadius: 10,
-    backgroundColor: COLORS.greenLight,
+    backgroundColor: REST_COLORS.paleGreen,
     justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
   earningText: { flex: 1 },
-  earningTitle: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textPrimary, marginBottom: 2 },
-  earningDate: { fontFamily: FONTS.semiBold, color: COLORS.textPrimary },
-  earningDetail: { fontFamily: FONTS.bodyRegular, fontSize: 11, color: COLORS.textMuted },
+  earningTitle: { fontFamily: REST_FONTS.medium, fontSize: 13, color: REST_COLORS.ink, marginBottom: 2 },
+  earningDate: { fontFamily: REST_FONTS.semiBold, color: REST_COLORS.ink },
+  earningDetail: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted },
   earningRight: { alignItems: 'flex-end' },
-  earningAmount: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.positive, marginBottom: 2 },
-  earningAmountDetail: { fontFamily: FONTS.bodyRegular, fontSize: 10, color: COLORS.textMuted, textAlign: 'right' },
+  earningAmount: { fontFamily: REST_FONTS.bold, fontSize: 15, color: REST_COLORS.positive, marginBottom: 2 },
+  earningAmountDetail: { fontFamily: REST_FONTS.medium, fontSize: 10, color: REST_COLORS.muted, textAlign: 'right' },
 
   // Withdrawal history table
   tableHeaderRow: {
     flexDirection: 'row',
     paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    borderBottomWidth: 1, borderBottomColor: REST_COLORS.border,
     marginBottom: 2,
   },
   tableHeaderCell: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 10,
-    color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5,
+    fontFamily: REST_FONTS.semiBold, fontSize: 11, color: REST_COLORS.muted,
   },
   tableRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    borderBottomWidth: 1, borderBottomColor: REST_COLORS.divider,
   },
-  tableCell: { fontFamily: FONTS.bodyRegular, fontSize: 13, color: COLORS.textPrimary },
+  tableCell: { fontFamily: REST_FONTS.medium, fontSize: 13, color: REST_COLORS.ink },
   tableMethodCell: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  withdrawalAmount: { fontFamily: FONTS.bodySemiBold, color: COLORS.negative, textAlign: 'right' },
+  withdrawalAmount: { fontFamily: REST_FONTS.semiBold, color: REST_COLORS.negative, textAlign: 'right' },
   colDate:   { flex: 2.2 },
   colMethod: { flex: 2.2 },
   colAmount: { flex: 1.5, textAlign: 'right' },

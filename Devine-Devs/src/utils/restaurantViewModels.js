@@ -132,7 +132,7 @@ export const mapTankCardData = (tank) => {
     statusNote: 'Capacity monitoring active. Estimated full in',
     estimatedDays,
     currentVolume: toNumber(tank.current_volume_liters, 0),
-    temperature: toNumber(tank.temperature_f, 0),
+    temperature: Math.round((toNumber(tank.temperature_f, 0) - 32) * 5 / 9),
   };
 };
 
@@ -275,7 +275,7 @@ export const mapDeviceStats = (tank, pickups = []) => {
   return [
     {
       label: 'Temperature',
-      value: `${toNumber(tank?.temperature_f, 0)}°F`,
+      value: `${Math.round((toNumber(tank?.temperature_f, 0) - 32) * 5 / 9)}°C`,
       valueColor: '#EA580C',
     },
     {

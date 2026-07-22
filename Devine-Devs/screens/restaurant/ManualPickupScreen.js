@@ -2,46 +2,26 @@ import React, { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   View, Text, ScrollView, StyleSheet,
-  Pressable, StatusBar, TextInput, ActivityIndicator,
+  Pressable, TextInput, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
+import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
+import {
+  REST_COLORS,
+  REST_FONTS,
+  REST_RADII,
+  REST_SHADOWS,
+  REST_SPACING,
+} from '../../src/restaurant/restaurantTheme';
 import { mapTankCardData } from '../../src/utils/restaurantViewModels';
 
-// ─── THEME COLOURS (matching manufacturer, keeping emergency orange) ─────────
-
-const COLORS = {
-  background: '#F4F4EF', 
-  card: '#FFFFFF',
-  green: '#10b981',
-  greenLight: '#D1FAE5', 
-  greenDark: '#059669',
-  // Urgent colour - shows urgency
-  urgent: '#EA580C',
-  urgentLight: '#FFF7ED',
-  // Emergency colours
-  alertBg: '#FFF7ED', 
-  alertBorder: '#FED7AA', 
-  alertText: '#C2410C',
-  textPrimary: '#0F172A', 
-  textSecondary: '#64748B', 
-  textMuted: '#94A3B8',
-  border: '#E2E8F0', 
-  inputBg: '#F8FAFC',
-};
-
-const FONTS = {
-  bold: 'Poppins_700Bold', 
-  semiBold: 'Poppins_600SemiBold',
-  bodyMedium: 'Inter_500Medium', 
-  bodySemiBold: 'Inter_600SemiBold',
-  bodyRegular: 'Inter_400Regular',
-};
+// Urgent orange is semantic — kept deliberately, not forest-greened.
+const URGENT_COLOR = '#EA580C';
 
 const URGENCY_OPTIONS = [
-  { key: 'standard', label: 'Standard', subtitle: 'Within 24 hrs', icon: 'time-outline', color: COLORS.green },
-  { key: 'urgent',   label: 'Urgent',   subtitle: 'Within 4 hrs',  icon: 'flash-outline', color: COLORS.urgent },
+  { key: 'standard', label: 'Standard', subtitle: 'Within 24 hrs', icon: 'time-outline', color: REST_COLORS.primary },
+  { key: 'urgent',   label: 'Urgent',   subtitle: 'Within 4 hrs',  icon: 'flash-outline', color: URGENT_COLOR },
 ];
 
 const REASONS = [
@@ -57,6 +37,7 @@ export default function ManualPickupScreen({ navigation }) {
   const [urgency, setUrgency] = useState('standard');
   const [selectedReason, setSelectedReason] = useState(null);
   const [notes, setNotes] = useState('');
+  const [notesFocused, setNotesFocused] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -91,39 +72,22 @@ export default function ManualPickupScreen({ navigation }) {
 
   // Get the color for the selected urgency
   const getUrgencyColor = () => {
-    return urgency === 'urgent' ? COLORS.urgent : COLORS.green;
+    return urgency === 'urgent' ? URGENT_COLOR : REST_COLORS.primary;
   };
-
-  // Header Component with Gradient
-  const Header = () => (
-    <>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.greenDark} />
-      <LinearGradient
-        colors={[COLORS.green, COLORS.greenDark, '#047857']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
-      >
-        <View style={styles.headerContent}>
-          <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </Pressable>
-          <Text style={styles.headerTitle}>Manual Pickup</Text>
-          <View style={{ width: 38 }} />
-        </View>
-      </LinearGradient>
-    </>
-  );
 
   return (
     <View style={styles.root}>
-      <Header />
+      <RestaurantHeader
+        title="Manual Pickup"
+        showBack
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* Warning banner - emergency colours kept */}
         <View style={styles.warningCard}>
-          <Ionicons name="warning-outline" size={20} color={COLORS.alertText} />
+          <Ionicons name="warning-outline" size={20} color={REST_COLORS.warnText} />
           <View style={styles.warningText}>
             <Text style={styles.warningTitle}>Emergency / Overflow Request</Text>
             <Text style={styles.warningSub}>
@@ -133,27 +97,27 @@ export default function ManualPickupScreen({ navigation }) {
         </View>
 
         {/* Current tank status */}
-        <Text style={styles.sectionLabel}>Current Tank Status</Text>
+        <Text style={styles.sectionLabel}>Current tank status</Text>
         <View style={styles.tankStatusCard}>
           <View style={styles.tankStatusRow}>
-            <Ionicons name="water-outline" size={18} color={COLORS.green} />
-            <Text style={styles.tankStatusLabel}>Fill Level</Text>
+            <Ionicons name="water-outline" size={18} color={REST_COLORS.primary} />
+            <Text style={styles.tankStatusLabel}>Fill level</Text>
             <Text style={styles.tankStatusValue}>{fillPercent}%</Text>
           </View>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${Math.min(fillPercent, 100)}%` }]} />
           </View>
           <View style={styles.tankStatusRow}>
-            <Ionicons name="thermometer-outline" size={18} color={COLORS.green} />
+            <Ionicons name="thermometer-outline" size={18} color={REST_COLORS.primary} />
             <Text style={styles.tankStatusLabel}>Temperature</Text>
-            <Text style={styles.tankStatusValue}>{temperature}°F</Text>
+            <Text style={styles.tankStatusValue}>{temperature}°C</Text>
           </View>
         </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         {/* Urgency selector */}
-        <Text style={styles.sectionLabel}>Urgency Level</Text>
+        <Text style={styles.sectionLabel}>Urgency level</Text>
         <View style={styles.urgencyRow}>
           {URGENCY_OPTIONS.map((opt) => {
             const isActive = urgency === opt.key;
@@ -161,16 +125,17 @@ export default function ManualPickupScreen({ navigation }) {
             return (
               <Pressable
                 key={opt.key}
-                style={[
+                style={({ pressed }) => [
                   styles.urgencyCard,
-                  isActive && { backgroundColor: activeColor, borderColor: activeColor }
+                  isActive && { backgroundColor: activeColor, borderColor: activeColor },
+                  pressed && { opacity: 0.85 },
                 ]}
                 onPress={() => setUrgency(opt.key)}
               >
                 <Ionicons
                   name={opt.icon}
                   size={20}
-                  color={isActive ? '#FFFFFF' : COLORS.textSecondary}
+                  color={isActive ? REST_COLORS.white : REST_COLORS.body}
                 />
                 <Text style={[styles.urgencyLabel, isActive && styles.urgencyLabelActive]}>
                   {opt.label}
@@ -184,19 +149,20 @@ export default function ManualPickupScreen({ navigation }) {
         </View>
 
         {/* Reason selector */}
-        <Text style={styles.sectionLabel}>Reason for Request</Text>
+        <Text style={styles.sectionLabel}>Reason for request</Text>
         <View style={styles.card}>
           {REASONS.map((reason, index) => (
             <Pressable
               key={reason}
-              style={[
+              style={({ pressed }) => [
                 styles.reasonRow,
                 index < REASONS.length - 1 && styles.reasonRowBorder,
+                pressed && { opacity: 0.85 },
               ]}
               onPress={() => setSelectedReason(reason)}
             >
               <View style={[
-                styles.radioOuter, 
+                styles.radioOuter,
                 selectedReason === reason && { borderColor: getUrgencyColor() }
               ]}>
                 {selectedReason === reason && <View style={[styles.radioInner, { backgroundColor: getUrgencyColor() }]} />}
@@ -209,13 +175,15 @@ export default function ManualPickupScreen({ navigation }) {
         </View>
 
         {/* Notes */}
-        <Text style={styles.sectionLabel}>Describe the Situation</Text>
+        <Text style={styles.sectionLabel}>Describe the situation</Text>
         <TextInput
-          style={styles.notesInput}
+          style={[styles.notesInput, notesFocused && styles.notesInputFocused]}
           placeholder="Describe what's happening with your tank..."
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={REST_COLORS.muted}
           value={notes}
           onChangeText={setNotes}
+          onFocus={() => setNotesFocused(true)}
+          onBlur={() => setNotesFocused(false)}
           multiline
           numberOfLines={4}
         />
@@ -223,32 +191,36 @@ export default function ManualPickupScreen({ navigation }) {
         {/* Submit */}
         {submitted ? (
           <View style={styles.successBanner}>
-            <Ionicons name="checkmark-circle" size={20} color={COLORS.green} />
+            <Ionicons name="checkmark-circle" size={20} color={REST_COLORS.primary} />
             <Text style={styles.successText}>Request submitted! A driver will be assigned shortly.</Text>
           </View>
         ) : (
-          <Pressable style={styles.submitButton} onPress={handleSubmit} disabled={submitting}>
-            <LinearGradient
-              colors={[getUrgencyColor(), getUrgencyColor() === COLORS.urgent ? '#9A3412' : COLORS.greenDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.submitGradient}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="send-outline" size={17} color="#FFFFFF" />
-                  <Text style={styles.submitButtonText}>
-                    {urgency === 'urgent' ? 'Submit Urgent Request' : 'Submit Request'}
-                  </Text>
-                </>
-              )}
-            </LinearGradient>
+          <Pressable
+            style={({ pressed }) => [
+              styles.submitButton,
+              { backgroundColor: getUrgencyColor(), shadowColor: getUrgencyColor() },
+              pressed && { opacity: 0.85 },
+            ]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color={REST_COLORS.white} />
+            ) : (
+              <>
+                <Ionicons name="send-outline" size={17} color={REST_COLORS.white} />
+                <Text style={styles.submitButtonText}>
+                  {urgency === 'urgent' ? 'Submit Urgent Request' : 'Submit Request'}
+                </Text>
+              </>
+            )}
           </Pressable>
         )}
 
-        <Pressable style={styles.cancelButton} onPress={() => navigation.goBack()}>
+        <Pressable
+          style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.85 }]}
+          onPress={() => navigation.goBack()}
+        >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </Pressable>
 
@@ -259,129 +231,102 @@ export default function ManualPickupScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  
-  // Header Styles
-  header: {
-    paddingBottom: 12,
-  },
-  headerContent: {
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: '#FFFFFF',
-  },
-  
-  content: { padding: 16 },
+  root: { flex: 1, backgroundColor: REST_COLORS.page },
+  content: { padding: REST_SPACING.screenPadding, paddingTop: 8 },
 
   warningCard: {
     flexDirection: 'row', gap: 12,
-    backgroundColor: COLORS.alertBg, borderRadius: 14,
-    borderWidth: 1, borderColor: COLORS.alertBorder,
+    backgroundColor: REST_COLORS.warnBg, borderRadius: REST_RADII.card,
+    borderWidth: 1, borderColor: REST_COLORS.warnBorder,
     padding: 14, marginBottom: 20, alignItems: 'flex-start',
   },
   warningText: { flex: 1 },
-  warningTitle: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.alertText, marginBottom: 4 },
-  warningSub: { fontFamily: FONTS.bodyRegular, fontSize: 12, color: '#92400E', lineHeight: 18 },
+  warningTitle: { fontFamily: REST_FONTS.bold, fontSize: 13, color: REST_COLORS.warnText, marginBottom: 4 },
+  warningSub: { fontFamily: REST_FONTS.medium, fontSize: 12, color: '#92400E', lineHeight: 18 },
 
   sectionLabel: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 11,
-    color: COLORS.textMuted, textTransform: 'uppercase',
-    letterSpacing: 0.7, marginBottom: 8,
+    fontFamily: REST_FONTS.semiBold, fontSize: 13,
+    color: REST_COLORS.body, marginBottom: 8,
   },
 
   tankStatusCard: {
-    backgroundColor: COLORS.card, borderRadius: 14,
+    backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card,
     padding: 14, marginBottom: 18,
-    borderWidth: 1, borderColor: COLORS.border, gap: 10,
+    borderWidth: 1, borderColor: REST_COLORS.border, gap: 10,
+    ...REST_SHADOWS.card,
   },
   tankStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  tankStatusLabel: { flex: 1, fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.textSecondary },
-  tankStatusValue: { fontFamily: FONTS.semiBold, fontSize: 14, color: COLORS.textPrimary },
+  tankStatusLabel: { flex: 1, fontFamily: REST_FONTS.medium, fontSize: 13, color: REST_COLORS.body },
+  tankStatusValue: { fontFamily: REST_FONTS.semiBold, fontSize: 14, color: REST_COLORS.ink },
   progressTrack: {
-    height: 8, backgroundColor: COLORS.border, borderRadius: 4, overflow: 'hidden',
+    height: 8, backgroundColor: REST_COLORS.border, borderRadius: 4, overflow: 'hidden',
   },
-  progressFill: { height: '100%', backgroundColor: COLORS.green, borderRadius: 4 },
+  progressFill: { height: '100%', backgroundColor: REST_COLORS.primary, borderRadius: 4 },
 
   urgencyRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
   urgencyCard: {
     flex: 1, alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.card, borderRadius: 12,
-    padding: 14, borderWidth: 1.5, borderColor: COLORS.border,
+    backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.chip,
+    padding: 14, borderWidth: 1.5, borderColor: REST_COLORS.border,
   },
-  urgencyLabel: { fontFamily: FONTS.semiBold, fontSize: 14, color: COLORS.textPrimary },
-  urgencyLabelActive: { color: '#FFFFFF' },
-  urgencySub: { fontFamily: FONTS.bodyRegular, fontSize: 11, color: COLORS.textMuted },
+  urgencyLabel: { fontFamily: REST_FONTS.bold, fontSize: 14, color: REST_COLORS.ink },
+  urgencyLabelActive: { color: REST_COLORS.white },
+  urgencySub: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted },
   urgencySubActive: { color: 'rgba(255,255,255,0.75)' },
 
   card: {
-    backgroundColor: COLORS.card, borderRadius: 14,
-    marginBottom: 18, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
+    backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card,
+    marginBottom: 18, borderWidth: 1, borderColor: REST_COLORS.border, overflow: 'hidden',
   },
   reasonRow: {
     flexDirection: 'row', alignItems: 'center',
     gap: 12, padding: 14,
   },
-  reasonRowBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  reasonRowBorder: { borderBottomWidth: 1, borderBottomColor: REST_COLORS.divider },
   radioOuter: {
     width: 20, height: 20, borderRadius: 10,
-    borderWidth: 2, borderColor: COLORS.border,
+    borderWidth: 2, borderColor: REST_COLORS.border,
     justifyContent: 'center', alignItems: 'center',
   },
   radioInner: { width: 10, height: 10, borderRadius: 5 },
-  reasonText: { fontFamily: FONTS.bodyRegular, fontSize: 14, color: COLORS.textSecondary },
-  reasonTextActive: { fontFamily: FONTS.bodySemiBold, color: COLORS.textPrimary },
+  reasonText: { fontFamily: REST_FONTS.medium, fontSize: 14, color: REST_COLORS.body },
+  reasonTextActive: { fontFamily: REST_FONTS.semiBold, color: REST_COLORS.ink },
 
   notesInput: {
-    backgroundColor: COLORS.inputBg, borderWidth: 1.5,
-    borderColor: COLORS.border, borderRadius: 12,
-    padding: 14, fontFamily: FONTS.bodyRegular,
-    fontSize: 14, color: COLORS.textPrimary,
+    backgroundColor: REST_COLORS.surfaceSoft, borderWidth: 1.5,
+    borderColor: REST_COLORS.border, borderRadius: REST_RADII.input,
+    padding: 14, fontFamily: REST_FONTS.medium,
+    fontSize: 16, color: REST_COLORS.ink,
     textAlignVertical: 'top', minHeight: 100, marginBottom: 20,
   },
+  notesInputFocused: { borderColor: REST_COLORS.primary, borderWidth: 2 },
 
   submitButton: {
-    borderRadius: 13,
-    marginBottom: 10,
-    overflow: 'hidden',
-  },
-  submitGradient: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
     paddingVertical: 15,
+    borderRadius: REST_RADII.pill,
+    marginBottom: 10,
+    ...REST_SHADOWS.button,
   },
   submitButtonText: {
-    fontFamily: FONTS.bold, color: '#FFFFFF',
-    fontSize: 14, letterSpacing: 0.4, textTransform: 'uppercase',
+    fontFamily: REST_FONTS.bold, color: REST_COLORS.white, fontSize: 14,
   },
   cancelButton: { alignItems: 'center', paddingVertical: 14 },
-  cancelButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.textMuted },
+  cancelButtonText: { fontFamily: REST_FONTS.semiBold, fontSize: 14, color: REST_COLORS.muted },
 
   successBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: COLORS.greenLight, borderRadius: 13,
+    backgroundColor: REST_COLORS.paleGreen, borderRadius: REST_RADII.card,
     padding: 16, marginBottom: 10,
   },
-  successText: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.green, flex: 1 },
+  successText: { fontFamily: REST_FONTS.bold, fontSize: 13, color: REST_COLORS.primary, flex: 1 },
   errorText: {
-    fontFamily: FONTS.bodyRegular,
+    fontFamily: REST_FONTS.medium,
     fontSize: 13,
-    color: COLORS.alertText,
+    color: REST_COLORS.alertText,
     marginBottom: 12,
   },
 });

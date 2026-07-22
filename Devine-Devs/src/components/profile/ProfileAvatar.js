@@ -59,15 +59,15 @@ export default function ProfileAvatar({
 
 const styles = StyleSheet.create({
   initialsWrap: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: '#E7F1EB',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#10b981',
+    borderColor: '#15643E',
   },
   initials: {
-    fontWeight: '700',
-    color: '#059669',
+    fontFamily: 'PlusJakartaSans_700Bold',
+    color: '#15643E',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#10b981',
+    backgroundColor: '#15643E',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,

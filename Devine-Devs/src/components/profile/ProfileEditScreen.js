@@ -9,9 +9,9 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../../AuthContext';
 import { useProfile } from '../../hooks/useProfile';
@@ -28,14 +28,27 @@ import { uploadProfileImage } from '../../services/storageService';
 import { RestaurantContext } from '../../contexts/RestaurantContext';
 import { CollectorContext } from '../../contexts/CollectorContext';
 import { ManufacturerContext } from '../../contexts/ManufacturerContext';
+import { ONB_COLORS, ONB_FONTS } from '../../onboarding/onboardingTokens';
 
+// Shared across roles, so themed from the brand-level onboarding tokens
+// (same source authTheme.js uses) rather than any one module's theme.
 const THEME = {
-  primary: '#10b981',
-  primaryDark: '#059669',
-  bg: '#F4F4EF',
+  primary: ONB_COLORS.primary, // '#15643E' forest green
+  bg: '#F6F8F7',
   card: '#FFFFFF',
-  text: '#0F172A',
-  muted: '#64748B',
+  border: '#E4EDE7',
+  ink: '#122A1F',
+  body: '#6B7F75',
+  muted: '#A9B5AD',
+  white: '#FFFFFF',
+  progressTrack: '#E4EDE7',
+};
+
+const FONTS = {
+  extraBold: ONB_FONTS.extraBold,
+  bold: ONB_FONTS.bold,
+  semiBold: ONB_FONTS.semiBold,
+  medium: ONB_FONTS.medium,
 };
 
 export default function ProfileEditScreen({
@@ -243,17 +256,25 @@ export default function ProfileEditScreen({
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <LinearGradient
-        colors={[THEME.primary, THEME.primaryDark]}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
-      >
+      <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>
           {isCompletion ? 'Complete your profile' : 'Edit profile'}
         </Text>
         {isCompletion ? (
-          <Text style={styles.headerSubtitle}>
-            {completion.percent}% complete — add the details below to get started.
-          </Text>
+          <>
+            <Text style={styles.headerSubtitle}>
+              {completion.percent}% complete — add the details below to get started.
+            </Text>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.min(100, Math.max(0, completion.percent))}%` },
+                ]}
+              />
+            </View>
+          </>
         ) : (
           <Text style={styles.headerSubtitle}>Update your account and business information.</Text>
         )}
@@ -263,7 +284,7 @@ export default function ProfileEditScreen({
             {completion.missing.length > 3 ? '…' : ''}
           </Text>
         ) : null}
-      </LinearGradient>
+      </View>
 
       <ScrollView
         style={styles.flex}
@@ -288,7 +309,7 @@ export default function ProfileEditScreen({
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={THEME.white} />
           ) : (
             <Text style={styles.saveBtnText}>
               {isCompletion ? 'Save & continue' : 'Save changes'}
@@ -310,23 +331,40 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: THEME.bg },
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 18,
+    backgroundColor: THEME.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: THEME.border,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
+    fontFamily: FONTS.extraBold,
+    color: THEME.ink,
   },
   headerSubtitle: {
     marginTop: 6,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
+    fontFamily: FONTS.medium,
+    color: THEME.body,
     lineHeight: 20,
+  },
+  progressTrack: {
+    marginTop: 12,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: THEME.progressTrack,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: THEME.primary,
   },
   missingHint: {
     marginTop: 8,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.85)',
+    fontFamily: FONTS.medium,
+    color: THEME.muted,
   },
   content: {
     padding: 16,
@@ -334,14 +372,21 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: THEME.card,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     marginBottom: 4,
+    borderWidth: 1,
+    borderColor: THEME.border,
+    shadowColor: '#122A1F',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: THEME.text,
+    fontFamily: FONTS.bold,
+    color: THEME.ink,
     marginBottom: 12,
   },
   imageSection: {
@@ -351,13 +396,14 @@ const styles = StyleSheet.create({
   sectionLabel: {
     alignSelf: 'flex-start',
     fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
+    fontFamily: FONTS.semiBold,
+    color: THEME.body,
     marginBottom: 10,
   },
   imageHint: {
     marginTop: 8,
     fontSize: 12,
+    fontFamily: FONTS.medium,
     color: THEME.muted,
   },
   selectWrap: { marginBottom: 14 },
@@ -377,16 +423,21 @@ const styles = StyleSheet.create({
   chipTextActive: { color: '#fff' },
   saveBtn: {
     backgroundColor: THEME.primary,
-    borderRadius: 14,
+    borderRadius: 30,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: THEME.primary,
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   saveBtnDisabled: { opacity: 0.7 },
   saveBtnText: {
-    color: '#fff',
+    color: THEME.white,
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   skipBtn: {
     paddingVertical: 14,
@@ -395,6 +446,6 @@ const styles = StyleSheet.create({
   skipBtnText: {
     color: THEME.muted,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
 });

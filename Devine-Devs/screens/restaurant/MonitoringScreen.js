@@ -1,19 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  StatusBar,
-  Alert,
-  TextInput,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, Pressable, Alert, TextInput } from 'react-native';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
+import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
+import {
+  REST_COLORS,
+  REST_FONTS,
+  REST_RADII,
+  REST_SHADOWS,
+  REST_SPACING,
+} from '../../src/restaurant/restaurantTheme';
 import {
   RestaurantEmptyBanner,
   RestaurantLoadingBanner,
@@ -28,38 +26,6 @@ import {
   mapQualityLogRows,
 } from '../../src/utils/restaurantViewModels';
 
-// ─── THEME COLOURS (matching manufacturer) ───────────────────────────────────
-
-const COLORS = {
-  background: '#F4F4EF',
-  card: '#FFFFFF',
-  green: '#10b981',
-  greenLight: '#D1FAE5',
-  greenDark: '#059669',
-  alertBg: '#FFF1F1',
-  alertBorder: '#FECACA',
-  alertText: '#DC2626',
-  alertButton: '#991B1B',
-  textPrimary: '#0F172A',
-  textSecondary: '#64748B',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  tabActive: '#10b981',
-  tabInactive: '#94A3B8',
-};
-
-// ─── FONTS ────────────────────────────────────────────────────────────────────
-
-const FONTS = {
-  bold: 'Poppins_700Bold',
-  semiBold: 'Poppins_600SemiBold',
-  medium: 'Poppins_500Medium',
-  regular: 'Poppins_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemiBold: 'Inter_600SemiBold',
-  bodyRegular: 'Inter_400Regular',
-};
-
 // ─── ICON HELPER ──────────────────────────────────────────────────────────────
 
 function Icon({ library = 'Ionicons', name, size, color }) {
@@ -69,10 +35,14 @@ function Icon({ library = 'Ionicons', name, size, color }) {
   return <Ionicons name={name} size={size} color={color} />;
 }
 
+// The mapper returns legacy emerald for some stat values; remap to theme
+// display-side so the view model stays untouched.
+const remapStatColor = (color) =>
+  color === '#10b981' ? REST_COLORS.primary : color;
+
 // ─── MAIN SCREEN ──────────────────────────────────────────────────────────────
 
 export default function MonitoringScreen() {
-  const insets = useSafeAreaInsets();
   const { profile } = useProfile();
   const {
     tank,
@@ -135,35 +105,9 @@ export default function MonitoringScreen() {
     [tank, pickups]
   );
 
-  // Header Component with Notifications and Profile (no logo)
-  const Header = () => (
-    <>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.greenDark} />
-      <LinearGradient
-        colors={[COLORS.green, COLORS.greenDark, '#047857']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
-      >
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Monitoring</Text>
-          <View style={styles.headerRight}>
-            <Pressable style={styles.notificationButton}>
-              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-              <View style={styles.notificationDot} />
-            </Pressable>
-            <View style={styles.profileCircle}>
-              <Text style={styles.profileInitial}>{profileInitials}</Text>
-            </View>
-          </View>
-        </View>
-      </LinearGradient>
-    </>
-  );
-
   return (
     <View style={styles.root}>
-      <Header />
+      <RestaurantHeader title="Monitoring" avatarInitials={profileInitials} />
 
       <RestaurantRefreshScrollView
         style={styles.scroll}
@@ -214,7 +158,7 @@ function TankHeader({ info }) {
           </View>
         )}
         <View style={styles.lastPingRow}>
-          <Ionicons name="wifi-outline" size={12} color={COLORS.textMuted} />
+          <Ionicons name="wifi-outline" size={12} color={REST_COLORS.muted} />
           <Text style={styles.lastPingText}>Last ping: {info.lastPing}</Text>
         </View>
       </View>
@@ -225,7 +169,7 @@ function TankHeader({ info }) {
 function CapacityDisplay({ percent }) {
   return (
     <View style={styles.capacityBlock}>
-      <Text style={styles.capacityLabel}>Current Capacity</Text>
+      <Text style={styles.capacityLabel}>Current capacity</Text>
       <View style={styles.capacityRow}>
         <Text style={styles.capacityNumber}>{percent}</Text>
         <Text style={styles.capacityUnit}>%</Text>
@@ -238,7 +182,7 @@ function FillPercentCard({ value, onChangeText, onSubmit, saving }) {
   return (
     <View style={styles.card}>
       <View style={styles.chartTitleRow}>
-        <Ionicons name="water-outline" size={16} color={COLORS.textPrimary} />
+        <Ionicons name="water-outline" size={16} color={REST_COLORS.ink} />
         <Text style={styles.chartTitle}>Update Fill Level</Text>
       </View>
       <Text style={styles.gradeHint}>
@@ -250,7 +194,7 @@ function FillPercentCard({ value, onChangeText, onSubmit, saving }) {
           value={value}
           onChangeText={onChangeText}
           placeholder="e.g. 90"
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={REST_COLORS.muted}
           keyboardType="numeric"
         />
         <Pressable style={styles.fillButton} disabled={saving} onPress={onSubmit}>
@@ -267,7 +211,7 @@ function GradeReadingCard({ grade, onSetGrade, saving }) {
   return (
     <View style={styles.card}>
       <View style={styles.chartTitleRow}>
-        <Ionicons name="beaker-outline" size={16} color={COLORS.textPrimary} />
+        <Ionicons name="beaker-outline" size={16} color={REST_COLORS.ink} />
         <Text style={styles.chartTitle}>Oil Quality Reading</Text>
       </View>
       <Text style={styles.gradeHint}>
@@ -301,20 +245,28 @@ function OilTrendChart({ data }) {
     <View style={styles.card}>
       <View style={styles.chartHeaderRow}>
         <View style={styles.chartTitleRow}>
-          <Ionicons name="bar-chart-outline" size={16} color={COLORS.textPrimary} />
+          <Ionicons name="bar-chart-outline" size={16} color={REST_COLORS.ink} />
           <Text style={styles.chartTitle}>Oil Level Trends</Text>
         </View>
-        <Text style={styles.chartSubtitle}>Last 7 Days</Text>
+        <Text style={styles.chartSubtitle}>Last 7 days</Text>
       </View>
 
       <View style={styles.chartArea}>
         {data.map((item, index) => {
           const barHeight = (item.value / maxValue) * BAR_MAX_HEIGHT;
-          const opacity = data.length === 1 ? 1 : 0.25 + (index / (data.length - 1)) * 0.75;
+          const isLatest = index === data.length - 1;
           return (
             <View key={item.day} style={styles.barColumn}>
               <View style={{ flex: 1 }} />
-              <View style={[styles.bar, { height: barHeight, opacity }]} />
+              <View
+                style={[
+                  styles.bar,
+                  {
+                    height: barHeight,
+                    backgroundColor: isLatest ? REST_COLORS.primary : REST_COLORS.accent,
+                  },
+                ]}
+              />
               <Text style={styles.barLabel}>{item.day}</Text>
             </View>
           );
@@ -329,16 +281,16 @@ function PredictiveAlert({ alert }) {
   return (
     <View style={styles.alertCard}>
       <View style={styles.alertTitleRow}>
-        <Ionicons name="warning-outline" size={14} color={COLORS.alertText} />
-        <Text style={styles.alertTitle}> Predictive Alert</Text>
+        <Ionicons name="warning-outline" size={14} color={REST_COLORS.alertText} />
+        <Text style={styles.alertTitle}> Predictive alert</Text>
       </View>
       <Text style={styles.alertHours}>{alert.hoursUntilFull} Hours</Text>
       <Text style={styles.alertMessage}>{alert.message}</Text>
       <Pressable
-        style={styles.scheduleButton}
+        style={({ pressed }) => [styles.scheduleButton, pressed && { opacity: 0.85 }]}
         onPress={() => navigation.navigate('SchedulePickup')}
       >
-        <Ionicons name="calendar-outline" size={15} color="#FFFFFF" />
+        <Ionicons name="calendar-outline" size={15} color={REST_COLORS.white} />
         <Text style={styles.scheduleButtonText}>Schedule Pickup</Text>
       </Pressable>
     </View>
@@ -350,19 +302,15 @@ function QualityLogs({ logs }) {
     <View style={styles.card}>
       <View style={styles.logsHeaderRow}>
         <View style={styles.logsTitleRow}>
-          <Ionicons name="document-text-outline" size={16} color={COLORS.textPrimary} />
+          <Ionicons name="document-text-outline" size={16} color={REST_COLORS.ink} />
           <Text style={styles.logsTitle}>Historical Quality Logs</Text>
         </View>
-        <Pressable style={styles.filterButton}>
-          <Ionicons name="filter-outline" size={13} color={COLORS.textSecondary} />
-          <Text style={styles.filterButtonText}>Filter</Text>
-        </Pressable>
       </View>
 
       <View style={styles.tableHeaderRow}>
         <Text style={[styles.tableHeaderCell, styles.colTimestamp]}>Timestamp</Text>
-        <Text style={[styles.tableHeaderCell, styles.colAnalyzed]}>Analyzed{'\n'}By</Text>
-        <Text style={[styles.tableHeaderCell, styles.colOil]}>Oil{'\n'}Level</Text>
+        <Text style={[styles.tableHeaderCell, styles.colAnalyzed]}>Analyzed{'\n'}by</Text>
+        <Text style={[styles.tableHeaderCell, styles.colOil]}>Oil{'\n'}level</Text>
       </View>
 
       {logs.map((log) => (
@@ -390,6 +338,7 @@ function DeviceStatsGrid({ stats }) {
         const isRightCol = index % 2 === 1;
         const isBottomRow = index >= 2;
         const iconConf = STAT_ICONS[index];
+        const valueColor = remapStatColor(stat.valueColor);
         return (
           <View
             key={stat.label}
@@ -403,13 +352,13 @@ function DeviceStatsGrid({ stats }) {
               library={iconConf.library}
               name={iconConf.name}
               size={16}
-              color={stat.valueColor ?? COLORS.textMuted}
+              color={valueColor ?? REST_COLORS.muted}
             />
             <Text style={styles.statCellLabel}>{stat.label}</Text>
             <Text
               style={[
                 styles.statCellValue,
-                stat.valueColor ? { color: stat.valueColor } : null,
+                valueColor ? { color: valueColor } : null,
               ]}
             >
               {stat.value}
@@ -424,172 +373,115 @@ function DeviceStatsGrid({ stats }) {
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-
-  // Header Styles
-  header: {
-    paddingBottom: 12,
-  },
-  headerContent: {
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 22,
-    color: '#FFFFFF',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  notificationButton: {
-    position: 'relative',
-    padding: 8,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-  },
-  profileCircle: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  profileInitial: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+  root: { flex: 1, backgroundColor: REST_COLORS.page },
 
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
+  scrollContent: { paddingHorizontal: REST_SPACING.screenPadding, paddingTop: 8 },
 
   tankHeaderBlock: { marginBottom: 12 },
-  tankName: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.textPrimary, marginBottom: 6 },
+  tankName: { fontFamily: REST_FONTS.bold, fontSize: 20, color: REST_COLORS.ink, marginBottom: 6 },
   tankBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   activeBadge: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.greenLight,
+    backgroundColor: REST_COLORS.paleGreen,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, gap: 5,
   },
-  activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.green },
-  activeBadgeText: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.green },
+  activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: REST_COLORS.primary },
+  activeBadgeText: { fontFamily: REST_FONTS.semiBold, fontSize: 11, color: REST_COLORS.primary },
   lastPingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  lastPingText: { fontFamily: FONTS.bodyRegular, fontSize: 11, color: COLORS.textMuted },
+  lastPingText: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted },
 
   capacityBlock: { marginBottom: 16 },
   capacityLabel: {
-    fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.textSecondary,
-    letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2,
+    fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.body, marginBottom: 2,
   },
   capacityRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  capacityNumber: { fontFamily: FONTS.bold, fontSize: 72, color: COLORS.green, lineHeight: 80 },
-  capacityUnit: { fontFamily: FONTS.bold, fontSize: 28, color: COLORS.green, marginBottom: 10, marginLeft: 4 },
+  capacityNumber: { fontFamily: REST_FONTS.extraBold, fontSize: 72, color: REST_COLORS.primary, lineHeight: 80 },
+  capacityUnit: { fontFamily: REST_FONTS.extraBold, fontSize: 28, color: REST_COLORS.primary, marginBottom: 10, marginLeft: 4 },
 
   card: {
-    backgroundColor: COLORS.card, borderRadius: 16,
-    padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card,
+    padding: 16, marginBottom: REST_SPACING.gap,
+    borderWidth: 1, borderColor: REST_COLORS.border,
+    ...REST_SHADOWS.card,
   },
 
-  gradeHint: { fontFamily: FONTS.bodyRegular, fontSize: 12, color: COLORS.textSecondary, lineHeight: 17, marginTop: 8, marginBottom: 12 },
+  gradeHint: { fontFamily: REST_FONTS.medium, fontSize: 12, color: REST_COLORS.muted, lineHeight: 17, marginTop: 8, marginBottom: 12 },
   gradeChipRow: { flexDirection: 'row', gap: 8 },
   gradeChip: {
     flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10,
-    borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.background,
+    borderWidth: 1, borderColor: REST_COLORS.border, backgroundColor: REST_COLORS.surfaceSoft,
   },
-  gradeChipActive: { backgroundColor: COLORS.green, borderColor: COLORS.green },
-  gradeChipText: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.textSecondary },
-  gradeChipTextActive: { color: '#FFFFFF' },
+  gradeChipActive: { backgroundColor: REST_COLORS.primary, borderColor: REST_COLORS.primary },
+  gradeChipText: { fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.muted },
+  gradeChipTextActive: { color: REST_COLORS.white },
 
   fillRow: { flexDirection: 'row', gap: 8 },
   fillInput: {
-    flex: 1, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: COLORS.textPrimary,
-    backgroundColor: COLORS.background,
+    flex: 1, borderWidth: 1, borderColor: REST_COLORS.border, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: REST_COLORS.ink,
+    backgroundColor: REST_COLORS.surfaceSoft,
   },
   fillButton: {
-    backgroundColor: COLORS.green, borderRadius: 10,
+    backgroundColor: REST_COLORS.primary, borderRadius: 10,
     paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center',
   },
-  fillButtonText: { fontFamily: FONTS.bodySemiBold, color: '#FFFFFF', fontSize: 13 },
+  fillButtonText: { fontFamily: REST_FONTS.semiBold, color: REST_COLORS.white, fontSize: 13 },
 
   chartHeaderRow: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: 12,
   },
   chartTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  chartTitle: { fontFamily: FONTS.semiBold, fontSize: 14, color: COLORS.textPrimary },
-  chartSubtitle: { fontFamily: FONTS.bodyRegular, fontSize: 11, color: COLORS.textMuted },
+  chartTitle: { fontFamily: REST_FONTS.bold, fontSize: 14, color: REST_COLORS.ink },
+  chartSubtitle: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted },
   chartArea: { flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 6 },
   barColumn: { flex: 1, height: '100%', alignItems: 'center' },
-  bar: { width: '100%', backgroundColor: COLORS.green, borderRadius: 4, marginBottom: 4 },
-  barLabel: { fontFamily: FONTS.bodyMedium, fontSize: 9, color: COLORS.textMuted },
+  bar: { width: '100%', borderRadius: 4, marginBottom: 4 },
+  barLabel: { fontFamily: REST_FONTS.medium, fontSize: 9, color: REST_COLORS.muted },
 
   alertCard: {
-    backgroundColor: COLORS.alertBg, borderRadius: 14,
-    borderWidth: 1, borderColor: COLORS.alertBorder,
-    padding: 16, marginBottom: 12,
+    backgroundColor: REST_COLORS.alertBg, borderRadius: REST_RADII.card,
+    borderWidth: 1, borderColor: REST_COLORS.alertBorder,
+    padding: 16, marginBottom: REST_SPACING.gap,
   },
   alertTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  alertTitle: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.alertText, letterSpacing: 0.6, textTransform: 'uppercase' },
-  alertHours: { fontFamily: FONTS.bold, fontSize: 42, color: COLORS.alertText, lineHeight: 48, marginBottom: 6 },
-  alertMessage: { fontFamily: FONTS.bodyRegular, fontSize: 13, color: COLORS.textPrimary, lineHeight: 19, marginBottom: 14 },
+  alertTitle: { fontFamily: REST_FONTS.bold, fontSize: 13, color: REST_COLORS.alertText },
+  alertHours: { fontFamily: REST_FONTS.extraBold, fontSize: 42, color: REST_COLORS.alertText, lineHeight: 48, marginBottom: 6 },
+  alertMessage: { fontFamily: REST_FONTS.medium, fontSize: 13, color: REST_COLORS.ink, lineHeight: 19, marginBottom: 14 },
   scheduleButton: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.alertButton, paddingVertical: 13, borderRadius: 10,
+    backgroundColor: REST_COLORS.negative, paddingVertical: 13, borderRadius: REST_RADII.pill,
   },
-  scheduleButtonText: { fontFamily: FONTS.semiBold, color: '#FFFFFF', fontSize: 13, letterSpacing: 0.5, textTransform: 'uppercase' },
+  scheduleButtonText: { fontFamily: REST_FONTS.bold, color: REST_COLORS.white, fontSize: 13 },
 
   logsHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   logsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  logsTitle: { fontFamily: FONTS.semiBold, fontSize: 14, color: COLORS.textPrimary },
-  filterButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
-  },
-  filterButtonText: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.textSecondary },
+  logsTitle: { fontFamily: REST_FONTS.bold, fontSize: 14, color: REST_COLORS.ink },
   tableHeaderRow: {
     flexDirection: 'row',
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    borderBottomWidth: 1, borderBottomColor: REST_COLORS.border,
     paddingBottom: 6, marginBottom: 2,
   },
-  tableHeaderCell: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
-  tableRow: { flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border, alignItems: 'flex-start' },
-  tableCell: { fontFamily: FONTS.bodyRegular, fontSize: 12, color: COLORS.textPrimary, lineHeight: 17 },
+  tableHeaderCell: { fontFamily: REST_FONTS.semiBold, fontSize: 11, color: REST_COLORS.muted },
+  tableRow: { flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: REST_COLORS.divider, alignItems: 'flex-start' },
+  tableCell: { fontFamily: REST_FONTS.medium, fontSize: 12, color: REST_COLORS.ink, lineHeight: 17 },
   colTimestamp: { flex: 2.2 },
   colAnalyzed:  { flex: 2 },
   colOil:       { flex: 1, textAlign: 'right' },
 
   statsGrid: {
     flexDirection: 'row', flexWrap: 'wrap',
-    backgroundColor: COLORS.card,
-    borderRadius: 16, borderWidth: 1, borderColor: COLORS.border,
-    marginBottom: 12, overflow: 'hidden',
+    backgroundColor: REST_COLORS.card,
+    borderRadius: REST_RADII.card, borderWidth: 1, borderColor: REST_COLORS.border,
+    marginBottom: REST_SPACING.gap, overflow: 'hidden',
   },
-  statCell: { width: '50%', padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  statCellRight: { borderLeftWidth: 1, borderLeftColor: COLORS.border },
+  statCell: { width: '50%', padding: 16, borderBottomWidth: 1, borderBottomColor: REST_COLORS.border },
+  statCellRight: { borderLeftWidth: 1, borderLeftColor: REST_COLORS.border },
   statCellBottom: { borderBottomWidth: 0 },
   statCellLabel: {
-    fontFamily: FONTS.bodyMedium, fontSize: 10, color: COLORS.textMuted,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6, marginBottom: 2,
+    fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted,
+    marginTop: 6, marginBottom: 2,
   },
-  statCellValue: { fontFamily: FONTS.bold, fontSize: 18, color: COLORS.textPrimary },
+  statCellValue: { fontFamily: REST_FONTS.bold, fontSize: 18, color: REST_COLORS.ink },
 });

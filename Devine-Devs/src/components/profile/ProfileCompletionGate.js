@@ -14,7 +14,7 @@ export default function ProfileCompletionGate({ children }) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#10b981" />
+        <ActivityIndicator size="large" color="#15643E" />
       </View>
     );
   }
@@ -37,6 +37,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F4F4EF',
+    backgroundColor: '#F6F8F7',
   },
 });
