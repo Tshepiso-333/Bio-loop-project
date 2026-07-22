@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { View, Text, StyleSheet, Pressable, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
 import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
@@ -53,41 +53,7 @@ export default function MonitoringScreen() {
     loading,
     refreshing,
     refreshRestaurant,
-    updateTankGrade,
-    updateTankFillPercent,
   } = useRestaurant();
-  const [savingGrade, setSavingGrade] = useState(false);
-  const [fillInput, setFillInput] = useState('');
-  const [savingFill, setSavingFill] = useState(false);
-
-  const handleSetGrade = async (grade) => {
-    setSavingGrade(true);
-    try {
-      await updateTankGrade(grade);
-    } catch (err) {
-      Alert.alert('Could not update grade', err.message ?? 'Please try again.');
-    } finally {
-      setSavingGrade(false);
-    }
-  };
-
-  const handleSetFillPercent = async () => {
-    const parsed = Number(fillInput);
-    if (!fillInput || Number.isNaN(parsed) || parsed < 0 || parsed > 100) {
-      Alert.alert('Invalid value', 'Enter a fill level between 0 and 100.');
-      return;
-    }
-
-    setSavingFill(true);
-    try {
-      await updateTankFillPercent(parsed);
-      setFillInput('');
-    } catch (err) {
-      Alert.alert('Could not update fill level', err.message ?? 'Please try again.');
-    } finally {
-      setSavingFill(false);
-    }
-  };
 
   const profileInitials = useMemo(
     () => getInitials(profile?.full_name, 'RS'),
@@ -119,13 +85,6 @@ export default function MonitoringScreen() {
 
         <TankHeader info={tankInfo} />
         <CapacityDisplay percent={tankInfo.currentCapacity} />
-        <FillPercentCard
-          value={fillInput}
-          onChangeText={setFillInput}
-          onSubmit={handleSetFillPercent}
-          saving={savingFill}
-        />
-        <GradeReadingCard grade={tank?.quality_grade} onSetGrade={handleSetGrade} saving={savingGrade} />
         {oilTrendData.length > 0 ? (
           <OilTrendChart data={oilTrendData} />
         ) : (
@@ -173,65 +132,6 @@ function CapacityDisplay({ percent }) {
       <View style={styles.capacityRow}>
         <Text style={styles.capacityNumber}>{percent}</Text>
         <Text style={styles.capacityUnit}>%</Text>
-      </View>
-    </View>
-  );
-}
-
-function FillPercentCard({ value, onChangeText, onSubmit, saving }) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.chartTitleRow}>
-        <Ionicons name="water-outline" size={16} color={REST_COLORS.ink} />
-        <Text style={styles.chartTitle}>Update Fill Level</Text>
-      </View>
-      <Text style={styles.gradeHint}>
-        Manual reading for now, same as quality above. Reaching 85% automatically requests a pickup.
-      </Text>
-      <View style={styles.fillRow}>
-        <TextInput
-          style={styles.fillInput}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder="e.g. 90"
-          placeholderTextColor={REST_COLORS.muted}
-          keyboardType="numeric"
-        />
-        <Pressable style={styles.fillButton} disabled={saving} onPress={onSubmit}>
-          <Text style={styles.fillButtonText}>{saving ? 'Saving…' : 'Update'}</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-const GRADE_OPTIONS = ['A', 'B', 'C'];
-
-function GradeReadingCard({ grade, onSetGrade, saving }) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.chartTitleRow}>
-        <Ionicons name="beaker-outline" size={16} color={REST_COLORS.ink} />
-        <Text style={styles.chartTitle}>Oil Quality Reading</Text>
-      </View>
-      <Text style={styles.gradeHint}>
-        Manual reading for now — this stands in for a real quality sensor until one is installed.
-        This grade decides which manufacturer the oil is routed to and what the pickup gets paid for.
-      </Text>
-      <View style={styles.gradeChipRow}>
-        {GRADE_OPTIONS.map((option) => {
-          const active = grade === option;
-          return (
-            <Pressable
-              key={option}
-              style={[styles.gradeChip, active && styles.gradeChipActive]}
-              disabled={saving}
-              onPress={() => onSetGrade(option)}
-            >
-              <Text style={[styles.gradeChipText, active && styles.gradeChipTextActive]}>Grade {option}</Text>
-            </Pressable>
-          );
-        })}
       </View>
     </View>
   );
@@ -405,28 +305,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: REST_COLORS.border,
     ...REST_SHADOWS.card,
   },
-
-  gradeHint: { fontFamily: REST_FONTS.medium, fontSize: 12, color: REST_COLORS.muted, lineHeight: 17, marginTop: 8, marginBottom: 12 },
-  gradeChipRow: { flexDirection: 'row', gap: 8 },
-  gradeChip: {
-    flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10,
-    borderWidth: 1, borderColor: REST_COLORS.border, backgroundColor: REST_COLORS.surfaceSoft,
-  },
-  gradeChipActive: { backgroundColor: REST_COLORS.primary, borderColor: REST_COLORS.primary },
-  gradeChipText: { fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.muted },
-  gradeChipTextActive: { color: REST_COLORS.white },
-
-  fillRow: { flexDirection: 'row', gap: 8 },
-  fillInput: {
-    flex: 1, borderWidth: 1, borderColor: REST_COLORS.border, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: REST_COLORS.ink,
-    backgroundColor: REST_COLORS.surfaceSoft,
-  },
-  fillButton: {
-    backgroundColor: REST_COLORS.primary, borderRadius: 10,
-    paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center',
-  },
-  fillButtonText: { fontFamily: REST_FONTS.semiBold, color: REST_COLORS.white, fontSize: 13 },
 
   chartHeaderRow: {
     flexDirection: 'row', justifyContent: 'space-between',
