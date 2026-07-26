@@ -10,23 +10,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import { updateCollectorLocation } from '../../src/services/collectorService';
+import DriverHeader from '../../src/driver/components/DriverHeader';
+import { DRV_COLORS, DRV_FONTS, DRV_RADII, DRV_SHADOWS } from '../../src/driver/driverTheme';
 
 const LOCATION_PERSIST_INTERVAL_MS = 20000; // don't write to the DB on every 3s GPS tick
-
-const THEME = {
-  primary: '#10b981',
-  primaryDark: '#059669',
-  primaryDarker: '#047857',
-  primaryLight: '#D1FAE5',
-  white: '#FFFFFF',
-  offWhite: '#F9FAFB',
-  text: '#111827',
-  textSecondary: '#6B7280',
-  gray: '#9CA3AF',
-  grayLight: '#E5E7EB',
-};
 
 export default function DriverMapScreen() {
   const mapRef = useRef(null);
@@ -147,12 +137,14 @@ export default function DriverMapScreen() {
   }, []);
 
   // ── Loading state ──────────────────────────────────────────────────────────
+  // This guard is load-bearing, not decoration: the map branch below reads
+  // location.latitude with no optional chaining. Do not reorder or merge it.
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
+        <StatusBar barStyle="dark-content" backgroundColor={DRV_COLORS.page} />
         <View style={styles.loadingIconCircle}>
-          <ActivityIndicator size="large" color={THEME.primary} />
+          <ActivityIndicator size="large" color={DRV_COLORS.primary} />
         </View>
         <Text style={styles.loadingTitle}>Finding your location</Text>
         <Text style={styles.loadingText}>Please wait a moment...</Text>
@@ -164,11 +156,11 @@ export default function DriverMapScreen() {
   if (errorMsg) {
     return (
       <SafeAreaView style={styles.centered}>
-        <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
+        <StatusBar barStyle="dark-content" backgroundColor={DRV_COLORS.page} />
         <View style={styles.errorIconCircle}>
-          <Text style={styles.errorIcon}>📍</Text>
+          <Ionicons name="location-outline" size={32} color={DRV_COLORS.primary} />
         </View>
-        <Text style={styles.errorTitle}>Location Access Needed</Text>
+        <Text style={styles.errorTitle}>Location access needed</Text>
         <Text style={styles.errorText}>{errorMsg}</Text>
       </SafeAreaView>
     );
@@ -177,79 +169,83 @@ export default function DriverMapScreen() {
   // ── Map ────────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
+      <DriverHeader title="Map" />
 
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        provider={PROVIDER_GOOGLE}
-        initialRegion={{
-          latitude: location.latitude,
-          longitude: location.longitude,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
-        }}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        showsCompass={true}
-        showsScale={true}
-        showsTraffic={false}
-      >
-        {/* Driver marker — moves with GPS */}
-        {location && (
-          <Marker
-            coordinate={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }}
-            title="Your location"
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
-            <View style={styles.markerWrap}>
-              <View style={styles.markerPulse} />
-              <View style={styles.markerOuter}>
-                <View style={styles.markerInner} />
+      {/* Badges are positioned against this wrapper, not the raw screen, so they
+          sit below the header instead of colliding with the notch. */}
+      <View style={styles.mapWrap}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={PROVIDER_GOOGLE}
+          initialRegion={{
+            latitude: location.latitude,
+            longitude: location.longitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          }}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          showsCompass={true}
+          showsScale={true}
+          showsTraffic={false}
+        >
+          {/* Driver marker — moves with GPS */}
+          {location && (
+            <Marker
+              coordinate={{
+                latitude: location.latitude,
+                longitude: location.longitude,
+              }}
+              title="Your location"
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <View style={styles.markerWrap}>
+                <View style={styles.markerPulse} />
+                <View style={styles.markerOuter}>
+                  <View style={styles.markerInner} />
+                </View>
               </View>
-            </View>
-          </Marker>
-        )}
+            </Marker>
+          )}
 
-        {pickupMarkers.map((pickup) => (
-          <Marker
-            key={pickup.id}
-            coordinate={{
-              latitude: pickup.latitude,
-              longitude: pickup.longitude,
-            }}
-            title={pickup.title}
-            description={pickup.description}
-            pinColor={THEME.primaryDark}
-          />
-        ))}
-      </MapView>
+          {pickupMarkers.map((pickup) => (
+            <Marker
+              key={pickup.id}
+              coordinate={{
+                latitude: pickup.latitude,
+                longitude: pickup.longitude,
+              }}
+              title={pickup.title}
+              description={pickup.description}
+              pinColor={DRV_COLORS.primary}
+            />
+          ))}
+        </MapView>
 
-      <View style={styles.pickupBadge}>
-        <Text style={styles.pickupBadgeValue}>{pickupMarkers.length}</Text>
-        <Text style={styles.pickupBadgeLabel}>pickup stops</Text>
-      </View>
-
-      {/* Speed badge at the bottom */}
-      {location && (
-        <View style={styles.speedBadge}>
-          <View style={styles.speedLeft}>
-            <Text style={styles.speedValue}>
-              {speed > 0 ? Math.round(speed) : '0'}
-            </Text>
-            <Text style={styles.speedUnit}>km/h</Text>
-          </View>
-          <View style={styles.speedDivider} />
-          <View style={styles.speedRight}>
-            <Text style={styles.speedLabel}>
-              {speed > 0 ? 'Moving' : 'Stationary'}
-            </Text>
-          </View>
+        <View style={styles.pickupBadge}>
+          <Text style={styles.pickupBadgeValue}>{pickupMarkers.length}</Text>
+          <Text style={styles.pickupBadgeLabel}>pickup stops</Text>
         </View>
-      )}
+
+        {/* Speed badge at the bottom */}
+        {location && (
+          <View style={styles.speedBadge}>
+            <View style={styles.speedLeft}>
+              <Text style={styles.speedValue}>
+                {speed > 0 ? Math.round(speed) : '0'}
+              </Text>
+              <Text style={styles.speedUnit}>km/h</Text>
+            </View>
+            <View style={styles.speedDivider} />
+            <View style={styles.speedRight}>
+              <Text style={styles.speedLabel}>
+                {speed > 0 ? 'Moving' : 'Stationary'}
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -257,7 +253,10 @@ export default function DriverMapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.white,
+    backgroundColor: DRV_COLORS.page,
+  },
+  mapWrap: {
+    flex: 1,
   },
   map: {
     flex: 1,
@@ -268,27 +267,28 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: THEME.white,
+    backgroundColor: DRV_COLORS.page,
     paddingHorizontal: 32,
   },
   loadingIconCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: THEME.primaryLight,
+    backgroundColor: DRV_COLORS.paleGreen,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   loadingTitle: {
+    fontFamily: DRV_FONTS.bold,
     fontSize: 17,
-    fontWeight: '700',
-    color: THEME.text,
+    color: DRV_COLORS.ink,
     marginBottom: 6,
   },
   loadingText: {
+    fontFamily: DRV_FONTS.medium,
     fontSize: 13,
-    color: THEME.textSecondary,
+    color: DRV_COLORS.body,
   },
 
   // Error
@@ -296,24 +296,22 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: THEME.primaryLight,
+    backgroundColor: DRV_COLORS.paleGreen,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
-  errorIcon: {
-    fontSize: 32,
-  },
   errorTitle: {
+    fontFamily: DRV_FONTS.bold,
     fontSize: 17,
-    fontWeight: '700',
-    color: THEME.text,
+    color: DRV_COLORS.ink,
     textAlign: 'center',
     marginBottom: 8,
   },
   errorText: {
+    fontFamily: DRV_FONTS.medium,
     fontSize: 13,
-    color: THEME.textSecondary,
+    color: DRV_COLORS.body,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -330,28 +328,24 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: THEME.primary + '30',
+    backgroundColor: DRV_COLORS.accent + '4D', // accent at 30%
   },
   markerOuter: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: THEME.primary,
+    backgroundColor: DRV_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: THEME.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    borderColor: DRV_COLORS.white,
+    ...DRV_SHADOWS.floating,
   },
   markerInner: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: THEME.white,
+    backgroundColor: DRV_COLORS.white,
   },
 
   // Speed badge
@@ -359,43 +353,35 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 36,
     alignSelf: 'center',
-    backgroundColor: THEME.white,
+    backgroundColor: DRV_COLORS.white,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: DRV_RADII.card,
     gap: 14,
+    ...DRV_SHADOWS.floating,
   },
   pickupBadge: {
     position: 'absolute',
-    top: 48,
+    top: 16,
     right: 16,
-    backgroundColor: THEME.white,
+    backgroundColor: DRV_COLORS.white,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: DRV_RADII.card,
     alignItems: 'center',
+    ...DRV_SHADOWS.floating,
   },
   pickupBadgeValue: {
+    fontFamily: DRV_FONTS.extraBold,
     fontSize: 18,
-    fontWeight: '700',
-    color: THEME.primary,
+    color: DRV_COLORS.primary,
   },
   pickupBadgeLabel: {
+    fontFamily: DRV_FONTS.medium,
     fontSize: 11,
-    fontWeight: '600',
-    color: THEME.textSecondary,
+    color: DRV_COLORS.body,
   },
   speedLeft: {
     flexDirection: 'row',
@@ -403,26 +389,26 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   speedValue: {
+    fontFamily: DRV_FONTS.extraBold,
     fontSize: 22,
-    fontWeight: '700',
-    color: THEME.primary,
+    color: DRV_COLORS.primary,
     lineHeight: 26,
   },
   speedUnit: {
+    fontFamily: DRV_FONTS.medium,
     fontSize: 12,
-    color: THEME.textSecondary,
-    fontWeight: '500',
+    color: DRV_COLORS.body,
     marginBottom: 2,
   },
   speedDivider: {
     width: 1,
     height: 24,
-    backgroundColor: THEME.grayLight,
+    backgroundColor: DRV_COLORS.border,
   },
   speedRight: {},
   speedLabel: {
+    fontFamily: DRV_FONTS.semiBold,
     fontSize: 13,
-    fontWeight: '600',
-    color: THEME.text,
+    color: DRV_COLORS.ink,
   },
 });
