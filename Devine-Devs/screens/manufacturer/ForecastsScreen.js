@@ -16,7 +16,7 @@ import { groupPickupsByDay } from '../../src/utils/manufacturerAnalytics';
 
 const { width } = Dimensions.get('window');
 
-const ForecastsScreen = ({ navigation }) => {
+const ForecastsScreen = ({ navigation, onBack }) => {
   const [forecastPeriod, setForecastPeriod] = useState('7days');
   const { forecasts = [], pickups = [] } = useManufacturerContext();
 
@@ -245,7 +245,13 @@ const ForecastsScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.navigate('ManufacturerDashboardScreen')}
+            onPress={() => {
+              if (onBack) {
+                onBack();
+              } else {
+                navigation.goBack();
+              }
+            }}
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
@@ -266,6 +272,7 @@ const ForecastsScreen = ({ navigation }) => {
       <ScrollView 
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
       >
         {/* Period Selector */}
         <View style={styles.periodContainer}>
@@ -410,6 +417,9 @@ const ForecastsScreen = ({ navigation }) => {
             <Text style={styles.metricLabel}>Accuracy</Text>
           </View>
         </View>
+        
+        {/* Bottom padding for better scrolling */}
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </View>
   );
@@ -459,6 +469,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   periodContainer: {
     flexDirection: 'row',
@@ -660,7 +673,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     paddingHorizontal: 16,
-    marginBottom: 30,
+    marginBottom: 10,
   },
   metricCard: {
     flex: 1,
@@ -683,6 +696,9 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 11,
     color: '#6b7280',
+  },
+  bottomPadding: {
+    height: 30,
   },
 });
 

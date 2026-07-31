@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
-const AIChatScreen = ({ navigation }) => {
+const AIChatScreen = ({ navigation, onBack }) => {
   const { inventory, tanks = [], forecasts = [], pickups = [] } = useManufacturerContext();
   const [chatMessage, setChatMessage] = useState('');
   const [chatMessages, setChatMessages] = useState([
@@ -126,7 +126,13 @@ const AIChatScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (onBack) {
+                onBack();
+              } else {
+                navigation.goBack();
+              }
+            }}
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>

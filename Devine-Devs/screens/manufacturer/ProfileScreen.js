@@ -1,3 +1,4 @@
+// screens/manufacturer/ProfileScreen.js
 import React, { useState } from 'react';
 import {
   View,
@@ -13,14 +14,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Circle, Rect, Line,Polyline } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
 import { useAuth } from '../../AuthContext';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
 
-const ProfileScreen = ({ navigation }) => {
+const ProfileScreen = ({ navigation, onBack }) => {
   const { signOut } = useAuth();
   const { profile: authProfile } = useProfile();
   const { manufacturer } = useManufacturerContext();
@@ -207,7 +208,7 @@ const ProfileScreen = ({ navigation }) => {
     </Svg>
   );
 
-  // Header Component
+  // Header Component - Fixed
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#7c3aed" />
@@ -220,7 +221,13 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (onBack) {
+                onBack();
+              } else {
+                navigation.goBack();
+              }
+            }}
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
@@ -233,7 +240,7 @@ const ProfileScreen = ({ navigation }) => {
             onPress={() => navigation?.navigate?.('ProfileEdit')}
           >
             <EditIcon color="#fff" size={18} />
-            <Text style={styles.editButtonText}>Edit profile</Text>
+            <Text style={styles.editButtonText}>Edit</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -287,18 +294,20 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Profile Image Section */}
+        {/* Profile Image Section - Fixed positioning */}
         <View style={styles.profileImageSection}>
-          <ProfileAvatar
-            name={manufacturer?.name ?? profile.name}
-            imageUrl={manufacturer?.profile_image_url ?? authProfile?.profile_image_url}
-            size={96}
-          />
-          <VerifiedBadge isVerified={manufacturer?.is_verified} style={{ marginTop: 10 }} />
+          <View style={styles.profileAvatarContainer}>
+            <ProfileAvatar
+              name={manufacturer?.name ?? profile.name}
+              imageUrl={manufacturer?.profile_image_url ?? authProfile?.profile_image_url}
+              size={96}
+            />
+            <VerifiedBadge isVerified={manufacturer?.is_verified} style={{ marginTop: 10 }} />
+          </View>
         </View>
 
         {/* Personal Information Card */}
@@ -453,7 +462,7 @@ const ProfileScreen = ({ navigation }) => {
 
         <View style={styles.footer} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -463,11 +472,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   header: {
-    paddingTop: 48,
+    paddingTop: 0,
     paddingBottom: 16,
   },
   headerContent: {
     paddingHorizontal: 20,
+    paddingTop: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -515,8 +525,20 @@ const styles = StyleSheet.create({
   },
   profileImageSection: {
     alignItems: 'center',
-    marginTop: -30,
+    marginTop: -48,
     marginBottom: 20,
+    paddingHorizontal: 16,
+  },
+  profileAvatarContainer: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 60,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   profileImageBorder: {
     width: 100,

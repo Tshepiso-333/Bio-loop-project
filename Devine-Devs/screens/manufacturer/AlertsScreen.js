@@ -7,16 +7,14 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
-  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
+import Svg, { Path, Line, Polyline } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
-const AlertsScreen = ({ navigation }) => {
+const AlertsScreen = ({ navigation, onBack }) => {
   const [refreshing, setRefreshing] = useState(false);
-  const [showRead, setShowRead] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const {
     alerts: contextAlerts = [],
@@ -24,6 +22,73 @@ const AlertsScreen = ({ navigation }) => {
     updateAlertReadStatus,
     deleteAlert: deleteAlertFromContext,
   } = useManufacturerContext();
+
+  // Mock data for testing
+  const mockAlerts = [
+    {
+      id: '1',
+      title: 'Critical: Production Delay',
+      message: 'Biodiesel production batch #BIO-2024-089 is delayed due to equipment maintenance. Estimated completion: 4 hours.',
+      type: 'critical',
+      category: 'delivery',
+      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 min ago
+      is_read: false,
+    },
+    {
+      id: '2',
+      title: 'Delivery Alert: Route Change',
+      message: 'Truck #TRK-452 has been rerouted due to road closures. Delivery to Green Energy Inc. will be 2 hours late.',
+      type: 'warning',
+      category: 'delivery',
+      created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(), // 2 hours ago
+      is_read: false,
+    },
+    {
+      id: '3',
+      title: 'Inventory Low: Feedstock',
+      message: 'Waste vegetable oil inventory is below 15% capacity. Reorder recommended to maintain production schedule.',
+      type: 'warning',
+      category: 'inventory',
+      created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(), // 3 hours ago
+      is_read: false,
+    },
+    {
+      id: '4',
+      title: 'Quality Alert: Test Result',
+      message: 'Batch #BIO-2024-087 passed all quality tests with 98.7% purity. Certificate of Analysis is ready for download.',
+      type: 'success',
+      category: 'quality',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
+      is_read: true,
+    },
+    {
+      id: '5',
+      title: 'Delivery Confirmed',
+      message: 'Shipment #SHIP-8923 delivered to SunPower Biodiesel. Customer confirmed receipt and quality approval.',
+      type: 'success',
+      category: 'delivery',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
+      is_read: true,
+    },
+    {
+      id: '6',
+      title: 'Inventory Update',
+      message: 'New inventory received: 15,000 gallons of refined biodiesel added to storage tank #3.',
+      type: 'info',
+      category: 'inventory',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), // 2 days ago
+      is_read: true,
+    },
+    {
+      id: '7',
+      title: 'Critical: Quality Deviation',
+      message: 'Batch #BIO-2024-086 shows slight deviation in viscosity levels. Investigation in progress. Production paused.',
+      type: 'critical',
+      category: 'quality',
+      created_at: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), // 3 days ago
+      is_read: false,
+    },
+  ];
 
   const mapAlert = (a) => ({
     id: a.id,
@@ -33,14 +98,20 @@ const AlertsScreen = ({ navigation }) => {
     category: a.category ?? 'general',
     time: a.created_at ? new Date(a.created_at).toLocaleDateString() : '—',
     read: a.is_read ?? false,
-    icon: a.type === 'critical' ? '⚠️' : a.type === 'warning' ? '⚠️' : 'ℹ️',
+    icon: a.type === 'critical' ? '⚠️' : a.type === 'warning' ? '⚠️' : a.type === 'success' ? '✅' : 'ℹ️',
   });
 
-  // Map real alerts from context or use empty placeholder
-  const [alerts, setAlerts] = useState((contextAlerts || []).map(mapAlert));
+  // Use mock data if no context alerts exist, otherwise use context alerts
+  const [alerts, setAlerts] = useState(
+    (contextAlerts && contextAlerts.length > 0) 
+      ? contextAlerts.map(mapAlert)
+      : mockAlerts.map(mapAlert)
+  );
 
   useEffect(() => {
-    setAlerts((contextAlerts || []).map(mapAlert));
+    if (contextAlerts && contextAlerts.length > 0) {
+      setAlerts(contextAlerts.map(mapAlert));
+    }
   }, [contextAlerts]);
 
   const handleRefresh = () => {
@@ -60,16 +131,6 @@ const AlertsScreen = ({ navigation }) => {
       await updateAlertReadStatus(id, true);
     } catch (err) {
       console.error('Failed to mark alert as read:', err.message);
-    }
-  };
-
-  const markAllAsRead = async () => {
-    const unread = alerts.filter(alert => !alert.read);
-    setAlerts(alerts.map(alert => ({ ...alert, read: true })));
-    try {
-      await Promise.all(unread.map(alert => updateAlertReadStatus(alert.id, true)));
-    } catch (err) {
-      console.error('Failed to mark all alerts as read:', err.message);
     }
   };
 
@@ -119,14 +180,6 @@ const AlertsScreen = ({ navigation }) => {
     </Svg>
   );
 
-  const FilterIcon = ({ color = '#fff', size = 18 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Line x1="4" y1="6" x2="20" y2="6" stroke={color} strokeWidth={1.6} strokeLinecap="round"/>
-      <Line x1="6" y1="12" x2="18" y2="12" stroke={color} strokeWidth={1.6} strokeLinecap="round"/>
-      <Line x1="9" y1="18" x2="15" y2="18" stroke={color} strokeWidth={1.6} strokeLinecap="round"/>
-    </Svg>
-  );
-
   const CheckIcon = ({ color = '#fff', size = 16 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Polyline points="20 6 9 17 4 12" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
@@ -156,7 +209,13 @@ const AlertsScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (onBack) {
+                onBack();
+              } else {
+                navigation.goBack();
+              }
+            }}
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
@@ -166,13 +225,7 @@ const AlertsScreen = ({ navigation }) => {
               {alerts.filter(a => !a.read).length} unread
             </Text>
           </View>
-          <TouchableOpacity 
-            style={styles.markAllButton}
-            onPress={markAllAsRead}
-          >
-            <CheckIcon color="#fff" size={16} />
-            <Text style={styles.markAllText}>Mark all</Text>
-          </TouchableOpacity>
+          <View style={styles.placeholderView} />
         </View>
       </LinearGradient>
     </>
@@ -197,7 +250,7 @@ const AlertsScreen = ({ navigation }) => {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <Header />
       
       <View style={styles.filterContainer}>
@@ -242,6 +295,7 @@ const AlertsScreen = ({ navigation }) => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
@@ -306,45 +360,10 @@ const AlertsScreen = ({ navigation }) => {
             })}
           </View>
         )}
-
-        {/* Quick Actions Card */}
-        <LinearGradient
-          colors={['#1a1a2e', '#16213e']}
-          style={styles.quickActionsCard}
-        >
-          <Text style={styles.quickActionsTitle}>Quick Actions</Text>
-          <View style={styles.quickActionsGrid}>
-            <TouchableOpacity style={styles.quickAction}>
-              <View style={styles.quickActionIcon}>
-                <Text style={styles.quickActionEmoji}>📊</Text>
-              </View>
-              <Text style={styles.quickActionLabel}>Quality Report</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickAction}>
-              <View style={styles.quickActionIcon}>
-                <Text style={styles.quickActionEmoji}>📦</Text>
-              </View>
-              <Text style={styles.quickActionLabel}>Inventory</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickAction}>
-              <View style={styles.quickActionIcon}>
-                <Text style={styles.quickActionEmoji}>🚚</Text>
-              </View>
-              <Text style={styles.quickActionLabel}>Schedule</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickAction}>
-              <View style={styles.quickActionIcon}>
-                <Text style={styles.quickActionEmoji}>📞</Text>
-              </View>
-              <Text style={styles.quickActionLabel}>Support</Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+        {/* Bottom padding for better scrolling experience */}
+        <View style={styles.bottomPadding} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -354,11 +373,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   header: {
-    paddingTop: 48,
+    paddingTop: 0,
     paddingBottom: 16,
   },
   headerContent: {
     paddingHorizontal: 20,
+    paddingTop: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -390,19 +410,8 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginTop: 2,
   },
-  markAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  markAllText: {
-    fontSize: 12,
-    color: '#fff',
-    fontWeight: '500',
+  placeholderView: {
+    width: 40,
   },
   filterContainer: {
     paddingVertical: 12,
@@ -455,6 +464,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   alertsList: {
     padding: 16,
@@ -565,40 +577,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  quickActionsCard: {
-    margin: 16,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 30,
-  },
-  quickActionsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 16,
-  },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  quickAction: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  quickActionIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quickActionEmoji: {
-    fontSize: 24,
-  },
-  quickActionLabel: {
-    fontSize: 12,
-    color: '#9ca3af',
+  bottomPadding: {
+    height: 30,
   },
 });
 

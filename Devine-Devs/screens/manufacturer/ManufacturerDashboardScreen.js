@@ -237,45 +237,54 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
-          <View style={styles.headerContent}>
-            {/* Left side - Logo */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logoCircle}>
-                <Image 
-                  source={require('../../assets/BioLoop_Logo.png')} 
-                  style={styles.logoImage}
-                  resizeMode="cover"
-                />
+          <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+            <View style={styles.headerContent}>
+              {/* Left side - Logo */}
+              <View style={styles.logoContainer}>
+                <View style={styles.logoCircle}>
+                  <Image 
+                    source={require('../../assets/BioLoop_Logo.png')} 
+                    style={styles.logoImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <View>
+                  <Text style={styles.appName}>BioLoop</Text>
+                  <Text style={styles.companyName}>Manufacturer Portal</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.appName}>BioLoop</Text>
-                <Text style={styles.companyName}>Manufacturer Portal</Text>
-              </View>
-            </View>
-            
-            {/* Right side - Notifications and Profile */}
-            <View style={styles.headerRight}>
-              {/* Notifications Button */}
-              <TouchableOpacity 
-                style={styles.notificationButton}
-                onPress={() => setSelectedTab('alerts')}
-              >
-                <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-                {unreadCount > 0 && (
-                  <View style={styles.notificationDot}>
-                    <Text style={styles.notificationBadgeText}>
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
               
-              {/* Profile Button */}
-              <View style={styles.profileCircle}>
-                <Text style={styles.profileInitial}>{profileInitials}</Text>
+              {/* Right side - Notifications and Profile */}
+              <View style={styles.headerRight}>
+                {/* Notifications Button */}
+                <TouchableOpacity 
+                  style={styles.notificationButton}
+                  onPress={() => setSelectedTab('alerts')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+                  {unreadCount > 0 && (
+                    <View style={styles.notificationDot}>
+                      <Text style={styles.notificationBadgeText}>
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                
+                {/* Profile Button */}
+                <TouchableOpacity
+                  style={styles.profileCircle}
+                  onPress={() => setSelectedTab('profile')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.profileInitial}>{profileInitials}</Text>
+                </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </SafeAreaView>
         </LinearGradient>
       </>
     );
@@ -508,17 +517,17 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
           </>
         );
       case 'quality':
-        return <QualityScreen navigation={navigation} />;
+        return <QualityScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
       case 'forecasts':
-        return <ForecastsScreen navigation={navigation} />;
+        return <ForecastsScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
       case 'ai-chat':
-        return <AIChatScreen navigation={navigation} />;
+        return <AIChatScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
       case 'suppliers':
-        return <SuppliersScreen navigation={navigation} />;
+        return <SuppliersScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
       case 'alerts':
-        return <AlertsScreen navigation={navigation} />;
+        return <AlertsScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
       case 'profile':
-        return <ProfileScreen navigation={navigation} />;
+        return <ProfileScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
       default:
         return null;
     }
@@ -591,9 +600,12 @@ const styles = StyleSheet.create({
   header: {
     paddingBottom: 12,
   },
+  headerSafeArea: {
+    backgroundColor: 'transparent',
+  },
   headerContent: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

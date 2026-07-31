@@ -16,7 +16,7 @@ import { groupPickupsByMonth, computeSupplierStats } from '../../src/utils/manuf
 
 const { width } = Dimensions.get('window');
 
-const QualityScreen = ({ navigation }) => {
+const QualityScreen = ({ navigation, onBack }) => {
   const [selectedGrade, setSelectedGrade] = useState('all');
   const { forecasts = [], pickups = [] } = useManufacturerContext();
 
@@ -316,7 +316,13 @@ const QualityScreen = ({ navigation }) => {
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              if (onBack) {
+                onBack();
+              } else {
+                navigation.goBack();
+              }
+            }}
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>

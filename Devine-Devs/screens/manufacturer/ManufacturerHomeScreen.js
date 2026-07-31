@@ -34,10 +34,6 @@ function ManufacturerHomeScreen({ navigation, route }) {
     >
       <View style={styles.overlay}>
         <SafeAreaView style={styles.safeArea}>
-          <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
-            <Text style={styles.signOutText}>Logout</Text>
-          </TouchableOpacity>
-
           <View style={styles.content}>
             <View style={styles.welcomeContainer}>
               <Text style={styles.welcomeText}>Welcome Back,</Text>
@@ -73,23 +69,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-  },
-  signOutButton: {
-    position: 'absolute',
-    top: 16,
-    right: 20,
-    zIndex: 10,
-    backgroundColor: 'rgba(220, 38, 38, 0.85)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-  },
-  signOutText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
   },
   content: {
     flex: 1,
