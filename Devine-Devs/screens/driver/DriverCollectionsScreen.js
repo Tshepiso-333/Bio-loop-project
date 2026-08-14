@@ -2,115 +2,133 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  Pressable, Alert,
+  TouchableOpacity, StatusBar, Alert, Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
-import DriverHeader from '../../src/driver/components/DriverHeader';
-import DriverStatusBadge from '../../src/driver/components/DriverStatusBadge';
-import {
-  DriverEmptyBanner,
-  DriverLoadingBanner,
-  DriverRefreshScrollView,
-} from '../../src/components/DriverScreenStates';
-import {
-  DRV_COLORS,
-  DRV_FONTS,
-  DRV_RADII,
-  DRV_SHADOWS,
-  DRV_SPACING,
-  DRV_STATUS,
-} from '../../src/driver/driverTheme';
+import { ACTIVE_TRIP_STATUSES, PICKUP_STATUS_LABELS, PRE_TRIP_STATUSES } from '../../src/lib/pickupStatus';
 
-// These strings are filter *keys* — they are compared against in `filtered`.
-// Do not change them. FILTER_LABELS is display-only, so the chips read in
-// sentence case like the rest of the app without touching the filter logic.
+// Theme colours (matching manufacturer)
+const THEME = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  primaryDarker: '#047857',
+  primaryLight: '#D1FAE5',
+  white: '#FFFFFF',
+  offWhite: '#F9FAFB',
+  text: '#111827',
+  textSecondary: '#6B7280',
+  gray: '#9CA3AF',
+  grayLight: '#E5E7EB',
+  pending: '#F59E0B',
+  pendingBg: '#FEF3C7',
+  inProgress: '#3B82F6',
+  inProgressBg: '#DBEAFE',
+  completed: '#10B981',
+  completedBg: '#D1FAE5',
+};
+
 const FILTERS = ['All', 'Pending', 'In Progress', 'Completed'];
-const FILTER_LABELS = {
-  All: 'All',
-  Pending: 'Pending',
-  'In Progress': 'In progress',
-  Completed: 'Completed',
+
+const STATUS_BADGE_COLORS = {
+  pending: { bg: THEME.pendingBg, color: THEME.pending },
+  scheduled: { bg: THEME.pendingBg, color: THEME.pending },
+  in_transit: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  arrival: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  in_progress: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  collected: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  arrived_manufacturer: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  completed: { bg: THEME.completedBg, color: THEME.completed },
+};
+
+const StatusBadge = ({ status }) => {
+  const { bg, color } = STATUS_BADGE_COLORS[status] || STATUS_BADGE_COLORS.pending;
+  const label = PICKUP_STATUS_LABELS[status] ?? 'Pending';
+  return (
+    <View style={[styles.badge, { backgroundColor: bg }]}>
+      <Text style={[styles.badgeText, { color }]}>{label}</Text>
+    </View>
+  );
 };
 
 const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
   const actionDisabled = item.status === 'completed';
-  const actionLabel = item.status === 'pending' ? 'Start' : item.status === 'in_progress' ? 'Complete' : 'Done';
-  const canDecline = item.status === 'pending';
-  // Same `|| pending` fallback as DriverStatusBadge — the DB can return a status
-  // that is not a key in DRV_STATUS, and this renders inside a .map().
-  const accent = (DRV_STATUS[item.status] || DRV_STATUS.pending).fg;
+  const actionLabel = PRE_TRIP_STATUSES.includes(item.status)
+    ? 'Accept'
+    : ACTIVE_TRIP_STATUSES.includes(item.status)
+      ? 'Continue trip'
+      : 'Done';
+  const canDecline = PRE_TRIP_STATUSES.includes(item.status);
 
   return (
-    <View style={[styles.card, { borderLeftColor: accent }]}>
+    <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.cardLeft}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="storefront-outline" size={20} color={DRV_COLORS.primary} />
+          <View style={[styles.iconWrap, { backgroundColor: THEME.primaryLight }]}>
+            <Ionicons name="storefront-outline" size={20} color={THEME.primary} />
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardName}>{item.name}</Text>
             <View style={styles.cardMeta}>
-              <Ionicons name="location-outline" size={12} color={DRV_COLORS.muted} />
+              <Ionicons name="location-outline" size={12} color={THEME.gray} />
               <Text style={styles.cardAddress}> {item.address}</Text>
             </View>
             <View style={styles.cardMeta}>
-              <Ionicons name="time-outline" size={12} color={DRV_COLORS.muted} />
+              <Ionicons name="time-outline" size={12} color={THEME.gray} />
               <Text style={styles.cardTime}> {item.time} · {item.estimatedLiters}L est.</Text>
             </View>
           </View>
         </View>
-        <DriverStatusBadge status={item.status} />
+        <StatusBadge status={item.status} />
       </View>
       <View style={styles.cardActions}>
-        <Pressable
-          style={({ pressed }) => [styles.callBtn, pressed && { opacity: 0.85 }]}
-          onPress={onCall}
-        >
-          <Ionicons name="call-outline" size={15} color={DRV_COLORS.ink} />
+        <TouchableOpacity style={styles.callBtn} onPress={onCall} activeOpacity={0.7}>
+          <Ionicons name="call-outline" size={15} color={THEME.text} />
           <Text style={styles.callBtnText}>  Call</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionBtn,
-            actionDisabled && styles.actionBtnDisabled,
-            pressed && !actionDisabled && { opacity: 0.85 },
-          ]}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, actionDisabled && styles.actionBtnDisabled]}
           onPress={!actionDisabled ? onAction : undefined}
-          disabled={actionDisabled}
+          activeOpacity={actionDisabled ? 1 : 0.7}
         >
-          <Ionicons
-            name={actionDisabled ? 'checkmark-circle' : item.status === 'pending' ? 'play' : 'checkmark'}
-            size={15}
-            color={actionDisabled ? DRV_COLORS.muted : DRV_COLORS.white}
-          />
-          <Text style={[styles.actionBtnText, actionDisabled && styles.actionBtnTextDisabled]}>
-            {'  ' + actionLabel}
-          </Text>
-        </Pressable>
+          <LinearGradient
+            colors={!actionDisabled ? [THEME.primary, THEME.primaryDark] : [THEME.grayLight, THEME.grayLight]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.actionGradient}
+          >
+            <Ionicons
+              name={
+                actionDisabled
+                  ? 'checkmark-circle'
+                  : PRE_TRIP_STATUSES.includes(item.status)
+                    ? 'play'
+                    : 'navigate'
+              }
+              size={15}
+              color={actionDisabled ? THEME.gray : THEME.white}
+            />
+            <Text style={[styles.actionBtnText, actionDisabled && styles.actionBtnTextDisabled]}>
+              {'  ' + actionLabel}
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
       {canDecline ? (
-        <Pressable
-          style={({ pressed }) => [styles.declineBtn, pressed && { opacity: 0.85 }]}
-          onPress={onDecline}
-        >
+        <TouchableOpacity style={styles.declineBtn} onPress={onDecline} activeOpacity={0.7}>
           <Text style={styles.declineBtnText}>Decline this pickup</Text>
-        </Pressable>
+        </TouchableOpacity>
       ) : null}
     </View>
   );
 };
 
-export default function DriverCollectionsScreen() {
+export default function DriverCollectionsScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState('All');
-  const {
-    pickups: assignedPickups = [],
-    loading,
-    refreshing,
-    refreshCollector,
-    updatePickupStatus,
-    declinePickup,
-  } = useCollectorContext();
+  const { pickups: assignedPickups = [], updatePickupStatus, declinePickup } = useCollectorContext();
 
   const pickups = useMemo(
     () => (assignedPickups || []).map(p => ({
@@ -127,26 +145,29 @@ export default function DriverCollectionsScreen() {
 
   const filtered = pickups.filter(p => {
     if (activeFilter === 'All') return true;
-    if (activeFilter === 'Pending') return p.status === 'pending';
-    if (activeFilter === 'In Progress') return p.status === 'in_progress';
+    if (activeFilter === 'Pending') return PRE_TRIP_STATUSES.includes(p.status);
+    if (activeFilter === 'In Progress') return ACTIVE_TRIP_STATUSES.includes(p.status);
     if (activeFilter === 'Completed') return p.status === 'completed';
     return true;
   });
 
+  // Pending pickups accept into the trip (status -> in_transit) then hand off
+  // to the map, which owns every checkpoint from there — driving to the
+  // restaurant, arrival, collection, driving to the manufacturer, delivery.
+  // Pickups already mid-trip just jump back into the map where they left off.
   const handleAction = async (item) => {
-    const nextStatus =
-      item.status === 'pending'
-        ? 'in_progress'
-        : item.status === 'in_progress'
-          ? 'completed'
-          : item.status;
+    if (PRE_TRIP_STATUSES.includes(item.status)) {
+      try {
+        await updatePickupStatus(item.id, 'in_transit');
+        navigation.navigate('DriverMap', { pickupId: item.id });
+      } catch (err) {
+        Alert.alert('Could not accept pickup', err.message ?? 'Please try again.');
+      }
+      return;
+    }
 
-    if (nextStatus === item.status) return;
-
-    try {
-      await updatePickupStatus(item.id, nextStatus);
-    } catch (err) {
-      Alert.alert('Update failed', err.message ?? 'Could not update pickup status.');
+    if (ACTIVE_TRIP_STATUSES.includes(item.status)) {
+      navigation.navigate('DriverMap', { pickupId: item.id });
     }
   };
 
@@ -173,42 +194,48 @@ export default function DriverCollectionsScreen() {
 
   const scheduledCount = pickups.filter(p => p.status !== 'completed').length;
 
+  // Header Component with Logo and Gradient that fills to top
+  const Header = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={THEME.primaryDark} />
+      <LinearGradient
+        colors={[THEME.primary, THEME.primaryDark, THEME.primaryDarker]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+
+        
+        {/* Header Info */}
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle}>Collections</Text>
+          <Text style={styles.headerSub}>{scheduledCount} pickups remaining today</Text>
+        </View>
+      </LinearGradient>
+    </>
+  );
+
   return (
     <View style={styles.container}>
-      <DriverHeader
-        title="Collections"
-        subtitle={`${scheduledCount} pickups remaining today`}
-      />
-
+      <Header />
+      
       {/* Filter Row */}
       <View style={styles.filterRow}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
           {FILTERS.map(f => (
-            <Pressable
+            <TouchableOpacity
               key={f}
-              style={({ pressed }) => [
-                styles.filterBtn,
-                activeFilter === f && styles.filterBtnActive,
-                pressed && { opacity: 0.85 },
-              ]}
+              style={[styles.filterBtn, activeFilter === f && styles.filterBtnActive]}
               onPress={() => setActiveFilter(f)}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.filterText, activeFilter === f && styles.filterTextActive]}>
-                {FILTER_LABELS[f]}
-              </Text>
-            </Pressable>
+              <Text style={[styles.filterText, activeFilter === f && styles.filterTextActive]}>{f}</Text>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
-
-      <DriverRefreshScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        refreshing={refreshing}
-        onRefresh={refreshCollector}
-      >
-        {loading && pickups.length === 0 ? <DriverLoadingBanner /> : null}
-
+      
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {filtered.map(item => (
           <CollectionCard
             key={item.id}
@@ -218,75 +245,131 @@ export default function DriverCollectionsScreen() {
             onDecline={() => handleDecline(item)}
           />
         ))}
-
-        {!loading && filtered.length === 0 ? (
-          <DriverEmptyBanner
-            icon="checkmark-done-outline"
-            message={
-              pickups.length === 0
-                ? 'No collections assigned yet. New pickups appear here once dispatch assigns them.'
-                : `No ${FILTER_LABELS[activeFilter].toLowerCase()} collections right now.`
-            }
-          />
-        ) : null}
-
+        {filtered.length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="checkmark-done-outline" size={50} color={THEME.gray} />
+            <Text style={styles.emptyText}>No collections here</Text>
+          </View>
+        )}
         <View style={{ height: 30 }} />
-      </DriverRefreshScrollView>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: DRV_COLORS.page,
+  container: { 
+    flex: 1, 
+    backgroundColor: THEME.offWhite 
   },
-
-  filterRow: {
-    backgroundColor: DRV_COLORS.page,
+  header: {
+    paddingBottom: 20,
   },
-  filterContent: {
-    paddingHorizontal: DRV_SPACING.screenPadding,
-    paddingVertical: DRV_SPACING.gap,
-    gap: 8,
+  headerContent: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: THEME.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: THEME.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  logoImage: {
+    width: 41,
+    height: 41,
+    borderRadius: 20.5,
+  },
+  appName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: THEME.white,
+  },
+  companyName: {
+    fontSize: 10,
+    color: THEME.white,
+    opacity: 0.9,
+    marginTop: 1,
+  },
+  headerInfo: {
+    paddingHorizontal: 20,
+    marginTop: 16,
+  },
+  headerTitle: { 
+    fontSize: 24, 
+    fontWeight: '700', 
+    color: THEME.white 
+  },
+  headerSub: { 
+    fontSize: 13, 
+    color: 'rgba(255,255,255,0.8)', 
+    marginTop: 4 
+  },
+  filterRow: { 
+    backgroundColor: THEME.white, 
+    borderBottomWidth: 1, 
+    borderBottomColor: THEME.grayLight 
+  },
+  filterContent: { 
+    paddingHorizontal: 16, 
+    paddingVertical: 12, 
+    gap: 8 
   },
   filterBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: DRV_RADII.pill,
-    backgroundColor: DRV_COLORS.surfaceSoft,
+    borderRadius: 20,
+    backgroundColor: THEME.offWhite,
     borderWidth: 1,
-    borderColor: DRV_COLORS.border,
+    borderColor: THEME.grayLight,
   },
-  filterBtnActive: {
-    backgroundColor: DRV_COLORS.primary,
-    borderColor: DRV_COLORS.primary,
+  filterBtnActive: { 
+    backgroundColor: THEME.primary, 
+    borderColor: THEME.primary 
   },
-  filterText: {
-    fontFamily: DRV_FONTS.semiBold,
-    fontSize: 13,
-    color: DRV_COLORS.body,
+  filterText: { 
+    fontSize: 13, 
+    fontWeight: '500', 
+    color: THEME.textSecondary 
   },
-  filterTextActive: {
-    color: DRV_COLORS.white,
+  filterTextActive: { 
+    color: THEME.white 
   },
-
-  scroll: {
-    flex: 1,
+  scroll: { 
+    flex: 1, 
+    backgroundColor: THEME.offWhite, 
+    paddingTop: 12 
   },
-  scrollContent: {
-    paddingHorizontal: DRV_SPACING.screenPadding,
-  },
-
   card: {
-    backgroundColor: DRV_COLORS.card,
-    marginBottom: DRV_SPACING.gap,
-    borderRadius: DRV_RADII.card,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
+    backgroundColor: THEME.white,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 14,
     padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
     borderLeftWidth: 3,
-    ...DRV_SHADOWS.card,
+    borderLeftColor: THEME.primary,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -294,95 +377,108 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 14,
   },
-  cardLeft: {
-    flexDirection: 'row',
-    flex: 1,
-    gap: 12,
+  cardLeft: { 
+    flexDirection: 'row', 
+    flex: 1, 
+    gap: 12 
   },
   iconWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: DRV_COLORS.paleGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardInfo: {
-    flex: 1,
+  cardInfo: { 
+    flex: 1 
   },
-  cardName: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 15,
-    color: DRV_COLORS.ink,
-    marginBottom: 4,
+  cardName: { 
+    fontSize: 15, 
+    fontWeight: '600', 
+    color: THEME.text, 
+    marginBottom: 4 
   },
-  cardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
+  cardMeta: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginTop: 2 
   },
-  cardAddress: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 12,
-    color: DRV_COLORS.body,
+  cardAddress: { 
+    fontSize: 12, 
+    color: THEME.textSecondary 
   },
-  cardTime: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 12,
-    color: DRV_COLORS.muted,
+  cardTime: { 
+    fontSize: 12, 
+    color: THEME.gray 
   },
-
-  cardActions: {
-    flexDirection: 'row',
-    gap: 10,
+  badge: { 
+    paddingHorizontal: 10, 
+    paddingVertical: 5, 
+    borderRadius: 8 
+  },
+  badgeText: { 
+    fontSize: 11, 
+    fontWeight: '600' 
+  },
+  cardActions: { 
+    flexDirection: 'row', 
+    gap: 10 
   },
   callBtn: {
     flex: 1,
     paddingVertical: 11,
-    borderRadius: DRV_RADII.pill,
+    borderRadius: 10,
     flexDirection: 'row',
-    backgroundColor: DRV_COLORS.white,
+    backgroundColor: THEME.white,
     borderWidth: 1.5,
-    borderColor: DRV_COLORS.border,
+    borderColor: THEME.grayLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  callBtnText: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 13,
-    color: DRV_COLORS.ink,
+  callBtnText: { 
+    fontSize: 13, 
+    fontWeight: '600', 
+    color: THEME.text 
   },
   actionBtn: {
     flex: 1.5,
-    borderRadius: DRV_RADII.pill,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  actionGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 11,
-    backgroundColor: DRV_COLORS.primary,
   },
-  actionBtnDisabled: {
-    backgroundColor: DRV_COLORS.surfaceSoft,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
+  actionBtnDisabled: { 
+    opacity: 0.7 
   },
-  actionBtnText: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 13,
-    color: DRV_COLORS.white,
+  actionBtnText: { 
+    fontSize: 13, 
+    fontWeight: '600', 
+    color: THEME.white 
   },
   actionBtnTextDisabled: {
-    color: DRV_COLORS.muted,
+    color: THEME.gray
   },
-
   declineBtn: {
     marginTop: 10,
     alignItems: 'center',
     paddingVertical: 8,
   },
   declineBtnText: {
-    fontFamily: DRV_FONTS.semiBold,
     fontSize: 12,
-    color: DRV_COLORS.alertText,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  emptyState: { 
+    alignItems: 'center', 
+    paddingVertical: 60, 
+    gap: 12 
+  },
+  emptyText: { 
+    fontSize: 14, 
+    color: THEME.gray 
   },
 });

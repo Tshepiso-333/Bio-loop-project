@@ -1,25 +1,54 @@
 # BioLoop — Project Documentation
 
-**Stack:** React Native (Expo) + Supabase  
-**Last updated:** June 7, 2026  
-**Build status:** ✅ Compiling
+**Stack:** React Native (Expo) + Supabase (Postgres + Auth + Storage). No custom server, except two PayFast Edge Functions.
+**Consolidated:** 2026-07-27 — this file replaces `ADMIN_README.md`, `BACKEND_HANDBOOK.md`, `BACKEND_READINESS_HANDOFF.md`, `DISPATCH_ROADMAP.md`, and `PAYFAST_INTEGRATION.md`, which covered overlapping ground at different points in the project and had drifted out of date against each other. `SCHEMA.md` (exact column reference) and `BUSINESS_LOGIC_QUESTIONS.md` (locked business rules) stay as separate docs — they're decisions/reference, not narrative status.
 
 ---
 
 ## What is BioLoop?
 
-BioLoop tracks **used cooking oil** moving from restaurants → collected by drivers → delivered to manufacturers for biodiesel recycling.
+BioLoop tracks **used cooking oil** moving from restaurants → collected by drivers → delivered to manufacturers for biodiesel recycling, with the platform taking a commission and handling routing, quality grading, and payment.
 
-There are four user roles:
+Four roles share one database via `profiles.role`:
 
 | Role | What they do |
 |---|---|
-| `restaurant` | Monitor oil tanks, schedule pickups, track earnings |
-| `collector` | Pick up oil from restaurants (the driver) |
-| `manufacturer` | Receive oil, manage stock, view forecasts |
-| `admin` | Manage all users and the platform |
+| `restaurant` | Monitor oil tanks, schedule/request pickups, track earnings |
+| `collector` (driver) | Accept pickups, drive the restaurant → manufacturer leg |
+| `manufacturer` | Receive oil, pay for it (PayFast), manage stock, view forecasts |
+| `admin` | Dispatch drivers, manage users, approve withdrawals, platform settings |
 
-After login, the app reads `profiles.role` and routes each user to their own navigation stack with their own data context.
+After login the app reads `profiles.role` and routes the user to their own navigation stack + data context. There is no hardcoded/mock auth anywhere anymore — this is real Supabase Auth end to end.
+
+---
+
+## Why there's no server, and why that's safe
+
+The React Native app talks **directly** to Supabase using the anon/publishable key — that key identifies the project, not a user, so it's safe to ship in the app bundle. The actual security boundary is **Row Level Security (RLS)**: Postgres policies that decide who can read/write which rows. If a table's RLS is wrong, anyone with the anon key can read/write it — there is no server-side check backing it up. This is why RLS bugs (see §"Fixed this project," below) are treated as real bugs, not edge cases: they're the *only* thing standing between a user and someone else's data.
+
+The one exception is payment: PayFast's merchant key + passphrase are real secrets that can't live in an app bundle. Those live in two Supabase Edge Functions (Deno) — the only server-side code in the whole system.
+
+---
+
+## The core pattern: Service → Context → Screen
+
+Every role follows the same layered pattern. **Screens never call Supabase directly.**
+
+```
+Supabase DB
+  ↓
+src/services/*Service.js   (raw queries; one load*Bundle(ownerUserId) per role, fetches everything in parallel)
+  ↓
+src/contexts/*Context.js   (React state, AsyncStorage cache, refresh, wraps mutations)
+  ↓
+screens/<role>/*.js        (reads from useXContext(), calls context methods for actions)
+```
+
+Why split it this way: a service function is a pure async function you can test/reason about without React; a context turns that into stateful, cached, UI-ready data exactly once per role; a screen only ever renders and calls methods — it never needs to know a Supabase table name. Mutations always go through context methods (e.g. `admin.updatePickupStatus(...)`), never called ad hoc from a screen, so cache invalidation/refresh happens in one place.
+
+**Caching:** cache-first on open (`AsyncStorage`, keyed `@bioloop/<role>/{userId}`) so screens render instantly, then a background fetch updates state + overwrites the cache. Pull-to-refresh skips the cache. Logout wipes all keys.
+
+**Finding a user's business record:** `auth.users.id` = `profiles.id`. From there, `restaurants` / `collectors` / `manufacturers` are found via `owner_user_id = user.id` — there is no `restaurant_id` column on `profiles` itself.
 
 ---
 
@@ -27,277 +56,96 @@ After login, the app reads `profiles.role` and routes each user to their own nav
 
 ```
 Devine-Devs/
-├── App.js                          # Provider tree entry point
-├── AuthContext.js                  # Session + signOut
-├── supabase.js                     # Supabase client
-│
+├── App.js / AuthContext.js / supabase.js
 ├── src/
-│   ├── services/                   # All Supabase queries live here
-│   │   ├── restaurantService.js
-│   │   ├── collectorService.js
-│   │   └── manufacturerService.js
-│   ├── contexts/                   # Role-based state providers
-│   │   ├── RestaurantContext.js
-│   │   ├── CollectorContext.js
-│   │   └── ManufacturerContext.js
-│   ├── hooks/
-│   │   ├── useProfile.js
-│   │   └── useRestaurant.js
-│   ├── providers/
-│   │   └── RoleProviderGate.js     # Maps role → provider + stack
-│   ├── lib/
-│   │   ├── cache.js                # AsyncStorage helpers
-│   │   ├── dbColumns.js            # Canonical column name constants
-│   │   └── roles.js                # Role string constants
-│   └── utils/
-│       └── restaurantViewModels.js # Maps DB rows → UI-friendly shapes
-│
-├── screens/
-│   ├── auth/
-│   ├── restaurant/
-│   ├── driver/
-│   ├── manufacturer/
-│   └── admin/
-│
-├── navigation/
-│   ├── RootNavigator.js
-│   ├── AuthStack.js
-│   ├── RestaurantStack.js
-│   ├── DriverStack.js
-│   └── ManufacturerStack.js
-│
+│   ├── services/        # restaurantService, collectorService, manufacturerService, adminService, paymentService, payoutService
+│   ├── contexts/        # RestaurantContext, CollectorContext, ManufacturerContext, AdminContext
+│   ├── admin/            # adminTheme.js, AdminHeader.js — admin's own design system
+│   ├── driver/            # (Tshepiso's driver redesign components — not yet merged)
+│   ├── hooks/            # useProfile, useRestaurant
+│   ├── lib/              # cache.js, dbColumns.js, pickupStatus.js, roles.js
+│   └── utils/            # restaurantViewModels.js — DB rows → UI-friendly shapes
+├── screens/{auth,restaurant,driver,manufacturer,admin}/
+├── navigation/           # RootNavigator + one Stack per role
+├── supabase/functions/   # payfast-checkout, payfast-itn (Edge Functions)
 └── docs/
-    ├── README.md       ← you are here
-    └── SCHEMA.md       ← exact table/column reference
+    ├── README.md          ← you are here
+    ├── SCHEMA.md          ← authoritative column reference, read before writing raw column names
+    └── BUSINESS_LOGIC_QUESTIONS.md ← locked business rules, don't re-derive
 ```
-
----
-
-## How the app is wired (the core pattern)
-
-Every role follows the same layered pattern. Screens never talk to Supabase directly.
-
-```
-Supabase DB
-  ↓
-src/services/   (all queries, load*Bundle functions)
-  ↓
-src/contexts/   (state, caching, refresh, mutations)
-  ↓
-src/hooks/      (useRestaurant, useProfile, etc.)
-  ↓
-screens/        (read from hooks, render UI)
-```
-
-### Provider hierarchy
-
-```
-SafeAreaProvider
-└── AuthProvider
-    └── ProfileProvider
-        └── RootNavigator
-            ├── AuthStack                 (logged out)
-            ├── UnknownRoleScreen         (bad/missing role)
-            └── RoleProviderGate
-                  ├── RestaurantProvider → RestaurantStack   ✅
-                  ├── CollectorProvider  → DriverStack        ✅
-                  ├── ManufacturerProvider → ManufacturerStack ✅
-                  └── AdminStack                              (planned)
-```
-
-### Login to home screen (step by step)
-
-1. User submits credentials → `supabase.auth.signInWithPassword`
-2. `AuthContext` receives session via `onAuthStateChange`
-3. `ProfileContext` loads `profiles` row → gets `role`
-4. `RootNavigator` passes loading gates
-5. `RoleProviderGate` mounts the correct provider + stack
-6. Context hydrates from AsyncStorage cache (shows data instantly)
-7. Bundle fetch runs in background, updates state + cache
-8. Pull-to-refresh or mutations go through context methods only
-
----
-
-## Services — what each one fetches
-
-Each service has a main `load*Bundle(ownerUserId)` function that fetches everything for that role in parallel, plus smaller helper functions for individual queries.
-
-### `restaurantService.js`
-
-| Function | Table(s) |
-|---|---|
-| `loadRestaurantBundle(ownerUserId)` | All below in parallel |
-| `getRestaurantByOwnerId(ownerUserId)` | `restaurants` |
-| `getTank(restaurantId)` | `tanks` |
-| `getPickups(restaurantId)` | `pickups` + `collectors` join |
-| `getTankReadings(tankId)` | `tank_readings` |
-| `getPickupSchedules(restaurantId)` | `pickup_schedules` |
-| `getWallet(restaurantId)` | `restaurant_wallets` |
-| `getEarnings(restaurantId)` | `earnings` |
-| `getWithdrawals(restaurantId)` | `withdrawals` |
-| `getQualityLogs(restaurantId)` | `quality_logs` |
-| `getActivityLogs(restaurantId)` | `activity_logs` |
-| `getAlerts(userId)` | `alerts` |
-| `getMarketRates()` | `market_rates` |
-| `createPickupRequest(restaurantId, payload)` | `pickups` (insert) |
-| `createManualPickupRequest(restaurantId, payload)` | `manual_pickup_requests` (insert) |
-
-Used by: `RestaurantHomeScreen`, `MonitoringScreen`, `PickupsScreen`, `EarningsScreen`, `SchedulePickupScreen`, `ManualPickupScreen`
-
-### `collectorService.js`
-
-| Function | Table(s) |
-|---|---|
-| `loadCollectorBundle(ownerUserId)` | All below in parallel |
-| `getCollectorByOwnerId(ownerUserId)` | `collectors` |
-| `getAssignedPickups(collectorId)` | `pickups` |
-| `getCollectorStats(collectorId)` | `collectors` |
-| `getAlerts(userId)` | `alerts` |
-
-Used by: `DriverHomeScreen`, `DriverMapScreen`, `DriverCollectionsScreen`
-
-### `manufacturerService.js`
-
-| Function | Table(s) |
-|---|---|
-| `loadManufacturerBundle(ownerUserId)` | All below in parallel |
-| `getManufacturerByOwnerId(ownerUserId)` | `manufacturers` |
-| `getManufacturerInventory(manufacturerId)` | `manufacturer_inventory` |
-| `getManufacturerTanks(manufacturerId)` | `tanks` (filtered by `manufacturer_id`) |
-| `getForecasts(manufacturerId)` | `forecasts` |
-| `getPickupsForManufacturer(manufacturerId)` | `pickups` |
-| `getAlerts(userId)` | `alerts` |
-
-Used by: `ManufacturerDashboardScreen`, `ForecastsScreen`, `QualityScreen`, `SuppliersScreen`, `AlertsScreen`
-
----
-
-## Caching
-
-Every context follows cache-first loading so screens render immediately on app open.
-
-**Cache keys:**
-
-```
-@bioloop/restaurant/{userId}
-@bioloop/collector/{userId}
-@bioloop/manufacturer/{userId}
-```
-
-**Flow:**
-
-1. App opens → read AsyncStorage cache → render immediately
-2. Background fetch → update state + overwrite cache
-3. Pull-to-refresh → skip cache, fetch fresh
-4. Logout → `clearUserCaches(userId)` wipes all keys
-
-**Helpers in `src/lib/cache.js`:** `readCache(key)`, `writeCache(key, data)`, `clearCache(key)`, `clearUserCaches(userId)`
-
----
-
-## Finding a user's business record
-
-The logged-in user's `auth.users.id` equals their `profiles.id`. Their business record is found via `owner_user_id`:
-
-```
-restaurants    WHERE owner_user_id = user.id
-collectors     WHERE owner_user_id = user.id
-manufacturers  WHERE owner_user_id = user.id
-```
-
-There is no `restaurant_id` on `profiles`. Always go through `owner_user_id`.
-
----
-
-## What is done vs what is next
-
-### ✅ Done
-
-- Database schema — all tables and columns match app needs
-- `restaurantService.js`, `collectorService.js`, `manufacturerService.js` — complete
-- `RestaurantContext`, `CollectorContext`, `ManufacturerContext` — complete with caching + refresh
-- All restaurant screens wired to real context data (`PickupsScreen`, `EarningsScreen`, `MonitoringScreen`, `SchedulePickupScreen`, `ManualPickupScreen`)
-- All driver screens wired (`DriverHomeScreen`, `DriverCollectionsScreen`, `DriverProfileScreen`, `DriverMapScreen`)
-- All manufacturer screens wired (`DashboardScreen`, `ForecastsScreen`, `QualityScreen`, `SuppliersScreen`, `AlertsScreen`)
-- Mock data removed from all screens — replaced with real context data or clean placeholders (`"—"`, `0`, `[]`)
-- Role-based navigation and provider wrapping
-- AsyncStorage caching with cache-first UX
-- RLS enabled on newer tables (`tank_readings`, `activity_logs`, `pickup_schedules`, `manufacturer_inventory`, `forecasts`) — `tanks` needs a manufacturer-owner policy added alongside its existing restaurant-owner one now that manufacturer tanks live there too (see `docs/migrations/001_merge_manufacturer_tanks.sql`)
-- Documentation
-
-### ⚠️ Partial / placeholders in use
-
-| Area | State |
-|---|---|
-| Auth | Hardcoded test users in `auth/hardcodedUsers.js` — not real Supabase Auth yet |
-| Historical quality logs | Placeholder `[]` — table may not be seeded |
-| Market rates | Placeholder `[]` — external data source needed |
-| Driver map | Context data ready, no map provider (Google Maps / Mapbox) set up yet |
-| AI chat | Simplified responses — no real ML backend |
-| Charts | Data structures in place, rendering needs real seeded data to validate |
-
-### ❌ Still to do
-
-- Replace hardcoded users with `supabase.auth.signInWithPassword` + email verification
-- Add RLS policies on original tables (`tanks`, `pickups`, `earnings`, `wallets`, etc.)
-- Seed test data in Supabase
-- Set up real-time subscriptions (Supabase channels) inside contexts
-- Image uploads (profile photos, quality log receipts)
-- Push notifications
-- Admin dashboard screens
-- Move Supabase API keys from code into `.env`
-- Runtime testing on a real device / simulator
 
 ---
 
 ## Pickup lifecycle
 
-The `pickups` table is the central operational table — it links restaurant, collector (driver), manufacturer, and tank.
+`pickups` is the central table — it links restaurant, collector, manufacturer, and tank. Status enum, in order:
 
-| Status | Meaning |
+```
+pending → scheduled → in_transit → arrival → in_progress → collected → arrived_manufacturer → completed
+```
+(`assigned` is a legacy value from before dispatch was rebuilt — treat it the same as `pending`. `in_progress` is legacy too, superseded by `collected`, kept so old rows still render.) Any pre-trip state can branch to `cancelled`.
+
+**How a pickup gets created:** a restaurant's tank crossing 85% fill (`restaurantService.updateTankFillPercent`) auto-inserts a `manual_pickup_requests` row and notifies all admins — this is a client-side check today, not a DB trigger. Admin converts the request into a `pickups` row (Dispatch: "Needs dispatch" filter) and assigns a driver + optional per-pickup payout.
+
+**Driver leg:** accepting a pending pickup moves it through `in_transit → arrival → in_progress → collected → arrived_manufacturer` — see `src/lib/pickupStatus.js` for the shared status vocabulary. The driver's responsibility ends at `arrived_manufacturer`; there is no driver-facing "complete trip" action.
+
+**Completion:** only the manufacturer confirming receipt (`manufacturerService.confirmDeliveryReceived`) moves a pickup to `completed`, records `completed_at`, and creates `earnings` rows via `payoutService.finalizePickupEarnings`. Admin can still override-complete a pickup manually.
+
+---
+
+## Money flow
+
+Gross value = volume × `market_rates.rate_per_liter` (by grade A/B/C). Split three ways at completion:
+
+| Party | Gets |
 |---|---|
-| `pending` | Created, not yet scheduled |
-| `scheduled` | Date and time set |
-| `in_transit` | Driver on the way |
-| `arrival` | Driver arrived |
-| `in_progress` | Collection happening |
-| `completed` | Done — earnings recorded |
-| `cancelled` | Cancelled |
+| Platform | `platform_settings.commission_pct` of gross |
+| Driver | per-pickup `driver_payout_amount` if admin set one, else `driver_flat_rate_per_pickup` |
+| Restaurant | remainder |
+
+Manufacturer pays gross + `manufacturer_markup_pct` through PayFast. Both `commission_pct` and `driver_flat_rate_per_pickup` default to `0` — real numbers must be set once via admin Finance settings, or restaurants get 100%/drivers get 0.
+
+There is no `restaurant_wallets`/`collector_wallets` table — those were dropped (migration 013); balances are computed live from `earnings` via `restaurant_balances`/`collector_balances` views.
 
 ---
 
-## Screen → table reference
+## PayFast integration — current status
 
-| Screen | Tables queried |
-|---|---|
-| Restaurant Home | `tanks`, `activity_logs`, `pickups`, `quality_logs`, `alerts` |
-| Monitoring | `tanks`, `tank_readings`, `quality_logs` |
-| Pickups | `pickups`, `collectors`, `pickup_schedules` |
-| Manual Pickup | `manual_pickup_requests` |
-| Earnings | `restaurant_wallets`, `earnings`, `withdrawals`, `market_rates` |
-| Driver Home / Map | `collectors`, `pickups`, `restaurants` |
-| Manufacturer Dashboard | `manufacturer_inventory`, `pickups`, `forecasts` |
-| Admin | `profiles`, `restaurants`, `collectors`, `manufacturers` |
+**Live:** real PayFast **sandbox** checkout, working end to end — manufacturer pays via `ManufacturerPaymentScreen` (WebView) → `payfast-checkout` Edge Function computes the charge server-side (never trusts a client-sent amount) → PayFast sandbox → `payfast-itn` webhook verifies the signature and flips `payment_transactions.status` to `complete` → the manufacturer's app polls for that, then calls `confirmDeliveryReceived` to finalize the pickup and create earnings.
 
----
+**RLS:** the manufacturer's client is read-only on `payment_transactions` (can only `SELECT` its own rows to poll). All writes happen inside the two Edge Functions using the service-role key — the anon key never gets insert/update rights on that table.
 
-## Key rules for developers
+**Known limitation, not yet closed:** `payfast-itn` only flips the transaction row to `complete` — it does not itself finalize the pickup or create earnings (that still happens client-side, after the app observes the row go `complete`). If the manufacturer closes the app between "PayFast confirms" and "the poll observes it," the trip won't auto-finalize until they reopen that screen. A fully server-authoritative version would trigger `finalizePickupEarnings`'s logic from the ITN webhook itself.
 
-- **Screens never import `supabase` directly.** All queries go through services. All state goes through contexts.
-- **Use `dbColumns.js` constants** for column names, not string literals. Keep it in sync with `SCHEMA.md`.
-- **Mutations go through context methods** (`createPickupRequest`, etc.) — not called from screens.
-- **Column names to avoid:** `scheduled_at`, `available_balance`, `price_per_liter` on earnings, `oil_grade` on quality_logs, `updated_at` on tanks, `name` on collectors. See `SCHEMA.md` for correct names.
+**Not yet done:** PayFast's recommended server-to-server "validate" callback and source-IP allowlisting on the ITN endpoint — worth adding before a real (non-sandbox) merchant account.
+
+Sandbox credentials live in `.env.payfast` (gitignored), pushed to Supabase's Edge Function secret store — never read by the Expo app directly.
 
 ---
 
-## Security — before going to production
+## Security model — the RLS recursion pattern
 
-1. Replace hardcoded users with Supabase Auth + JWT
-2. Add RLS policies on all original tables
-3. Move API keys to `.env` (never commit to git)
-4. Validate input on all forms
-5. Store auth tokens in Secure Storage, not AsyncStorage
+Every table has RLS enabled, and it's the *only* security boundary (no service-role key in the app). The one recurring trap: giving one role visibility into another role's table via a plain subquery creates **circular RLS evaluation** the moment both tables' policies reference each other (e.g. "can a driver see the restaurant on their pickup" needs `restaurants` to check `pickups`, but `pickups` already checks `restaurants` back). The fix used throughout this schema is a `SECURITY DEFINER` SQL function (`is_admin()`, `my_restaurant_ids()`, `my_manufacturer_ids()`, `my_collector_pickup_restaurant_ids()`, `my_collector_pickup_manufacturer_ids()`) that bypasses RLS internally, breaking the cycle at exactly one point. Never write a raw admin-role check inline in a policy on `profiles` itself — same recursion, different table (see migration 003's postmortem).
 
 ---
 
-*For exact table column names and types, see `SCHEMA.md`.*
+## Still genuinely missing (not silently forgotten)
+
+- **No push notifications, no Supabase Realtime subscriptions.** Every screen updates on mount or pull-to-refresh only — a driver won't know they've been assigned a pickup until they open the app. `alerts` rows exist but nothing pushes them.
+- **No live-updating manufacturer GPS UI** — `manufacturers.latitude`/`longitude` columns exist, nothing in the app writes to them yet (unlike collectors, who do via `DriverMapScreen`).
+- **Restaurant predictive-alert category mismatch** in `MonitoringScreen.js` — known, deliberately deprioritized.
+- **PayFast ITN finalize gap** — see above.
+- **Driver UI redesign (Tshepiso's `ded3b0a` commit)** exists but isn't merged — her driver screens are a large rewrite (500+ lines/file) and haven't been reconciled against the backend/RLS fixes made since. Needs a deliberate merge pass, not a blind file swap.
+
+---
+
+## Common mistakes
+
+- **Column name traps** — always check `SCHEMA.md` before writing a raw column name. Known traps: `scheduled_at`, `available_balance`, `price_per_liter` on earnings, `oil_grade` on quality_logs, `updated_at` on tanks, `name` on collectors (it's `full_name`).
+- **Mutations belong in context methods**, never called ad hoc from a screen.
+- **Admin RLS recursion** — see security model above.
+- **Verify with a real build** — `cd Devine-Devs && npx expo export --platform android --output-dir <temp>` after any change; this app has no automated test suite.
+
+---
+
+*For exact table/column names and types, see `SCHEMA.md`. For locked business rules (routing, grading, payments, cancellation), see `BUSINESS_LOGIC_QUESTIONS.md`.*

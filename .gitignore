@@ -1,2 +1,7 @@
 cnode_modules/
 .expo/
+
+# Claude Code tooling (local dev config, not needed to run the project)
+.claude/
+CLAUDE.md
+Devine-Devs/supabase/.temp/

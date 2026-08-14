@@ -1,5 +1,5 @@
 // screens/manufacturer/SuppliersScreen.js
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -11,66 +11,80 @@ import {
   Modal,
   StatusBar,
   Dimensions,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { computeSupplierStats } from '../../src/utils/manufacturerAnalytics';
+import { ACTIVE_TRIP_STATUSES, PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
 
 const { width } = Dimensions.get('window');
 
-const SuppliersScreen = ({ navigation, onBack }) => {
-  const [selectedFilter, setSelectedFilter] = useState('all');
+const SuppliersScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [newSupplier, setNewSupplier] = useState({
-    name: '',
-    location: '',
-    contact: '',
-    email: '',
-    cuisine: '',
-  });
-  const { pickups = [] } = useManufacturerContext();
-  
-  // State to store manually added suppliers
-  const [manualSuppliers, setManualSuppliers] = useState([]);
+  const { pickups = [], assignedRestaurants = [] } = useManufacturerContext();
 
-  // One card per restaurant, aggregated from real pickups
-  const suppliersFromData = useMemo(() => computeSupplierStats(pickups), [pickups]);
+  // The pickup currently "in flight" for a given restaurant, if any — this is
+  // what lets a manufacturer see who's actually coming (driver + checkpoint)
+  // instead of just historical aggregate stats.
+  const activeDeliveryByRestaurantId = useMemo(() => {
+    const map = new Map();
+    (pickups || []).forEach((p) => {
+      if (!ACTIVE_TRIP_STATUSES.includes(p.status)) return;
+      map.set(p.restaurant_id, {
+        pickupId: p.id,
+        status: p.status,
+        statusLabel: PICKUP_STATUS_LABELS[p.status] ?? p.status,
+        driverName: p.collectors?.full_name ?? 'A driver',
+      });
+    });
+    return map;
+  }, [pickups]);
 
-  // Combine data suppliers with manually added suppliers
-  const allSuppliers = useMemo(() => {
-    // Give manual suppliers a default structure if they don't have all fields
-    const formattedManual = manualSuppliers.map(s => ({
-      id: s.id || `manual_${Date.now()}_${Math.random()}`,
-      name: s.name,
-      location: s.location || 'Unknown',
-      contact: s.contact || 'Not provided',
-      email: s.email || 'Not provided',
-      cuisine: s.cuisine || 'General',
-      image: 'https://via.placeholder.com/70',
-      quality: s.quality || 'B',
-      volume: s.volume || 0,
-      reliability: s.reliability || 0,
-      deliveries: s.deliveries || 0,
-      lastDelivery: s.lastDelivery || 'N/A',
-      isManual: true, // Flag to identify manually added suppliers
-    }));
-    
-    return [...suppliersFromData, ...formattedManual];
-  }, [suppliersFromData, manualSuppliers]);
+  const handleConfirmDelivery = (pickupId) => {
+    setModalVisible(false);
+    navigation.navigate('ManufacturerPayment', { pickupId });
+  };
 
-  // Filter based on search or category
-  const filteredSuppliers = allSuppliers.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = selectedFilter === 'all' || s.quality === selectedFilter;
-    return matchesSearch && matchesFilter;
-  });
+  // One card per restaurant actually assigned to us (restaurants.primary_manufacturer_id),
+  // not just restaurants we happen to have pickup history with — a newly
+  // assigned restaurant with no deliveries yet should still show up here.
+  // Pickup history (when there is any) fills in the volume/reliability/quality stats.
+  const statsByRestaurantId = useMemo(() => {
+    const map = new Map();
+    computeSupplierStats(pickups).forEach((s) => map.set(s.id, s));
+    return map;
+  }, [pickups]);
+
+  const suppliersList = useMemo(
+    () =>
+      assignedRestaurants.map((r) => {
+        const stats = statsByRestaurantId.get(r.id);
+        return {
+          id: r.id,
+          name: r.name ?? 'Unknown',
+          cuisine: r.cuisine ?? '—',
+          image: r.image_url ?? null,
+          location: r.address ?? '—',
+          contact: r.phone ?? '—',
+          email: r.email ?? '—',
+          volume: stats?.volume ?? 0,
+          quality: stats?.quality ?? '—',
+          deliveries: stats?.deliveries ?? 0,
+          reliability: stats?.reliability ?? 0,
+          lastDelivery: stats?.lastDelivery ?? '—',
+          activeDelivery: activeDeliveryByRestaurantId.get(r.id) ?? null,
+        };
+      }),
+    [assignedRestaurants, statsByRestaurantId, activeDeliveryByRestaurantId]
+  );
+
+  const filteredSuppliers = suppliersList.filter((s) =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getQualityColor = (quality) => {
     switch(quality) {
@@ -89,62 +103,6 @@ const SuppliersScreen = ({ navigation, onBack }) => {
       default: return '#7EE92D20';
     }
   };
-
-  // Handle adding a new supplier
-  const handleAddSupplier = useCallback(() => {
-    if (!newSupplier.name.trim()) {
-      Alert.alert('Error', 'Please enter a supplier name');
-      return;
-    }
-    if (!newSupplier.location.trim()) {
-      Alert.alert('Error', 'Please enter a location');
-      return;
-    }
-
-    // Create new supplier object
-    const supplier = {
-      id: `manual_${Date.now()}`,
-      name: newSupplier.name.trim(),
-      location: newSupplier.location.trim(),
-      contact: newSupplier.contact.trim() || 'Not provided',
-      email: newSupplier.email.trim() || 'Not provided',
-      cuisine: newSupplier.cuisine.trim() || 'General',
-      image: 'https://via.placeholder.com/70',
-      quality: 'B', // Default quality
-      volume: 0,
-      reliability: 0,
-      deliveries: 0,
-      lastDelivery: 'N/A',
-      isManual: true,
-    };
-
-    // Add to manual suppliers list
-    setManualSuppliers(prev => [...prev, supplier]);
-
-    Alert.alert(
-      'Success',
-      `${supplier.name} has been added as a supplier!`,
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            setAddModalVisible(false);
-            setNewSupplier({
-              name: '',
-              location: '',
-              contact: '',
-              email: '',
-              cuisine: '',
-            });
-          }
-        }
-      ]
-    );
-  }, [newSupplier]);
-
-  const handleInputChange = useCallback((field, value) => {
-    setNewSupplier(prev => ({ ...prev, [field]: value }));
-  }, []);
 
   // Icons
   const StarIcon = ({ color = '#f59e0b', size = 16 }) => (
@@ -189,7 +147,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
     </Svg>
   );
 
-  // Header Component
+  // Header Component - Updated to fill to the top and navigate to home
   const Header = () => (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#7c3aed" />
@@ -202,13 +160,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
         <View style={styles.headerContent}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => {
-              if (onBack) {
-                onBack();
-              } else {
-                navigation.goBack();
-              }
-            }}
+            onPress={() => navigation.navigate('ManufacturerDashboardScreen')}
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
@@ -216,121 +168,14 @@ const SuppliersScreen = ({ navigation, onBack }) => {
             <Text style={styles.headerTitle}>Supplier Management</Text>
             <Text style={styles.headerSubtitle}>Active Partners</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.addButton}
-            onPress={() => setAddModalVisible(true)}
-          >
-            <Text style={styles.addButtonText}>+</Text>
-          </TouchableOpacity>
+          <View style={styles.headerSpacer} />
         </View>
       </LinearGradient>
     </>
   );
 
-  // Add Supplier Modal
-  const AddSupplierModal = useMemo(() => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={addModalVisible}
-      onRequestClose={() => setAddModalVisible(false)}
-    >
-      <KeyboardAvoidingView 
-        style={styles.modalOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add New Supplier</Text>
-            <TouchableOpacity 
-              style={styles.modalCloseButton}
-              onPress={() => setAddModalVisible(false)}
-            >
-              <Text style={styles.modalCloseText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView 
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.addForm}>
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Supplier Name *</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="Enter supplier name"
-                  placeholderTextColor="#9ca3af"
-                  value={newSupplier.name}
-                  onChangeText={(text) => handleInputChange('name', text)}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Location *</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="Enter location"
-                  placeholderTextColor="#9ca3af"
-                  value={newSupplier.location}
-                  onChangeText={(text) => handleInputChange('location', text)}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Contact Person</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="Enter contact name"
-                  placeholderTextColor="#9ca3af"
-                  value={newSupplier.contact}
-                  onChangeText={(text) => handleInputChange('contact', text)}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Email</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="Enter email address"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="email-address"
-                  value={newSupplier.email}
-                  onChangeText={(text) => handleInputChange('email', text)}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Cuisine Type</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="Enter cuisine type"
-                  placeholderTextColor="#9ca3af"
-                  value={newSupplier.cuisine}
-                  onChangeText={(text) => handleInputChange('cuisine', text)}
-                />
-              </View>
-
-              <TouchableOpacity 
-                style={styles.submitButton}
-                onPress={handleAddSupplier}
-              >
-                <LinearGradient
-                  colors={['#8b5cf6', '#7c3aed']}
-                  style={styles.submitGradient}
-                >
-                  <Text style={styles.submitButtonText}>Add Supplier</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  ), [addModalVisible, newSupplier, handleInputChange, handleAddSupplier]);
-
   // Supplier Detail Modal
-  const SupplierDetailModal = useMemo(() => (
+  const SupplierDetailModal = () => (
     <Modal
       animationType="slide"
       transparent={true}
@@ -358,13 +203,30 @@ const SuppliersScreen = ({ navigation, onBack }) => {
                         Grade {selectedSupplier.quality}
                       </Text>
                     </View>
-                    {selectedSupplier.isManual && (
-                      <View style={styles.manualTag}>
-                        <Text style={styles.manualTagText}>Manually Added</Text>
-                      </View>
-                    )}
                   </View>
                 </View>
+
+                {selectedSupplier.activeDelivery && (
+                  <View style={styles.incomingCard}>
+                    <View style={styles.incomingCardHeader}>
+                      <Ionicons name="car-outline" size={18} color="#7c3aed" />
+                      <Text style={styles.incomingCardTitle}>Incoming delivery</Text>
+                    </View>
+                    <Text style={styles.incomingCardText}>
+                      {selectedSupplier.activeDelivery.driverName} — {selectedSupplier.activeDelivery.statusLabel}
+                    </Text>
+                    {selectedSupplier.activeDelivery.status === 'arrived_manufacturer' && (
+                      <TouchableOpacity
+                        style={styles.confirmReceivedBtn}
+                        onPress={() => handleConfirmDelivery(selectedSupplier.activeDelivery.pickupId)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="card-outline" size={16} color="#fff" />
+                        <Text style={styles.confirmReceivedBtnText}>Confirm Received & Pay</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
 
                 <View style={styles.modalStats}>
                   <View style={styles.modalStat}>
@@ -416,7 +278,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
         </View>
       </View>
     </Modal>
-  ), [modalVisible, selectedSupplier]);
+  );
 
   return (
     <View style={styles.container}>
@@ -432,109 +294,72 @@ const SuppliersScreen = ({ navigation, onBack }) => {
         />
       </View>
 
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
       >
-        {/* Filter Chips */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersScroll}
-          contentContainerStyle={styles.filtersContainer}
-        >
-          <TouchableOpacity 
-            style={[styles.filterChip, selectedFilter === 'all' && styles.filterChipActive]}
-            onPress={() => setSelectedFilter('all')}
-          >
-            <Text style={[styles.filterText, selectedFilter === 'all' && styles.filterTextActive]}>All</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.filterChip, selectedFilter === 'A' && styles.filterChipActive]}
-            onPress={() => setSelectedFilter('A')}
-          >
-            <Text style={[styles.filterText, selectedFilter === 'A' && styles.filterTextActive]}>Grade A</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.filterChip, selectedFilter === 'B' && styles.filterChipActive]}
-            onPress={() => setSelectedFilter('B')}
-          >
-            <Text style={[styles.filterText, selectedFilter === 'B' && styles.filterTextActive]}>Grade B</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.filterChip, selectedFilter === 'C' && styles.filterChipActive]}
-            onPress={() => setSelectedFilter('C')}
-          >
-            <Text style={[styles.filterText, selectedFilter === 'C' && styles.filterTextActive]}>Grade C</Text>
-          </TouchableOpacity>
-        </ScrollView>
-
         {/* Supplier List */}
         <View style={styles.suppliersList}>
-          {filteredSuppliers.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No suppliers found</Text>
-              <Text style={styles.emptyStateSubtext}>Tap the + button to add a new supplier</Text>
-            </View>
-          ) : (
-            filteredSuppliers.map((supplier) => (
-              <TouchableOpacity
-                key={supplier.id}
-                style={styles.supplierCard}
-                onPress={() => {
-                  setSelectedSupplier(supplier);
-                  setModalVisible(true);
-                }}
-                activeOpacity={0.7}
-              >
-                <Image source={{ uri: supplier.image }} style={styles.supplierImage} />
-                <View style={styles.supplierInfo}>
-                  <View style={styles.supplierHeader}>
-                    <View style={styles.supplierNameContainer}>
-                      <Text style={styles.supplierName}>{supplier.name}</Text>
-                      {supplier.isManual && (
-                        <View style={styles.manualBadge}>
-                          <Text style={styles.manualBadgeText}>New</Text>
-                        </View>
-                      )}
-                      <View style={styles.reliabilityBadge}>
-                        <StarIcon color="#f59e0b" size={12} />
-                        <Text style={styles.reliabilityText}>{supplier.reliability}%</Text>
-                      </View>
-                    </View>
-                    <View style={[styles.supplierQuality, { backgroundColor: getQualityBgColor(supplier.quality) }]}>
-                      <Text style={[styles.supplierQualityText, { color: getQualityColor(supplier.quality) }]}>
-                        Grade {supplier.quality}
-                      </Text>
+          {filteredSuppliers.map((supplier) => (
+            <TouchableOpacity
+              key={supplier.id}
+              style={styles.supplierCard}
+              onPress={() => {
+                setSelectedSupplier(supplier);
+                setModalVisible(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <Image source={{ uri: supplier.image }} style={styles.supplierImage} />
+              <View style={styles.supplierInfo}>
+                <View style={styles.supplierHeader}>
+                  <View style={styles.supplierNameContainer}>
+                    <Text style={styles.supplierName}>{supplier.name}</Text>
+                    <View style={styles.reliabilityBadge}>
+                      <StarIcon color="#f59e0b" size={12} />
+                      <Text style={styles.reliabilityText}>{supplier.reliability}%</Text>
                     </View>
                   </View>
-                  
-                  <Text style={styles.supplierCuisine}>{supplier.cuisine} • {supplier.location}</Text>
-                  
-                  <View style={styles.supplierStats}>
-                    <View style={styles.supplierStat}>
-                      <Text style={styles.supplierStatValue}>{supplier.volume.toLocaleString()} L</Text>
-                      <Text style={styles.supplierStatLabel}>Total</Text>
-                    </View>
-                    <View style={styles.supplierDivider} />
-                    <View style={styles.supplierStat}>
-                      <View style={styles.trendContainer}>
-                        <Text style={styles.supplierStatValue}>{supplier.deliveries}</Text>
-                        <TrendingUpIcon color="#7EE92D" size={12} />
-                      </View>
-                      <Text style={styles.supplierStatLabel}>Deliveries</Text>
-                    </View>
-                    <View style={styles.supplierDivider} />
-                    <View style={styles.supplierStat}>
-                      <Text style={styles.supplierLastDelivery}>{supplier.lastDelivery}</Text>
-                      <Text style={styles.supplierStatLabel}>Last Delivery</Text>
-                    </View>
+                  <View style={[styles.supplierQuality, { backgroundColor: getQualityBgColor(supplier.quality) }]}>
+                    <Text style={[styles.supplierQualityText, { color: getQualityColor(supplier.quality) }]}>
+                      Grade {supplier.quality}
+                    </Text>
                   </View>
                 </View>
-              </TouchableOpacity>
-            ))
-          )}
+                
+                <Text style={styles.supplierCuisine}>{supplier.cuisine} • {supplier.location}</Text>
+
+                {supplier.activeDelivery && (
+                  <View style={styles.incomingRow}>
+                    <Ionicons name="car-outline" size={13} color="#7c3aed" />
+                    <Text style={styles.incomingText} numberOfLines={1}>
+                      {supplier.activeDelivery.driverName} · {supplier.activeDelivery.statusLabel}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.supplierStats}>
+                  <View style={styles.supplierStat}>
+                    <Text style={styles.supplierStatValue}>{supplier.volume.toLocaleString()} L</Text>
+                    <Text style={styles.supplierStatLabel}>Total</Text>
+                  </View>
+                  <View style={styles.supplierDivider} />
+                  <View style={styles.supplierStat}>
+                    <View style={styles.trendContainer}>
+                      <Text style={styles.supplierStatValue}>{supplier.deliveries}</Text>
+                      <TrendingUpIcon color="#7EE92D" size={12} />
+                    </View>
+                    <Text style={styles.supplierStatLabel}>Deliveries</Text>
+                  </View>
+                  <View style={styles.supplierDivider} />
+                  <View style={styles.supplierStat}>
+                    <Text style={styles.supplierLastDelivery}>{supplier.lastDelivery}</Text>
+                    <Text style={styles.supplierStatLabel}>Last Delivery</Text>
+                  </View>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Summary Card */}
@@ -545,30 +370,26 @@ const SuppliersScreen = ({ navigation, onBack }) => {
           <Text style={styles.summaryTitle}>Supplier Summary</Text>
           <View style={styles.summaryStats}>
             <View style={styles.summaryStat}>
-              <Text style={styles.summaryStatValue}>{allSuppliers.length}</Text>
+              <Text style={styles.summaryStatValue}>{suppliersList.length}</Text>
               <Text style={styles.summaryStatLabel}>Active Suppliers</Text>
             </View>
             <View style={styles.summaryStat}>
               <Text style={styles.summaryStatValue}>
-                {allSuppliers.reduce((sum, s) => sum + s.volume, 0).toLocaleString()} L
+                {suppliersList.reduce((sum, s) => sum + s.volume, 0).toLocaleString()} L
               </Text>
               <Text style={styles.summaryStatLabel}>Total Volume</Text>
             </View>
             <View style={styles.summaryStat}>
               <Text style={styles.summaryStatValue}>
-                {allSuppliers.length > 0 ? Math.round(allSuppliers.reduce((sum, s) => sum + s.reliability, 0) / allSuppliers.length) : 0}%
+                {Math.round(suppliersList.reduce((sum, s) => sum + s.reliability, 0) / suppliersList.length)}%
               </Text>
               <Text style={styles.summaryStatLabel}>Avg Reliability</Text>
             </View>
           </View>
         </LinearGradient>
-        
-        {/* Bottom padding for better scrolling */}
-        <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {SupplierDetailModal}
-      {AddSupplierModal}
+      <SupplierDetailModal />
     </View>
   );
 };
@@ -615,18 +436,9 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginTop: 2,
   },
-  addButton: {
+  headerSpacer: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: '600',
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -648,39 +460,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  filtersScroll: {
-    marginTop: 8,
-  },
-  filtersContainer: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginRight: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  filterChipActive: {
-    backgroundColor: '#8b5cf6',
-  },
-  filterText: {
-    fontSize: 13,
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  filterTextActive: {
-    color: '#fff',
   },
   suppliersList: {
     paddingHorizontal: 16,
@@ -717,24 +496,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     flexWrap: 'wrap',
   },
   supplierName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
-  },
-  manualBadge: {
-    backgroundColor: '#8b5cf6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  manualBadgeText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#fff',
   },
   reliabilityBadge: {
     flexDirection: 'row',
@@ -763,6 +531,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
     marginBottom: 8,
+  },
+  incomingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f5f3ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
+  incomingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7c3aed',
   },
   supplierStats: {
     flexDirection: 'row',
@@ -804,7 +589,7 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 16,
     padding: 20,
-    marginBottom: 10,
+    marginBottom: 30,
   },
   summaryTitle: {
     fontSize: 16,
@@ -891,18 +676,45 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-  manualTag: {
-    marginTop: 4,
-    backgroundColor: '#8b5cf6',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
+  incomingCard: {
+    backgroundColor: '#f5f3ff',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
   },
-  manualTagText: {
-    fontSize: 10,
+  incomingCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  incomingCardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#7c3aed',
+  },
+  incomingCardText: {
+    fontSize: 14,
+    color: '#4c1d95',
+    marginBottom: 4,
+  },
+  confirmReceivedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#7c3aed',
+  },
+  confirmReceivedBtnDisabled: {
+    opacity: 0.6,
+  },
+  confirmReceivedBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
     color: '#fff',
-    fontWeight: '500',
   },
   modalStats: {
     flexDirection: 'row',
@@ -957,67 +769,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
-  },
-  // Add Supplier Modal Styles
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    flex: 1,
-  },
-  addForm: {
-    marginTop: 10,
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  formLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  formInput: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  submitButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  submitGradient: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  bottomPadding: {
-    height: 30,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  emptyStateSubtext: {
-    fontSize: 13,
-    color: '#9ca3af',
-    marginTop: 8,
   },
 });
 

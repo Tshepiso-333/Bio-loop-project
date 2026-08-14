@@ -14,6 +14,7 @@ import {
   updateProfileStatus,
   updateRestaurantPrimaryManufacturer,
   updateWithdrawalStatus,
+  setDriverPayoutAmount,
 } from '../services/adminService';
 import { updatePlatformSettings } from '../services/payoutService';
 
@@ -42,6 +43,7 @@ const EMPTY_STATE = {
   aiChatMessages: [],
   collectorWallets: [],
   platformSettings: [],
+  paymentTransactions: [],
   tableOverview: [],
   errors: [],
 };
@@ -113,8 +115,10 @@ export function AdminProvider({ children }) {
         runMutation(() => createManualPickupRequest(payload)),
       convertManualRequestToPickup: (manualRequest) =>
         runMutation(() => convertManualRequestToPickup(manualRequest)),
-      assignCollectorToPickup: (pickupId, collector) =>
-        runMutation(() => assignCollectorToPickup(pickupId, collector)),
+      assignCollectorToPickup: (pickupId, collector, driverPayoutAmount) =>
+        runMutation(() => assignCollectorToPickup(pickupId, collector, driverPayoutAmount)),
+      setDriverPayoutAmount: (pickupId, amount) =>
+        runMutation(() => setDriverPayoutAmount(pickupId, amount)),
       updateRestaurantPrimaryManufacturer: (restaurantId, manufacturerId) =>
         runMutation(() => updateRestaurantPrimaryManufacturer(restaurantId, manufacturerId)),
       updatePlatformSettings: (settingsId, payload) =>

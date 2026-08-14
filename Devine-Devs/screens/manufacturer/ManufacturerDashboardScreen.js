@@ -11,7 +11,7 @@ import {
   Dimensions,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
@@ -44,12 +44,70 @@ const THEME = {
   grayLight: '#E5E7EB',
 };
 
+// Labels for the "Upcoming Deliveries" list — mirrors the driver-side trip
+// checkpoints in src/lib/pickupStatus.js so a manufacturer can see oil
+// approaching (in_transit/collected) vs. already on-site (arrived_manufacturer).
+const DELIVERY_STATUS_LABELS = {
+  scheduled: 'Scheduled',
+  pending: 'Scheduled',
+  in_transit: 'Driver en route to restaurant',
+  arrival: 'Driver at restaurant',
+  in_progress: 'Collecting',
+  collected: 'On the way to you',
+  arrived_manufacturer: 'Driver arrived',
+  completed: 'Delivered',
+};
+
+const DELIVERY_STATUS_COLORS = {
+  collected: '#7EE92D',
+  arrived_manufacturer: '#f59e0b',
+  completed: '#7EE92D',
+};
+
 const ManufacturerDashboardScreen = ({ navigation }) => {
   const { signOut } = useAuth();
-  const { manufacturer, inventory, tanks, forecasts, pickups, alerts, loading, refreshManufacturer } = useManufacturerContext();
+  const { manufacturer, inventory, tanks, forecasts, pickups, alerts, loading, refreshManufacturer, updateAlertReadStatus } = useManufacturerContext();
   const { profile } = useProfile();
+  const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState('home');
+  // Surfaces the newest unread alert on the Home tab instead of leaving it
+  // hidden behind the header bell — tapping it routes to wherever that alert
+  // is actually actionable (quality alerts -> Quality tab, everything else
+  // that doesn't have its own tab -> Alerts, where the full inbox lives).
+  const latestUnreadAlert = useMemo(() => {
+    const unread = (alerts || []).filter((a) => !a.is_read);
+    if (!unread.length) return null;
+    return [...unread].sort(
+      (a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0)
+    )[0];
+  }, [alerts]);
+
+  const ALERT_CATEGORY_TAB = {
+    quality: 'quality',
+    delivery: 'home',
+    inventory: 'home',
+  };
+
+  const handlePressAlertBanner = async () => {
+    if (!latestUnreadAlert) return;
+    const targetTab = ALERT_CATEGORY_TAB[latestUnreadAlert.category] ?? 'alerts';
+    try {
+      await updateAlertReadStatus(latestUnreadAlert.id, true);
+    } catch (err) {
+      console.error('Error marking alert read:', err.message);
+    }
+    setSelectedTab(targetTab);
+  };
+
+  const handleDismissAlertBanner = async () => {
+    if (!latestUnreadAlert) return;
+    try {
+      await updateAlertReadStatus(latestUnreadAlert.id, true);
+    } catch (err) {
+      console.error('Error dismissing alert:', err.message);
+    }
+  };
 
   const profileInitials = useMemo(
     () => getInitials(profile?.full_name ?? manufacturer?.contact_person ?? manufacturer?.name, 'MF'),
@@ -87,8 +145,15 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
     { name: 'Grade C', value: sevenDayForecast.grade_c_pct ?? 0, color: '#ef4444' },
   ] : [];
 
-  // Use real pickups or empty placeholder
-  const upcomingDeliveries = (pickups || []).slice(0, 3).map(p => ({
+  // Use real pickups or empty placeholder. Deliveries waiting on this
+  // manufacturer's confirmation are bumped to the front so "Confirm Received"
+  // doesn't get buried behind newer, less-actionable pickups in the top-3 preview.
+  const sortedPickups = [...(pickups || [])].sort((a, b) => {
+    const aWaiting = a.status === 'arrived_manufacturer' ? 0 : 1;
+    const bWaiting = b.status === 'arrived_manufacturer' ? 0 : 1;
+    return aWaiting - bWaiting;
+  });
+  const upcomingDeliveries = sortedPickups.slice(0, 3).map(p => ({
     id: p.id,
     restaurant: p.restaurants?.name ?? 'Unknown',
     volume: p.estimated_volume_liters ?? p.actual_volume_liters ?? 0,
@@ -237,54 +302,45 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
-          <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
-            <View style={styles.headerContent}>
-              {/* Left side - Logo */}
-              <View style={styles.logoContainer}>
-                <View style={styles.logoCircle}>
-                  <Image 
-                    source={require('../../assets/BioLoop_Logo.png')} 
-                    style={styles.logoImage}
-                    resizeMode="cover"
-                  />
-                </View>
-                <View>
-                  <Text style={styles.appName}>BioLoop</Text>
-                  <Text style={styles.companyName}>Manufacturer Portal</Text>
-                </View>
+          <View style={styles.headerContent}>
+            {/* Left side - Logo */}
+            <View style={styles.logoContainer}>
+              <View style={styles.logoCircle}>
+                <Image 
+                  source={require('../../assets/BioLoop_Logo.png')} 
+                  style={styles.logoImage}
+                  resizeMode="cover"
+                />
               </View>
-              
-              {/* Right side - Notifications and Profile */}
-              <View style={styles.headerRight}>
-                {/* Notifications Button */}
-                <TouchableOpacity 
-                  style={styles.notificationButton}
-                  onPress={() => setSelectedTab('alerts')}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-                  {unreadCount > 0 && (
-                    <View style={styles.notificationDot}>
-                      <Text style={styles.notificationBadgeText}>
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                
-                {/* Profile Button */}
-                <TouchableOpacity
-                  style={styles.profileCircle}
-                  onPress={() => setSelectedTab('profile')}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.profileInitial}>{profileInitials}</Text>
-                </TouchableOpacity>
+              <View>
+                <Text style={styles.appName}>BioLoop</Text>
+                <Text style={styles.companyName}>Manufacturer Portal</Text>
               </View>
             </View>
-          </SafeAreaView>
+            
+            {/* Right side - Notifications and Profile */}
+            <View style={styles.headerRight}>
+              {/* Notifications Button */}
+              <TouchableOpacity 
+                style={styles.notificationButton}
+                onPress={() => setSelectedTab('alerts')}
+              >
+                <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+                {unreadCount > 0 && (
+                  <View style={styles.notificationDot}>
+                    <Text style={styles.notificationBadgeText}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              
+              {/* Profile Button */}
+              <TouchableOpacity style={styles.profileCircle} onPress={() => setSelectedTab('profile')}>
+                <Text style={styles.profileInitial}>{profileInitials}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </LinearGradient>
       </>
     );
@@ -369,6 +425,30 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
       case 'home':
         return (
           <>
+            {/* Latest unread alert — pops up here instead of hiding behind the bell icon */}
+            {latestUnreadAlert && (
+              <TouchableOpacity
+                style={styles.alertBanner}
+                onPress={handlePressAlertBanner}
+                activeOpacity={0.85}
+              >
+                <View style={styles.alertBannerIcon}>
+                  <Ionicons name="notifications" size={18} color="#fff" />
+                </View>
+                <View style={styles.alertBannerBody}>
+                  <Text style={styles.alertBannerTitle} numberOfLines={1}>{latestUnreadAlert.title}</Text>
+                  <Text style={styles.alertBannerMessage} numberOfLines={2}>{latestUnreadAlert.message}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.alertBannerClose}
+                  onPress={handleDismissAlertBanner}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={16} color="#9ca3af" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            )}
+
             {/* Stats Cards */}
             <View style={styles.statsGrid}>
               <LinearGradient
@@ -503,13 +583,24 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                       <View style={styles.deliveryTimeInfo}>
                         <Text style={styles.etaText}>{delivery.eta}</Text>
                         <View style={styles.statusContainer}>
-                          <View style={[styles.statusDot, { backgroundColor: delivery.status === 'in_transit' ? '#7EE92D' : '#999' }]} />
-                          <Text style={[styles.statusText, { color: delivery.status === 'in_transit' ? '#7EE92D' : '#666' }]}>
-                            {delivery.status === 'in_transit' ? 'In Transit' : 'Scheduled'}
+                          <View style={[styles.statusDot, { backgroundColor: DELIVERY_STATUS_COLORS[delivery.status] ?? '#999' }]} />
+                          <Text style={[styles.statusText, { color: DELIVERY_STATUS_COLORS[delivery.status] ?? '#666' }]}>
+                            {DELIVERY_STATUS_LABELS[delivery.status] ?? 'Scheduled'}
                           </Text>
                         </View>
                       </View>
                     </View>
+
+                    {delivery.status === 'arrived_manufacturer' && (
+                      <TouchableOpacity
+                        style={styles.confirmReceivedBtn}
+                        onPress={() => navigation.navigate('ManufacturerPayment', { pickupId: delivery.id })}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons name="card-outline" size={16} color="#fff" />
+                        <Text style={styles.confirmReceivedBtnText}>Confirm Received & Pay</Text>
+                      </TouchableOpacity>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -517,17 +608,17 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
           </>
         );
       case 'quality':
-        return <QualityScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
+        return <QualityScreen navigation={navigation} />;
       case 'forecasts':
-        return <ForecastsScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
+        return <ForecastsScreen navigation={navigation} />;
       case 'ai-chat':
-        return <AIChatScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
+        return <AIChatScreen navigation={navigation} />;
       case 'suppliers':
-        return <SuppliersScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
+        return <SuppliersScreen navigation={navigation} />;
       case 'alerts':
-        return <AlertsScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
+        return <AlertsScreen navigation={navigation} />;
       case 'profile':
-        return <ProfileScreen navigation={navigation} onBack={() => setSelectedTab('home')} />;
+        return <ProfileScreen navigation={navigation} />;
       default:
         return null;
     }
@@ -541,15 +632,18 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         style={styles.scrollView}
-        contentContainerStyle={selectedTab === 'home' ? styles.scrollContent : {}}
+        contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.content}>
           {renderContent()}
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation - Centered with AI Chat in middle */}
-      <View style={styles.bottomNav}>
+      {/* Bottom Navigation - Centered with AI Chat in middle. Not absolutely
+          positioned: it's a normal flex-column sibling so the ScrollView
+          above it gets a viewport height that already excludes this bar,
+          instead of floating over the last ~90px of every tab's content. */}
+      <View style={[styles.bottomNav, { paddingBottom: Math.max(8, insets.bottom) }]}>
         <TouchableOpacity style={styles.navItem} onPress={() => setSelectedTab('home')}>
           <View style={[styles.navIconContainer, selectedTab === 'home' && styles.activeNavIcon]}>
             <HomeIcon color={selectedTab === 'home' ? '#10b981' : '#6b7280'} size={24} />
@@ -600,12 +694,9 @@ const styles = StyleSheet.create({
   header: {
     paddingBottom: 12,
   },
-  headerSafeArea: {
-    backgroundColor: 'transparent',
-  },
   headerContent: {
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -699,6 +790,41 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  alertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#111827',
+    gap: 10,
+  },
+  alertBannerIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: THEME.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertBannerBody: {
+    flex: 1,
+  },
+  alertBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  alertBannerMessage: {
+    fontSize: 12,
+    color: '#d1d5db',
+    lineHeight: 16,
+  },
+  alertBannerClose: {
+    padding: 4,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -998,19 +1124,33 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
   },
+  confirmReceivedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: THEME.primary,
+  },
+  confirmReceivedBtnDisabled: {
+    opacity: 0.6,
+  },
+  confirmReceivedBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: '#fff',
-    paddingVertical: 8,
+    paddingTop: 8,
     paddingHorizontal: 8,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
   },
   navItem: {
     alignItems: 'center',

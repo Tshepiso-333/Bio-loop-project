@@ -1,10 +1,71 @@
 import { supabase } from '../../supabase';
 import { pickups as pickupsSchema } from '../lib/dbColumns';
-import { finalizePickupEarnings } from './payoutService';
-import { notifyAllAdmins } from './notificationService';
+import { notifyAllAdmins, notifyUser } from './notificationService';
 
 const assignedPickupSelect =
-  '*, restaurants(name, address, latitude, longitude, phone), manufacturers(name)';
+  '*, restaurants(name, address, latitude, longitude, phone, owner_user_id), manufacturers(name, address, latitude, longitude, owner_user_id), collectors(full_name)';
+
+/**
+ * Trip checkpoints fire a notification to whoever is affected by that leg —
+ * restaurant + admin on the first leg, manufacturer + admin on the second.
+ * The driver's part ends at 'arrived_manufacturer' — completion (and its
+ * notifications) is the manufacturer's action, see
+ * manufacturerService.confirmDeliveryReceived. Best-effort: a failed
+ * notification must never block the driver's status update, so this is
+ * always caught by the caller.
+ */
+async function notifyForStatus(pickup, status) {
+  const driverName = pickup.collectors?.full_name ?? 'Your driver';
+  const restaurantName = pickup.restaurants?.name ?? 'the restaurant';
+  const manufacturerName = pickup.manufacturers?.name ?? 'the manufacturer';
+  const restaurantOwnerId = pickup.restaurants?.owner_user_id ?? null;
+  const manufacturerOwnerId = pickup.manufacturers?.owner_user_id ?? null;
+
+  const jobs = [];
+
+  if (status === 'arrival') {
+    if (restaurantOwnerId) {
+      jobs.push(notifyUser(restaurantOwnerId, {
+        title: 'Driver has arrived',
+        message: `${driverName} has arrived to collect your oil. Please have it ready.`,
+        category: 'delivery',
+      }));
+    }
+    jobs.push(notifyAllAdmins({
+      title: 'Driver arrived at restaurant',
+      message: `${driverName} arrived at ${restaurantName} for pickup.`,
+      category: 'delivery',
+    }));
+  } else if (status === 'collected') {
+    if (manufacturerOwnerId) {
+      jobs.push(notifyUser(manufacturerOwnerId, {
+        title: 'Oil on the way',
+        message: `${driverName} collected oil from ${restaurantName} and is heading to you.`,
+        category: 'delivery',
+      }));
+    }
+    jobs.push(notifyAllAdmins({
+      title: 'Oil collected',
+      message: `${driverName} collected oil from ${restaurantName}, en route to ${manufacturerName}.`,
+      category: 'delivery',
+    }));
+  } else if (status === 'arrived_manufacturer') {
+    if (manufacturerOwnerId) {
+      jobs.push(notifyUser(manufacturerOwnerId, {
+        title: 'Driver has arrived',
+        message: `${driverName} has arrived with oil from ${restaurantName}.`,
+        category: 'delivery',
+      }));
+    }
+    jobs.push(notifyAllAdmins({
+      title: 'Driver arrived at manufacturer',
+      message: `${driverName} arrived at ${manufacturerName} with the collected oil.`,
+      category: 'delivery',
+    }));
+  }
+
+  if (jobs.length) await Promise.allSettled(jobs);
+}
 
 export async function getCollectorByOwnerId(ownerUserId) {
   const { data, error } = await supabase
@@ -29,26 +90,22 @@ export async function getAssignedPickups(collectorId) {
 }
 
 export async function updatePickupStatus(pickupId, status) {
-  const updates = {
-    status,
-    updated_at: new Date().toISOString(),
-  };
-
-  if (status === 'completed') {
-    updates.completed_at = new Date().toISOString();
-  }
-
   const { data, error } = await supabase
     .from(pickupsSchema.table)
-    .update(updates)
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', pickupId)
     .select(assignedPickupSelect)
     .single();
 
   if (error) throw error;
 
-  if (status === 'completed') {
-    await finalizePickupEarnings(data);
+  try {
+    await notifyForStatus(data, status);
+  } catch (err) {
+    console.error('Error sending pickup status notifications:', err.message);
   }
 
   return data;

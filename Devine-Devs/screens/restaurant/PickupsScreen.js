@@ -31,9 +31,19 @@ const PROGRESS_STEPS = [
   { key: 'scheduled', label: 'Scheduled' },
   { key: 'in_transit', label: 'In Transit' },
   { key: 'arrival', label: 'Arrival' },
+  { key: 'collected', label: 'Collected' },
+  { key: 'arrived_manufacturer', label: 'Delivered' },
 ];
 
-const CANNOT_CANCEL_STATUSES = ['in_transit', 'arrival', 'in_progress', 'completed', 'cancelled'];
+const CANNOT_CANCEL_STATUSES = [
+  'in_transit',
+  'arrival',
+  'in_progress',
+  'collected',
+  'arrived_manufacturer',
+  'completed',
+  'cancelled',
+];
 
 // ─── MAIN SCREEN ──────────────────────────────────────────────────────────────
 

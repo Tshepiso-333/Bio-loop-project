@@ -8,6 +8,7 @@ import AIChatScreen from '../screens/manufacturer/AIChatScreen';
 import SuppliersScreen from '../screens/manufacturer/SuppliersScreen';
 import AlertsScreen from '../screens/manufacturer/AlertsScreen';
 import ProfileScreen from '../screens/manufacturer/ProfileScreen';
+import ManufacturerPaymentScreen from '../screens/manufacturer/ManufacturerPaymentScreen';
 import ProfileEditRoute from '../screens/profile/ProfileEditRoute';
 
 const Stack = createNativeStackNavigator();
@@ -70,7 +71,13 @@ function ManufacturerStack() {
         component={ProfileEditRoute}
         options={{ presentation: 'card' }}
       />
-      
+
+      <Stack.Screen
+        name="ManufacturerPayment"
+        component={ManufacturerPaymentScreen}
+        options={{ presentation: 'card' }}
+      />
+
     </Stack.Navigator>
   );
 }

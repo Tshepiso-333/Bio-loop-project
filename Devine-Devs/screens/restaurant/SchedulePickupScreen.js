@@ -34,6 +34,11 @@ export default function SchedulePickupScreen({ navigation }) {
   const [error, setError] = useState('');
 
   const upcomingPickup = useMemo(() => getUpcomingPickup(pickups), [pickups]);
+  // Once a pickup already exists there's no update path for its time/notes —
+  // this screen used to let you "change" them and silently discard it on
+  // Confirm. Rather than build real edit support, it's now view-only for an
+  // existing pickup so nothing implies a change is being saved when it isn't.
+  const isExisting = !!upcomingPickup;
   const statusCard = useMemo(
     () => mapScheduleStatus({ tank, qualityLogs }),
     [tank, qualityLogs]
@@ -46,19 +51,23 @@ export default function SchedulePickupScreen({ navigation }) {
     () => mapScheduleDriver(upcomingPickup),
     [upcomingPickup]
   );
+  const existingTimeWindow = useMemo(() => {
+    if (!upcomingPickup?.pickup_time_start || !upcomingPickup?.pickup_time_end) return null;
+    const fmt = (t) => t?.slice(0, 5) ?? '';
+    return `${fmt(upcomingPickup.pickup_time_start)} - ${fmt(upcomingPickup.pickup_time_end)}`;
+  }, [upcomingPickup]);
 
   const handleConfirm = async () => {
+    if (isExisting) return;
     setSubmitting(true);
     setError('');
 
     try {
-      if (!upcomingPickup) {
-        await createPickupRequest({
-          status: 'scheduled',
-          time_window: selectedSlot,
-          notes: notes.trim() || null,
-        });
-      }
+      await createPickupRequest({
+        status: 'scheduled',
+        time_window: selectedSlot,
+        notes: notes.trim() || null,
+      });
 
       setConfirmed(true);
       setTimeout(() => navigation.navigate('RestaurantTabs', { screen: 'Pickups' }), 1800);
@@ -102,28 +111,37 @@ export default function SchedulePickupScreen({ navigation }) {
         </View>
 
         <Text style={styles.sectionLabel}>Preferred time window</Text>
-        <View style={styles.slotGrid}>
-          {TIME_SLOTS.map((slot) => (
-            <Pressable
-              key={slot}
-              style={({ pressed }) => [
-                styles.slotItem,
-                selectedSlot === slot && styles.slotItemActive,
-                pressed && { opacity: 0.85 },
-              ]}
-              onPress={() => setSelectedSlot(slot)}
-            >
-              <Ionicons
-                name="time-outline"
-                size={14}
-                color={selectedSlot === slot ? REST_COLORS.white : REST_COLORS.body}
-              />
-              <Text style={[styles.slotText, selectedSlot === slot && styles.slotTextActive]}>
-                {slot}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        {isExisting ? (
+          <View style={styles.card}>
+            <View style={styles.dateRow}>
+              <Ionicons name="time-outline" size={18} color={REST_COLORS.primary} />
+              <Text style={styles.dateText}>{existingTimeWindow ?? 'Not set'}</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.slotGrid}>
+            {TIME_SLOTS.map((slot) => (
+              <Pressable
+                key={slot}
+                style={({ pressed }) => [
+                  styles.slotItem,
+                  selectedSlot === slot && styles.slotItemActive,
+                  pressed && { opacity: 0.85 },
+                ]}
+                onPress={() => setSelectedSlot(slot)}
+              >
+                <Ionicons
+                  name="time-outline"
+                  size={14}
+                  color={selectedSlot === slot ? REST_COLORS.white : REST_COLORS.body}
+                />
+                <Text style={[styles.slotText, selectedSlot === slot && styles.slotTextActive]}>
+                  {slot}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.sectionLabel}>Assigned driver</Text>
         <View style={styles.card}>
@@ -140,29 +158,38 @@ export default function SchedulePickupScreen({ navigation }) {
                 </Text>
               </View>
             </View>
-            <View style={styles.driverOnline}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>Available</Text>
-            </View>
           </View>
         </View>
 
         <Text style={styles.sectionLabel}>Additional notes (optional)</Text>
-        <TextInput
-          style={[styles.notesInput, notesFocused && styles.notesInputFocused]}
-          placeholder="e.g. Use back entrance, call on arrival..."
-          placeholderTextColor={REST_COLORS.muted}
-          value={notes}
-          onChangeText={setNotes}
-          onFocus={() => setNotesFocused(true)}
-          onBlur={() => setNotesFocused(false)}
-          multiline
-          numberOfLines={3}
-        />
+        {isExisting ? (
+          <View style={[styles.card, { marginBottom: 20 }]}>
+            <Text style={styles.notesReadOnlyText}>
+              {upcomingPickup.notes?.trim() || 'No notes added.'}
+            </Text>
+          </View>
+        ) : (
+          <TextInput
+            style={[styles.notesInput, notesFocused && styles.notesInputFocused]}
+            placeholder="e.g. Use back entrance, call on arrival..."
+            placeholderTextColor={REST_COLORS.muted}
+            value={notes}
+            onChangeText={setNotes}
+            onFocus={() => setNotesFocused(true)}
+            onBlur={() => setNotesFocused(false)}
+            multiline
+            numberOfLines={3}
+          />
+        )}
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        {confirmed ? (
+        {isExisting ? (
+          <View style={styles.successBanner}>
+            <Ionicons name="information-circle" size={20} color={REST_COLORS.primary} />
+            <Text style={styles.successText}>This pickup is already scheduled.</Text>
+          </View>
+        ) : confirmed ? (
           <View style={styles.successBanner}>
             <Ionicons name="checkmark-circle" size={20} color={REST_COLORS.primary} />
             <Text style={styles.successText}>Pickup confirmed! Redirecting...</Text>
@@ -188,7 +215,7 @@ export default function SchedulePickupScreen({ navigation }) {
           style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.85 }]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+          <Text style={styles.cancelButtonText}>{isExisting ? 'Back' : 'Cancel'}</Text>
         </Pressable>
 
         <View style={{ height: insets.bottom + 16 }} />
@@ -256,10 +283,10 @@ const styles = StyleSheet.create({
   driverName: { fontFamily: REST_FONTS.semiBold, fontSize: 15, color: REST_COLORS.ink },
   driverRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   driverRating: { fontFamily: REST_FONTS.medium, fontSize: 12, color: REST_COLORS.muted },
-  driverOnline: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: REST_COLORS.primary },
-  onlineText: { fontFamily: REST_FONTS.medium, fontSize: 12, color: REST_COLORS.primary },
 
+  notesReadOnlyText: {
+    fontFamily: REST_FONTS.medium, fontSize: 14, color: REST_COLORS.ink, lineHeight: 20,
+  },
   notesInput: {
     backgroundColor: REST_COLORS.surfaceSoft, borderWidth: 1.5,
     borderColor: REST_COLORS.border, borderRadius: REST_RADII.input,

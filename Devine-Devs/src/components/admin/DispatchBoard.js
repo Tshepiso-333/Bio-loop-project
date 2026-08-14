@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Alert, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const URGENCY_ORDER = { urgent: 0, standard: 1 };
@@ -25,6 +25,7 @@ function onDutyCollectors(collectors) {
 
 export default function DispatchBoard({ admin, ui }) {
   const { styles, COLORS, getStatusColor, formatDate, labelFromKey, AssignmentRow, ActionButton, EmptyState } = ui;
+  const [payoutDrafts, setPayoutDrafts] = useState({}); // pickupId -> string amount, typed before assigning
 
   const restaurantsById = useMemo(() => {
     return admin.restaurants.reduce((acc, restaurant) => {
@@ -68,7 +69,7 @@ export default function DispatchBoard({ admin, ui }) {
           <View key={request.id} style={styles.card}>
             <View style={styles.cardTop}>
               <View style={styles.avatar}>
-                <Ionicons name="alert-circle-outline" size={18} color={COLORS.greenDark} />
+                <Ionicons name="alert-circle-outline" size={18} color={COLORS.primary} />
               </View>
               <View style={styles.cardMain}>
                 <Text style={styles.cardTitle}>{restaurant?.name ?? 'Unknown restaurant'}</Text>
@@ -118,6 +119,15 @@ export default function DispatchBoard({ admin, ui }) {
                 </Text>
               </View>
             </View>
+            <Text style={styles.sectionMiniTitle}>Driver pay for this pickup</Text>
+            <TextInput
+              style={styles.search}
+              placeholder="e.g. 150"
+              placeholderTextColor={COLORS.muted}
+              keyboardType="decimal-pad"
+              value={payoutDrafts[pickup.id] ?? ''}
+              onChangeText={(text) => setPayoutDrafts((prev) => ({ ...prev, [pickup.id]: text }))}
+            />
             <Text style={styles.sectionMiniTitle}>Assign driver</Text>
             <AssignmentRow
               items={sortedCollectors}
@@ -128,7 +138,9 @@ export default function DispatchBoard({ admin, ui }) {
               onSelect={(collectorId) => {
                 const collector = admin.collectors.find((item) => item.id === collectorId);
                 if (!collector) return;
-                withMutation('Assign driver', () => admin.assignCollectorToPickup(pickup.id, collector));
+                const draft = payoutDrafts[pickup.id];
+                const payoutAmount = draft && !Number.isNaN(Number(draft)) ? Number(draft) : undefined;
+                withMutation('Assign driver', () => admin.assignCollectorToPickup(pickup.id, collector, payoutAmount));
               }}
             />
           </View>

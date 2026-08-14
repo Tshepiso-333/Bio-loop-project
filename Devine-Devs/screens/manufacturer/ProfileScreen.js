@@ -1,4 +1,3 @@
-// screens/manufacturer/ProfileScreen.js
 import React, { useState } from 'react';
 import {
   View,
@@ -14,14 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line,Polyline } from 'react-native-svg';
 import { useAuth } from '../../AuthContext';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
 
-const ProfileScreen = ({ navigation, onBack }) => {
+const ProfileScreen = ({ navigation }) => {
   const { signOut } = useAuth();
   const { profile: authProfile } = useProfile();
   const { manufacturer } = useManufacturerContext();
@@ -208,26 +207,20 @@ const ProfileScreen = ({ navigation, onBack }) => {
     </Svg>
   );
 
-  // Header Component - Fixed
+  // Header Component
   const Header = () => (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#7c3aed" />
+      <StatusBar barStyle="light-content" backgroundColor="#059669" />
       <LinearGradient
-        colors={['#8b5cf6', '#7c3aed', '#6d28d9']}
+        colors={['#10b981', '#059669', '#047857']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
       >
         <View style={styles.headerContent}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
-            onPress={() => {
-              if (onBack) {
-                onBack();
-              } else {
-                navigation.goBack();
-              }
-            }}
+            onPress={() => navigation.navigate('ManufacturerDashboardScreen')}
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
@@ -240,7 +233,7 @@ const ProfileScreen = ({ navigation, onBack }) => {
             onPress={() => navigation?.navigate?.('ProfileEdit')}
           >
             <EditIcon color="#fff" size={18} />
-            <Text style={styles.editButtonText}>Edit</Text>
+            <Text style={styles.editButtonText}>Edit profile</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -286,7 +279,7 @@ const ProfileScreen = ({ navigation, onBack }) => {
         </View>
         {isEditing && (
           <TouchableOpacity onPress={() => handleEdit(field, value)} style={styles.fieldEditIcon}>
-            <EditIcon color="#8b5cf6" size={16} />
+            <EditIcon color="#10b981" size={16} />
           </TouchableOpacity>
         )}
       </View>
@@ -294,20 +287,18 @@ const ProfileScreen = ({ navigation, onBack }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Header />
       
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Profile Image Section - Fixed positioning */}
+        {/* Profile Image Section */}
         <View style={styles.profileImageSection}>
-          <View style={styles.profileAvatarContainer}>
-            <ProfileAvatar
-              name={manufacturer?.name ?? profile.name}
-              imageUrl={manufacturer?.profile_image_url ?? authProfile?.profile_image_url}
-              size={96}
-            />
-            <VerifiedBadge isVerified={manufacturer?.is_verified} style={{ marginTop: 10 }} />
-          </View>
+          <ProfileAvatar
+            name={manufacturer?.name ?? profile.name}
+            imageUrl={manufacturer?.profile_image_url ?? authProfile?.profile_image_url}
+            size={96}
+          />
+          <VerifiedBadge isVerified={manufacturer?.is_verified} style={{ marginTop: 10 }} />
         </View>
 
         {/* Personal Information Card */}
@@ -384,7 +375,7 @@ const ProfileScreen = ({ navigation, onBack }) => {
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotificationsEnabled}
-              trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
+              trackColor={{ false: '#e5e7eb', true: '#10b981' }}
               thumbColor={notificationsEnabled ? '#fff' : '#f3f4f6'}
             />
           </View>
@@ -397,7 +388,7 @@ const ProfileScreen = ({ navigation, onBack }) => {
             <Switch
               value={emailAlertsEnabled}
               onValueChange={setEmailAlertsEnabled}
-              trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
+              trackColor={{ false: '#e5e7eb', true: '#10b981' }}
               thumbColor={emailAlertsEnabled ? '#fff' : '#f3f4f6'}
             />
           </View>
@@ -410,7 +401,7 @@ const ProfileScreen = ({ navigation, onBack }) => {
             <Switch
               value={darkModeEnabled}
               onValueChange={setDarkModeEnabled}
-              trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
+              trackColor={{ false: '#e5e7eb', true: '#10b981' }}
               thumbColor={darkModeEnabled ? '#fff' : '#f3f4f6'}
             />
           </View>
@@ -423,7 +414,7 @@ const ProfileScreen = ({ navigation, onBack }) => {
             <Switch
               value={biometricEnabled}
               onValueChange={setBiometricEnabled}
-              trackColor={{ false: '#e5e7eb', true: '#8b5cf6' }}
+              trackColor={{ false: '#e5e7eb', true: '#10b981' }}
               thumbColor={biometricEnabled ? '#fff' : '#f3f4f6'}
             />
           </View>
@@ -462,7 +453,7 @@ const ProfileScreen = ({ navigation, onBack }) => {
 
         <View style={styles.footer} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -472,12 +463,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   header: {
-    paddingTop: 0,
+    paddingTop: 48,
     paddingBottom: 16,
   },
   headerContent: {
     paddingHorizontal: 20,
-    paddingTop: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -525,20 +515,8 @@ const styles = StyleSheet.create({
   },
   profileImageSection: {
     alignItems: 'center',
-    marginTop: -48,
+    marginTop: -30,
     marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  profileAvatarContainer: {
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 60,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
   },
   profileImageBorder: {
     width: 100,
@@ -558,14 +536,14 @@ const styles = StyleSheet.create({
   profileInitials: {
     fontSize: 36,
     fontWeight: '600',
-    color: '#8b5cf6',
+    color: '#10b981',
   },
   changePhotoButton: {
     marginTop: 8,
   },
   changePhotoText: {
     fontSize: 13,
-    color: '#8b5cf6',
+    color: '#10b981',
     fontWeight: '500',
   },
   sectionCard: {
@@ -616,7 +594,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#111827',
     borderBottomWidth: 1,
-    borderBottomColor: '#8b5cf6',
+    borderBottomColor: '#10b981',
     paddingVertical: 4,
     minWidth: 150,
   },
@@ -676,7 +654,7 @@ const styles = StyleSheet.create({
   },
   infoLink: {
     fontSize: 14,
-    color: '#8b5cf6',
+    color: '#10b981',
     fontWeight: '500',
   },
   logoutButton: {
