@@ -25,6 +25,7 @@ const TABLES = {
   forecasts: 'forecasts',
   aiChatMessages: 'ai_chat_messages',
   platformSettings: 'platform_settings',
+  paymentTransactions: 'payment_transactions',
 };
 
 async function readList(key, query) {
@@ -66,6 +67,10 @@ export async function loadAdminBundle() {
     readList('forecasts', supabase.from(TABLES.forecasts).select('*').order('created_at', { ascending: false })),
     readList('aiChatMessages', supabase.from(TABLES.aiChatMessages).select('*').order('created_at', { ascending: false })),
     readList('platformSettings', supabase.from(TABLES.platformSettings).select('*').limit(1)),
+    readList('paymentTransactions', supabase
+      .from(TABLES.paymentTransactions)
+      .select('*, manufacturers(name), pickups(restaurant_id, collector_id, restaurants(name), collectors(full_name))')
+      .order('created_at', { ascending: false })),
   ]);
 
   const bundle = reads.reduce((acc, result) => {
@@ -234,6 +239,16 @@ export async function deleteAlert(alertId) {
 }
 
 export async function convertManualRequestToPickup(manualRequest) {
+  const { data: existingPickup, error: existingError } = await supabase
+    .from(TABLES.pickups)
+    .select('id')
+    .eq('manual_request_id', manualRequest.id)
+    .maybeSingle();
+  if (existingError) throw existingError;
+  if (existingPickup) {
+    throw new Error('This request was already converted to a pickup.');
+  }
+
   let qualityGrade = null;
   if (manualRequest.tank_id) {
     const { data: tank, error: tankError } = await supabase
@@ -289,10 +304,24 @@ export async function notifyCollectorAssignment(collector, pickup) {
   return data;
 }
 
-export async function assignCollectorToPickup(pickupId, collector) {
-  const pickup = await assignPickup(pickupId, { collector_id: collector.id, status: 'scheduled' });
+export async function assignCollectorToPickup(pickupId, collector, driverPayoutAmount) {
+  const updates = { collector_id: collector.id, status: 'scheduled' };
+  if (driverPayoutAmount !== undefined && driverPayoutAmount !== null && driverPayoutAmount !== '') {
+    updates.driver_payout_amount = Number(driverPayoutAmount);
+  }
+  const pickup = await assignPickup(pickupId, updates);
   await notifyCollectorAssignment(collector, pickup);
   return pickup;
+}
+
+/**
+ * Admin sets what the driver is owed for this specific pickup — replaces the
+ * old platform-wide flat rate as the primary source (payoutService.
+ * finalizePickupEarnings falls back to the flat rate only if this is unset).
+ * Can be set at dispatch time or any time before the pickup completes.
+ */
+export async function setDriverPayoutAmount(pickupId, amount) {
+  return assignPickup(pickupId, { driver_payout_amount: Number(amount) });
 }
 
 export async function updateRestaurantPrimaryManufacturer(restaurantId, manufacturerId) {

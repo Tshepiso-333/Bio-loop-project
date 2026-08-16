@@ -6,25 +6,115 @@ import {
   StyleSheet,
   StatusBar,
   ActivityIndicator,
+  TouchableOpacity,
+  Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { Ionicons } from '@expo/vector-icons';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import { updateCollectorLocation } from '../../src/services/collectorService';
-import DriverHeader from '../../src/driver/components/DriverHeader';
-import { DRV_COLORS, DRV_FONTS, DRV_RADII, DRV_SHADOWS } from '../../src/driver/driverTheme';
+import { ACTIVE_TRIP_STATUSES, legForStatus } from '../../src/lib/pickupStatus';
+
+// One driver-facing checkpoint action per pickup_status — advancing to the
+// next status is what fires the restaurant/manufacturer/admin notification
+// (see collectorService.notifyForStatus). The driver's part ends at
+// 'arrived_manufacturer' — there's no action for it here because completing
+// the trip is the manufacturer's call, not the driver's (they confirm receipt
+// from their own app, see manufacturerService.confirmDeliveryReceived).
+const TRIP_ACTIONS = {
+  in_transit: { label: "I've arrived", next: 'arrival', icon: 'flag-outline' },
+  arrival: { label: 'Oil collected', next: 'collected', icon: 'water-outline' },
+  collected: { label: 'Arrived at manufacturer', next: 'arrived_manufacturer', icon: 'flag-outline' },
+};
 
 const LOCATION_PERSIST_INTERVAL_MS = 20000; // don't write to the DB on every 3s GPS tick
 
-export default function DriverMapScreen() {
+const THEME = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  primaryDarker: '#047857',
+  primaryLight: '#D1FAE5',
+  white: '#FFFFFF',
+  offWhite: '#F9FAFB',
+  text: '#111827',
+  textSecondary: '#6B7280',
+  gray: '#9CA3AF',
+  grayLight: '#E5E7EB',
+};
+
+export default function DriverMapScreen({ route }) {
   const mapRef = useRef(null);
-  const { pickups = [], collector } = useCollectorContext();
+  const { pickups = [], collector, updatePickupStatus } = useCollectorContext();
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [speed, setSpeed] = useState(0);
+  const [advancing, setAdvancing] = useState(false);
+
+  const routePickupId = route?.params?.pickupId ?? null;
+
+  // The pickup this trip panel is driving. Prefers whichever pickup the
+  // driver tapped into from Collections; falls back to the first pickup
+  // mid-trip so the map is still useful if this screen is opened directly.
+  const activePickup = useMemo(() => {
+    const list = pickups || [];
+    if (routePickupId) {
+      const found = list.find((p) => p.id === routePickupId);
+      if (found && ACTIVE_TRIP_STATUSES.includes(found.status)) return found;
+    }
+    return list.find((p) => ACTIVE_TRIP_STATUSES.includes(p.status)) ?? null;
+  }, [pickups, routePickupId]);
+
+  const leg = activePickup ? legForStatus(activePickup.status) : null;
+  const destination = activePickup
+    ? leg === 'manufacturer'
+      ? activePickup.manufacturers
+      : activePickup.restaurants
+    : null;
+  const destinationCoords = destination
+    ? { latitude: Number(destination.latitude), longitude: Number(destination.longitude) }
+    : null;
+  const hasDestinationCoords =
+    destinationCoords && Number.isFinite(destinationCoords.latitude) && Number.isFinite(destinationCoords.longitude);
+  const tripAction = activePickup ? TRIP_ACTIONS[activePickup.status] : null;
+
+  const handleAdvanceStatus = async () => {
+    if (!activePickup || !tripAction) return;
+    setAdvancing(true);
+    try {
+      await updatePickupStatus(activePickup.id, tripAction.next);
+    } catch (err) {
+      Alert.alert('Update failed', err.message ?? 'Could not update the trip status.');
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
+  const handleNavigate = async () => {
+    let url = null;
+    if (hasDestinationCoords) {
+      url = `https://www.google.com/maps/dir/?api=1&destination=${destinationCoords.latitude},${destinationCoords.longitude}&travelmode=driving`;
+    } else if (destination?.address) {
+      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination.address)}`;
+    }
+
+    if (!url) {
+      Alert.alert(
+        'No location on file',
+        `${leg === 'manufacturer' ? 'This manufacturer' : 'This restaurant'} doesn't have a location set yet — ask admin to add one.`
+      );
+      return;
+    }
+
+    try {
+      await Linking.openURL(url);
+    } catch (err) {
+      Alert.alert('Could not open navigation', err.message ?? 'Please try again.');
+    }
+  };
 
   // Refs (not state) so the watchPositionAsync closure below — set up once on
   // mount — always sees the latest collector id and last-persist time without
@@ -137,14 +227,12 @@ export default function DriverMapScreen() {
   }, []);
 
   // ── Loading state ──────────────────────────────────────────────────────────
-  // This guard is load-bearing, not decoration: the map branch below reads
-  // location.latitude with no optional chaining. Do not reorder or merge it.
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <StatusBar barStyle="dark-content" backgroundColor={DRV_COLORS.page} />
+        <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
         <View style={styles.loadingIconCircle}>
-          <ActivityIndicator size="large" color={DRV_COLORS.primary} />
+          <ActivityIndicator size="large" color={THEME.primary} />
         </View>
         <Text style={styles.loadingTitle}>Finding your location</Text>
         <Text style={styles.loadingText}>Please wait a moment...</Text>
@@ -156,11 +244,11 @@ export default function DriverMapScreen() {
   if (errorMsg) {
     return (
       <SafeAreaView style={styles.centered}>
-        <StatusBar barStyle="dark-content" backgroundColor={DRV_COLORS.page} />
+        <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
         <View style={styles.errorIconCircle}>
-          <Ionicons name="location-outline" size={32} color={DRV_COLORS.primary} />
+          <Text style={styles.errorIcon}>📍</Text>
         </View>
-        <Text style={styles.errorTitle}>Location access needed</Text>
+        <Text style={styles.errorTitle}>Location Access Needed</Text>
         <Text style={styles.errorText}>{errorMsg}</Text>
       </SafeAreaView>
     );
@@ -169,67 +257,136 @@ export default function DriverMapScreen() {
   // ── Map ────────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      <DriverHeader title="Map" />
+      <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
 
-      {/* Badges are positioned against this wrapper, not the raw screen, so they
-          sit below the header instead of colliding with the notch. */}
-      <View style={styles.mapWrap}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          provider={PROVIDER_GOOGLE}
-          initialRegion={{
-            latitude: location.latitude,
-            longitude: location.longitude,
-            latitudeDelta: 0.005,
-            longitudeDelta: 0.005,
-          }}
-          showsUserLocation={false}
-          showsMyLocationButton={false}
-          showsCompass={true}
-          showsScale={true}
-          showsTraffic={false}
-        >
-          {/* Driver marker — moves with GPS */}
-          {location && (
-            <Marker
-              coordinate={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-              }}
-              title="Your location"
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <View style={styles.markerWrap}>
-                <View style={styles.markerPulse} />
-                <View style={styles.markerOuter}>
-                  <View style={styles.markerInner} />
-                </View>
-              </View>
-            </Marker>
-          )}
-
-          {pickupMarkers.map((pickup) => (
-            <Marker
-              key={pickup.id}
-              coordinate={{
-                latitude: pickup.latitude,
-                longitude: pickup.longitude,
-              }}
-              title={pickup.title}
-              description={pickup.description}
-              pinColor={DRV_COLORS.primary}
-            />
-          ))}
-        </MapView>
-
-        <View style={styles.pickupBadge}>
-          <Text style={styles.pickupBadgeValue}>{pickupMarkers.length}</Text>
-          <Text style={styles.pickupBadgeLabel}>pickup stops</Text>
-        </View>
-
-        {/* Speed badge at the bottom */}
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        }}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        showsCompass={true}
+        showsScale={true}
+        showsTraffic={false}
+      >
+        {/* Driver marker — moves with GPS */}
         {location && (
+          <Marker
+            coordinate={{
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }}
+            title="Your location"
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.markerWrap}>
+              <View style={styles.markerPulse} />
+              <View style={styles.markerOuter}>
+                <View style={styles.markerInner} />
+              </View>
+            </View>
+          </Marker>
+        )}
+
+        {pickupMarkers.map((pickup) => (
+          <Marker
+            key={pickup.id}
+            coordinate={{
+              latitude: pickup.latitude,
+              longitude: pickup.longitude,
+            }}
+            title={pickup.title}
+            description={pickup.description}
+            pinColor={THEME.primaryDark}
+          />
+        ))}
+
+        {/* Current-leg destination — restaurant until oil is collected, then manufacturer */}
+        {hasDestinationCoords && (
+          <Marker
+            coordinate={destinationCoords}
+            title={destination?.name ?? (leg === 'manufacturer' ? 'Manufacturer' : 'Restaurant')}
+            description={destination?.address ?? ''}
+          >
+            <View style={styles.destinationMarkerWrap}>
+              <Ionicons name={leg === 'manufacturer' ? 'business' : 'storefront'} size={16} color={THEME.white} />
+            </View>
+          </Marker>
+        )}
+      </MapView>
+
+      <View style={styles.pickupBadge}>
+        <Text style={styles.pickupBadgeValue}>{pickupMarkers.length}</Text>
+        <Text style={styles.pickupBadgeLabel}>pickup stops</Text>
+      </View>
+
+      {activePickup ? (
+        <View style={styles.tripPanel}>
+          <View style={styles.tripPanelHeader}>
+            <View style={styles.tripLegBadge}>
+              <Ionicons
+                name={leg === 'manufacturer' ? 'business-outline' : 'storefront-outline'}
+                size={13}
+                color={THEME.primaryDark}
+              />
+              <Text style={styles.tripLegText}>
+                {leg === 'manufacturer' ? 'Leg 2 of 2 · Manufacturer' : 'Leg 1 of 2 · Restaurant'}
+              </Text>
+            </View>
+            {location && (
+              <Text style={styles.tripSpeedText}>
+                {speed > 0 ? `${Math.round(speed)} km/h` : 'Stationary'}
+              </Text>
+            )}
+          </View>
+
+          <Text style={styles.tripDestName} numberOfLines={1}>
+            {destination?.name ?? 'Destination'}
+          </Text>
+          <Text style={styles.tripDestAddress} numberOfLines={1}>
+            {destination?.address ?? 'No address on file'}
+          </Text>
+
+          <View style={styles.tripActionsRow}>
+            <TouchableOpacity style={styles.navigateBtn} onPress={handleNavigate} activeOpacity={0.75}>
+              <Ionicons name="navigate" size={16} color={THEME.primaryDark} />
+              <Text style={styles.navigateBtnText}>Navigate</Text>
+            </TouchableOpacity>
+
+            {tripAction && (
+              <TouchableOpacity
+                style={[styles.advanceBtn, advancing && styles.advanceBtnDisabled]}
+                onPress={handleAdvanceStatus}
+                disabled={advancing}
+                activeOpacity={0.75}
+              >
+                {advancing ? (
+                  <ActivityIndicator size="small" color={THEME.white} />
+                ) : (
+                  <>
+                    <Ionicons name={tripAction.icon} size={16} color={THEME.white} />
+                    <Text style={styles.advanceBtnText}>{tripAction.label}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {!tripAction && activePickup.status === 'arrived_manufacturer' && (
+            <View style={styles.waitingBanner}>
+              <Ionicons name="hourglass-outline" size={14} color={THEME.textSecondary} />
+              <Text style={styles.waitingBannerText}>Waiting for the manufacturer to confirm receipt</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        location && (
           <View style={styles.speedBadge}>
             <View style={styles.speedLeft}>
               <Text style={styles.speedValue}>
@@ -244,8 +401,8 @@ export default function DriverMapScreen() {
               </Text>
             </View>
           </View>
-        )}
-      </View>
+        )
+      )}
     </View>
   );
 }
@@ -253,10 +410,7 @@ export default function DriverMapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: DRV_COLORS.page,
-  },
-  mapWrap: {
-    flex: 1,
+    backgroundColor: THEME.white,
   },
   map: {
     flex: 1,
@@ -267,28 +421,27 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: DRV_COLORS.page,
+    backgroundColor: THEME.white,
     paddingHorizontal: 32,
   },
   loadingIconCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: DRV_COLORS.paleGreen,
+    backgroundColor: THEME.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   loadingTitle: {
-    fontFamily: DRV_FONTS.bold,
     fontSize: 17,
-    color: DRV_COLORS.ink,
+    fontWeight: '700',
+    color: THEME.text,
     marginBottom: 6,
   },
   loadingText: {
-    fontFamily: DRV_FONTS.medium,
     fontSize: 13,
-    color: DRV_COLORS.body,
+    color: THEME.textSecondary,
   },
 
   // Error
@@ -296,22 +449,24 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: DRV_COLORS.paleGreen,
+    backgroundColor: THEME.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
+  errorIcon: {
+    fontSize: 32,
+  },
   errorTitle: {
-    fontFamily: DRV_FONTS.bold,
     fontSize: 17,
-    color: DRV_COLORS.ink,
+    fontWeight: '700',
+    color: THEME.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   errorText: {
-    fontFamily: DRV_FONTS.medium,
     fontSize: 13,
-    color: DRV_COLORS.body,
+    color: THEME.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -328,24 +483,43 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: DRV_COLORS.accent + '4D', // accent at 30%
+    backgroundColor: THEME.primary + '30',
   },
   markerOuter: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: DRV_COLORS.primary,
+    backgroundColor: THEME.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: DRV_COLORS.white,
-    ...DRV_SHADOWS.floating,
+    borderColor: THEME.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   markerInner: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: DRV_COLORS.white,
+    backgroundColor: THEME.white,
+  },
+  destinationMarkerWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: THEME.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
 
   // Speed badge
@@ -353,35 +527,43 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 36,
     alignSelf: 'center',
-    backgroundColor: DRV_COLORS.white,
+    backgroundColor: THEME.white,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: DRV_RADII.card,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
     gap: 14,
-    ...DRV_SHADOWS.floating,
   },
   pickupBadge: {
     position: 'absolute',
-    top: 16,
+    top: 48,
     right: 16,
-    backgroundColor: DRV_COLORS.white,
+    backgroundColor: THEME.white,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: DRV_RADII.card,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
     alignItems: 'center',
-    ...DRV_SHADOWS.floating,
   },
   pickupBadgeValue: {
-    fontFamily: DRV_FONTS.extraBold,
     fontSize: 18,
-    color: DRV_COLORS.primary,
+    fontWeight: '700',
+    color: THEME.primary,
   },
   pickupBadgeLabel: {
-    fontFamily: DRV_FONTS.medium,
     fontSize: 11,
-    color: DRV_COLORS.body,
+    fontWeight: '600',
+    color: THEME.textSecondary,
   },
   speedLeft: {
     flexDirection: 'row',
@@ -389,26 +571,132 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   speedValue: {
-    fontFamily: DRV_FONTS.extraBold,
     fontSize: 22,
-    color: DRV_COLORS.primary,
+    fontWeight: '700',
+    color: THEME.primary,
     lineHeight: 26,
   },
   speedUnit: {
-    fontFamily: DRV_FONTS.medium,
     fontSize: 12,
-    color: DRV_COLORS.body,
+    color: THEME.textSecondary,
+    fontWeight: '500',
     marginBottom: 2,
   },
   speedDivider: {
     width: 1,
     height: 24,
-    backgroundColor: DRV_COLORS.border,
+    backgroundColor: THEME.grayLight,
   },
   speedRight: {},
   speedLabel: {
-    fontFamily: DRV_FONTS.semiBold,
     fontSize: 13,
-    color: DRV_COLORS.ink,
+    fontWeight: '600',
+    color: THEME.text,
+  },
+
+  // Trip panel — replaces the speed badge once a pickup is mid-trip
+  tripPanel: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
+    backgroundColor: THEME.white,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  tripPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  tripLegBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: THEME.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  tripLegText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: THEME.primaryDarker,
+  },
+  tripSpeedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: THEME.textSecondary,
+  },
+  tripDestName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: THEME.text,
+  },
+  tripDestAddress: {
+    fontSize: 13,
+    color: THEME.textSecondary,
+    marginTop: 2,
+    marginBottom: 14,
+  },
+  tripActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  navigateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: THEME.grayLight,
+    backgroundColor: THEME.white,
+  },
+  navigateBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: THEME.text,
+  },
+  advanceBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: THEME.primary,
+  },
+  advanceBtnDisabled: {
+    opacity: 0.6,
+  },
+  advanceBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: THEME.white,
+  },
+  waitingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: THEME.offWhite,
+  },
+  waitingBannerText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: THEME.textSecondary,
   },
 });

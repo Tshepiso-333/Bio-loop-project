@@ -70,6 +70,10 @@ export const collectors = {
     is_verified,
     verified_at,
     status,
+    is_on_duty,
+    current_latitude,
+    current_longitude,
+    location_updated_at,
     created_at,
     updated_at
     `.replace(/\s+/g, ' ').trim(),

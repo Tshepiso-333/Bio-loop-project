@@ -16,7 +16,7 @@ export async function getPlatformSettings() {
     .maybeSingle();
 
   if (error) throw error;
-  return data ?? { commission_pct: 0, driver_flat_rate_per_pickup: 0 };
+  return data ?? { commission_pct: 0, driver_flat_rate_per_pickup: 0, manufacturer_markup_pct: 10 };
 }
 
 export async function updatePlatformSettings(settingsId, payload) {
@@ -47,14 +47,33 @@ async function getRateForGrade(grade) {
 }
 
 /**
- * Creates the earnings row(s) for a completed pickup: gross value = volume
- * x market rate for the grade, platform takes its cut, driver gets a flat
- * fee, restaurant gets the remainder. Grade/volume both came from the
- * restaurant's own sensor reading captured at pickup creation (Phase 1) —
- * no re-measurement happens here.
+ * The base "value of the oil" (volume x market rate for the grade) that the
+ * restaurant/driver payout pool is drawn from. What the manufacturer actually
+ * pays (that value + platform_settings.manufacturer_markup_pct) is computed
+ * server-side in supabase/functions/payfast-checkout — never trust a
+ * client-computed charge amount for a real payment. That Edge Function
+ * necessarily duplicates this same calculation (Deno, not importable from
+ * here); keep the two in sync if this changes.
  */
-export async function finalizePickupEarnings(pickup) {
+async function getGrossValue(pickup) {
   const volume = Number(pickup.actual_volume_liters ?? pickup.estimated_volume_liters ?? 0);
+  const rate = await getRateForGrade(pickup.quality_grade);
+  return { volume, rate, grossValue: volume * rate };
+}
+
+/**
+ * Creates the earnings row(s) for a completed pickup: gross value = volume
+ * x market rate for the grade, platform takes its cut, driver gets whatever
+ * admin set for this specific pickup at dispatch time (pickups.driver_payout_amount)
+ * — falling back to the old platform-wide flat rate if admin never set one —
+ * restaurant gets the remainder. Grade/volume both came from the restaurant's
+ * own sensor reading captured at pickup creation (Phase 1) — no
+ * re-measurement happens here. `gatewayReference` (a payment_transactions.id)
+ * is stamped onto both rows so they can be traced back to the manufacturer
+ * payment that funded them.
+ */
+export async function finalizePickupEarnings(pickup, { gatewayReference } = {}) {
+  const { volume, grossValue } = await getGrossValue(pickup);
   if (!volume || !pickup.restaurant_id) return null;
 
   const { data: existing, error: existingError } = await supabase
@@ -66,17 +85,15 @@ export async function finalizePickupEarnings(pickup) {
   if (existingError) throw existingError;
   if (existing?.length) return existing;
 
-  const [rate, settings] = await Promise.all([
-    getRateForGrade(pickup.quality_grade),
-    getPlatformSettings(),
-  ]);
-
-  const grossValue = volume * rate;
+  const settings = await getPlatformSettings();
   const commissionPct = Number(settings.commission_pct ?? 0);
   const driverFlatRate = Number(settings.driver_flat_rate_per_pickup ?? 0);
+  const adminSetDriverPay = pickup.driver_payout_amount;
 
   const platformCut = grossValue * (commissionPct / 100);
-  const driverEarning = pickup.collector_id ? driverFlatRate : 0;
+  const driverEarning = pickup.collector_id
+    ? Number(adminSetDriverPay ?? driverFlatRate ?? 0)
+    : 0;
   const restaurantEarning = Math.max(grossValue - platformCut - driverEarning, 0);
 
   const rows = [
@@ -87,6 +104,7 @@ export async function finalizePickupEarnings(pickup) {
       liters: volume,
       quality_grade: pickup.quality_grade ?? null,
       description: `Pickup ${pickup.id}`,
+      gateway_reference: gatewayReference ?? null,
     },
   ];
 
@@ -98,6 +116,7 @@ export async function finalizePickupEarnings(pickup) {
       liters: volume,
       quality_grade: pickup.quality_grade ?? null,
       description: `Collection fee for pickup ${pickup.id}`,
+      gateway_reference: gatewayReference ?? null,
     });
   }
 

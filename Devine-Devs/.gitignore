@@ -16,3 +16,5 @@ docs/BUSINESS_LOGIC_QUESTIONS.md
 docs/DISPATCH_ROADMAP.md
 docs/PAYFAST_INTEGRATION.md
 docs/migrations/
+docs/DATABASE_NOTES.txt
+supabase/.temp/

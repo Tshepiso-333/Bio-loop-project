@@ -89,7 +89,14 @@ export const formatPickupTimeWindow = (pickup) => {
 export const getPickupReferenceDate = (pickup) =>
   pickup?.pickup_date ?? pickup?.created_at ?? null;
 
-const ACTIVE_PICKUP_STATUSES = ['scheduled', 'in_transit', 'arrival', 'in_progress'];
+const ACTIVE_PICKUP_STATUSES = [
+  'scheduled',
+  'in_transit',
+  'arrival',
+  'in_progress',
+  'collected',
+  'arrived_manufacturer',
+];
 const COMPLETED_PICKUP_STATUSES = ['completed'];
 
 export const getActivePickup = (pickups = []) =>
@@ -111,7 +118,9 @@ const STATUS_STEP_INDEX = {
   in_transit: 1,
   arrival: 2,
   in_progress: 2,
-  completed: 2,
+  collected: 3,
+  arrived_manufacturer: 4,
+  completed: 4,
 };
 
 export const mapTankCardData = (tank) => {
@@ -261,7 +270,7 @@ export const mapQualityLogRows = (qualityLogs = []) =>
   qualityLogs.slice(0, 6).map((log) => ({
     id: String(log.id),
     timestamp: formatDateTimeMultiline(log.created_at),
-    analyzedBy: log.analyzed_by ?? 'Sensor\nAI v2.4',
+    analyzedBy: log.analyzed_by ?? 'Not analyzed',
     oilLevel: `${toNumber(log.impurity_pct, 0)}%`,
   }));
 
@@ -304,6 +313,8 @@ export const mapActivePickupCard = (pickup) => {
     in_transit: 'Driver en route',
     arrival: 'Driver arrived',
     in_progress: 'Collection in progress',
+    collected: 'Oil collected — heading to manufacturer',
+    arrived_manufacturer: 'Delivered to manufacturer',
   };
 
   return {
@@ -379,10 +390,16 @@ export const mapMarketRates = (marketRates = []) => ({
 export const mapAvgQuality = (qualityLogs = []) => {
   const latest = qualityLogs[0];
 
+  if (!latest?.grade) {
+    return {
+      badge: 'No data yet',
+      description: 'Quality will show here once a collection check is logged.',
+    };
+  }
+
   return {
-    badge: latest?.grade ? formatGradeLabel(latest.grade) : 'High Grade',
-    description:
-      latest?.notes ?? 'Your oil quality is tracked from recent collection checks.',
+    badge: formatGradeLabel(latest.grade),
+    description: latest.notes ?? 'Based on your most recent collection check.',
   };
 };
 

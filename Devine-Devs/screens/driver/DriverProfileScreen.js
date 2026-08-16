@@ -2,47 +2,53 @@
 import React from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  Pressable, Alert,
+  TouchableOpacity, StatusBar, Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../AuthContext';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
-import DriverHeader from '../../src/driver/components/DriverHeader';
-import {
-  DRV_COLORS,
-  DRV_FONTS,
-  DRV_RADII,
-  DRV_SHADOWS,
-  DRV_SPACING,
-} from '../../src/driver/driverTheme';
 
-const MenuItem = ({ icon, label, sublabel, onPress, danger, last }) => (
-  <Pressable
-    style={({ pressed }) => [
-      styles.menuItem,
-      last && styles.menuItemLast,
-      pressed && { opacity: 0.85 },
-    ]}
-    onPress={onPress}
-  >
+// Theme colours (matching manufacturer)
+const THEME = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  primaryDarker: '#047857',
+  primaryLight: '#D1FAE5',
+  white: '#FFFFFF',
+  offWhite: '#F9FAFB',
+  text: '#111827',
+  textSecondary: '#6B7280',
+  gray: '#9CA3AF',
+  grayLight: '#E5E7EB',
+  grayMid: '#9CA3AF',
+  danger: '#EF4444',
+  dangerBg: '#FEE2E2',
+  star: '#F59E0B',
+};
+
+const MenuItem = ({ icon, label, sublabel, onPress, danger }) => (
+  <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
     <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>
-      <Ionicons name={icon} size={20} color={danger ? DRV_COLORS.negative : DRV_COLORS.primary} />
+      <Ionicons name={icon} size={20} color={danger ? THEME.danger : THEME.primary} />
     </View>
     <View style={styles.menuContent}>
       <Text style={[styles.menuLabel, danger && styles.menuLabelDanger]}>{label}</Text>
       {sublabel ? <Text style={styles.menuSublabel}>{sublabel}</Text> : null}
     </View>
-    <Ionicons name="chevron-forward" size={18} color={DRV_COLORS.muted} />
-  </Pressable>
+    <Ionicons name="chevron-forward" size={18} color={THEME.grayMid} />
+  </TouchableOpacity>
 );
 
 export default function DriverProfileScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { profile } = useProfile();
   const { collector, stats } = useCollectorContext();
 
@@ -50,6 +56,9 @@ export default function DriverProfileScreen() {
   const vehicleLine = [collector?.vehicle_make, collector?.vehicle_model, collector?.vehicle_registration]
     .filter(Boolean)
     .join(' · ');
+  const email = profile?.email ?? user?.email;
+  const location = [profile?.city, profile?.province].filter(Boolean).join(', ');
+  const coverageLine = [collector?.district, collector?.route_name].filter(Boolean).join(' · ');
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -58,13 +67,17 @@ export default function DriverProfileScreen() {
     ]);
   };
 
-  return (
-    <View style={styles.container}>
-      <DriverHeader title="Profile" />
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Profile hero — on the page background, so the forest-green avatar and
-            verified badge read correctly instead of sitting on a teal banner. */}
+  // Header Component with Gradient (no logo)
+  const Header = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={THEME.primaryDark} />
+      <LinearGradient
+        colors={[THEME.primary, THEME.primaryDark, THEME.primaryDarker]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+        {/* Profile Info */}
         <View style={styles.profileInfo}>
           <ProfileAvatar
             name={collector?.full_name ?? profile?.full_name}
@@ -75,78 +88,138 @@ export default function DriverProfileScreen() {
           <Text style={styles.driverId}>Driver ID: {collector?.employee_code ?? ''}</Text>
           <VerifiedBadge isVerified={collector?.is_verified} style={{ marginTop: 8 }} />
           <View style={styles.ratingRow}>
-            <Ionicons name="star" size={14} color={DRV_COLORS.amber} />
+            <Ionicons name="star" size={14} color={THEME.star} />
             <Text style={styles.ratingText}> {stats?.rating ?? '—'} ({stats?.reviews_count ?? '—'} reviews)</Text>
           </View>
         </View>
+      </LinearGradient>
+    </>
+  );
 
+  return (
+    <View style={styles.container}>
+      <Header />
+      
+      <ScrollView showsVerticalScrollIndicator={false}>
         {/* Stats Card */}
         <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <View style={styles.statIconWrap}>
-              <Ionicons name="water-outline" size={20} color={DRV_COLORS.primary} />
+          <LinearGradient
+            colors={[THEME.white, THEME.white]}
+            style={styles.statsGradient}
+          >
+            <View style={styles.statItem}>
+              <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
+                <Ionicons name="water-outline" size={20} color={THEME.primary} />
+              </View>
+              <Text style={styles.statValue}>{(stats?.litersTotal ?? stats?.total_liters ?? 0).toLocaleString()}</Text>
+              <Text style={styles.statLabel}>Litres Total</Text>
             </View>
-            <Text style={styles.statValue}>{(stats?.litersTotal ?? stats?.total_liters ?? 0).toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Litres Total</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <View style={styles.statIconWrap}>
-              <Ionicons name="cube-outline" size={20} color={DRV_COLORS.primary} />
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
+                <Ionicons name="cube-outline" size={20} color={THEME.primary} />
+              </View>
+              <Text style={styles.statValue}>{stats?.total_collections ?? stats?.collections ?? 0}</Text>
+              <Text style={styles.statLabel}>Collections</Text>
             </View>
-            <Text style={styles.statValue}>{stats?.total_collections ?? stats?.collections ?? 0}</Text>
-            <Text style={styles.statLabel}>Collections</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <View style={styles.statIconWrap}>
-              <Ionicons name="leaf-outline" size={20} color={DRV_COLORS.primary} />
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
+                <Ionicons name="leaf-outline" size={20} color={THEME.primary} />
+              </View>
+              <Text style={styles.statValue}>{(stats?.co2Saved || stats?.co2_saved_kg || 0)}t</Text>
+              <Text style={styles.statLabel}>CO₂ Saved</Text>
             </View>
-            <Text style={styles.statValue}>{(stats?.co2Saved || stats?.co2_saved_kg || 0)}t</Text>
-            <Text style={styles.statLabel}>CO₂ Saved</Text>
-          </View>
+          </LinearGradient>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.85 }]}
+        <TouchableOpacity
+          style={styles.editBtn}
           onPress={() => navigation.navigate('ProfileEdit')}
         >
-          <Ionicons name="create-outline" size={18} color={DRV_COLORS.white} />
+          <Ionicons name="create-outline" size={18} color="#fff" />
           <Text style={styles.editBtnText}>Edit profile</Text>
-        </Pressable>
+        </TouchableOpacity>
 
-        {(vehicleLine || collector?.years_experience || collector?.languages) ? (
-          <View style={styles.menuSection}>
-            <Text style={styles.sectionTitle}>Vehicle & experience</Text>
-            {vehicleLine ? (
-              <View style={styles.detailRow}>
-                <Ionicons name="car-outline" size={18} color={DRV_COLORS.primary} />
-                <Text style={styles.detailText}>{vehicleLine}</Text>
-              </View>
-            ) : null}
-            {collector?.vehicle_type ? (
-              <View style={styles.detailRow}>
-                <Ionicons name="speedometer-outline" size={18} color={DRV_COLORS.primary} />
-                <Text style={styles.detailText}>{collector.vehicle_type}</Text>
-              </View>
-            ) : null}
-            {collector?.years_experience != null ? (
-              <View style={styles.detailRow}>
-                <Ionicons name="ribbon-outline" size={18} color={DRV_COLORS.primary} />
-                <Text style={styles.detailText}>{collector.years_experience} years experience</Text>
-              </View>
-            ) : null}
-            {collector?.languages ? (
-              <View style={styles.detailRow}>
-                <Ionicons name="language-outline" size={18} color={DRV_COLORS.primary} />
-                <Text style={styles.detailText}>{collector.languages}</Text>
-              </View>
-            ) : null}
-            {collector?.bio ? (
-              <Text style={styles.bioText}>{collector.bio}</Text>
-            ) : null}
-          </View>
-        ) : null}
+        {/* Contact — from the base profile fields collected in Edit profile */}
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>Contact</Text>
+          {profile?.phone ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="call-outline" size={18} color={THEME.primary} />
+              <Text style={styles.detailText}>{profile.phone}</Text>
+            </View>
+          ) : null}
+          {email ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="mail-outline" size={18} color={THEME.primary} />
+              <Text style={styles.detailText}>{email}</Text>
+            </View>
+          ) : null}
+          {location ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="location-outline" size={18} color={THEME.primary} />
+              <Text style={styles.detailText}>{location}</Text>
+            </View>
+          ) : null}
+          {!profile?.phone && !email && !location ? (
+            <Text style={styles.emptyDetailText}>Add your phone and location in Edit profile.</Text>
+          ) : null}
+        </View>
+
+        {/* Vehicle, licensing & coverage — from the collector-specific fields
+            collected in Edit profile, so nothing typed in there goes unseen. */}
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>Vehicle & experience</Text>
+          {vehicleLine ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="car-outline" size={18} color={THEME.primary} />
+              <Text style={styles.detailText}>{vehicleLine}</Text>
+            </View>
+          ) : null}
+          {collector?.vehicle_type ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="speedometer-outline" size={18} color={THEME.primary} />
+              <Text style={styles.detailText}>{collector.vehicle_type}</Text>
+            </View>
+          ) : null}
+          {collector?.drivers_license_number ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="card-outline" size={18} color={THEME.primary} />
+              <Text style={styles.detailText}>License {collector.drivers_license_number}</Text>
+            </View>
+          ) : null}
+          {collector?.years_experience != null ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="ribbon-outline" size={18} color={THEME.primary} />
+              <Text style={styles.detailText}>{collector.years_experience} years experience</Text>
+            </View>
+          ) : null}
+          {collector?.languages ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="language-outline" size={18} color={THEME.primary} />
+              <Text style={styles.detailText}>{collector.languages}</Text>
+            </View>
+          ) : null}
+          {coverageLine ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="map-outline" size={18} color={THEME.primary} />
+              <Text style={styles.detailText}>{coverageLine}</Text>
+            </View>
+          ) : null}
+          {collector?.bio ? (
+            <Text style={styles.bioText}>{collector.bio}</Text>
+          ) : null}
+          {!vehicleLine &&
+          !collector?.vehicle_type &&
+          !collector?.drivers_license_number &&
+          collector?.years_experience == null &&
+          !collector?.languages &&
+          !coverageLine &&
+          !collector?.bio ? (
+            <Text style={styles.emptyDetailText}>Add your vehicle and license details in Edit profile.</Text>
+          ) : null}
+        </View>
 
         {/* Menu Sections */}
         <View style={styles.menuSection}>
@@ -156,40 +229,38 @@ export default function DriverProfileScreen() {
             sublabel="Update vehicle, license, bio"
             onPress={() => navigation.navigate('ProfileEdit')}
           />
-          <MenuItem
-            icon="notifications-outline"
-            label="Notifications"
+          <MenuItem 
+            icon="notifications-outline" 
+            label="Notifications" 
             sublabel="Manage alerts"
-            onPress={() => Alert.alert('Notifications', 'Coming soon')}
+            onPress={() => Alert.alert('Notifications', 'Coming soon')} 
           />
           <MenuItem
             icon="car-outline"
             label="Vehicle Info"
-            sublabel={vehicleLine || 'Tank capacity & details'}
+            sublabel={vehicleLine || 'Add your vehicle details'}
             onPress={() => navigation.navigate('ProfileEdit')}
           />
-          <MenuItem
-            icon="shield-checkmark-outline"
-            label="Safety & Compliance"
+          <MenuItem 
+            icon="shield-checkmark-outline" 
+            label="Safety & Compliance" 
             sublabel="Certifications"
-            onPress={() => Alert.alert('Safety', 'Coming soon')}
+            onPress={() => Alert.alert('Safety', 'Coming soon')} 
           />
-          <MenuItem
-            icon="help-circle-outline"
-            label="Help & Support"
+          <MenuItem 
+            icon="help-circle-outline" 
+            label="Help & Support" 
             sublabel="FAQ, contact us"
-            onPress={() => Alert.alert('Help', 'Coming soon')}
-            last
+            onPress={() => Alert.alert('Help', 'Coming soon')} 
           />
         </View>
 
         <View style={styles.menuSection}>
-          <MenuItem
-            icon="log-out-outline"
-            label="Sign Out"
-            danger
-            onPress={handleSignOut}
-            last
+          <MenuItem 
+            icon="log-out-outline" 
+            label="Sign Out" 
+            danger 
+            onPress={handleSignOut} 
           />
         </View>
 
@@ -201,117 +272,108 @@ export default function DriverProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: DRV_COLORS.page,
+  container: { 
+    flex: 1, 
+    backgroundColor: THEME.offWhite 
   },
-  scrollContent: {
-    paddingHorizontal: DRV_SPACING.screenPadding,
+  header: {
+    paddingBottom: 24,
   },
-
   profileInfo: {
-    alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 20,
-  },
-  name: {
-    fontFamily: DRV_FONTS.extraBold,
-    fontSize: 22,
-    color: DRV_COLORS.ink,
-    marginTop: 12,
-  },
-  driverId: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 13,
-    color: DRV_COLORS.body,
-    marginTop: 4,
-  },
-  ratingRow: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
   },
-  ratingText: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 13,
-    color: DRV_COLORS.body,
+  avatarWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.5)',
   },
-
-  // Negative overlap dropped: it existed to bridge the gradient banner. Against a
-  // light header the hero sits on the page, so a normal gap reads better.
+  avatarText: { 
+    fontSize: 28, 
+    fontWeight: '700', 
+    color: THEME.white, 
+    letterSpacing: 1 
+  },
+  name: { 
+    fontSize: 22, 
+    fontWeight: '700', 
+    color: THEME.white 
+  },
+  driverId: { 
+    fontSize: 13, 
+    color: 'rgba(255,255,255,0.8)', 
+    marginTop: 4 
+  },
+  ratingRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginTop: 8 
+  },
+  ratingText: { 
+    fontSize: 13, 
+    color: 'rgba(255,255,255,0.9)', 
+    fontWeight: '500' 
+  },
   statsCard: {
-    backgroundColor: DRV_COLORS.card,
-    borderRadius: DRV_RADII.card,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
+    marginHorizontal: 16,
+    marginTop: -20,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statsGradient: {
     padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    ...DRV_SHADOWS.card,
   },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 8,
+  statItem: { 
+    flex: 1, 
+    alignItems: 'center', 
+    gap: 8 
   },
   statIconWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: DRV_COLORS.paleGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statValue: {
-    fontFamily: DRV_FONTS.extraBold,
-    fontSize: 18,
-    color: DRV_COLORS.ink,
+  statValue: { 
+    fontSize: 18, 
+    fontWeight: '700', 
+    color: THEME.text 
   },
-  statLabel: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 11,
-    color: DRV_COLORS.body,
-    textAlign: 'center',
+  statLabel: { 
+    fontSize: 11, 
+    color: THEME.gray, 
+    textAlign: 'center' 
   },
-  statDivider: {
-    width: 1,
-    height: 50,
-    backgroundColor: DRV_COLORS.divider,
+  statDivider: { 
+    width: 1, 
+    height: 50, 
+    backgroundColor: THEME.grayLight 
   },
-
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: DRV_SPACING.gap,
-    backgroundColor: DRV_COLORS.primary,
-    borderRadius: DRV_RADII.pill,
-    paddingVertical: 13,
-    ...DRV_SHADOWS.button,
-  },
-  editBtnText: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 14,
-    color: DRV_COLORS.white,
-  },
-
   menuSection: {
-    backgroundColor: DRV_COLORS.card,
+    backgroundColor: THEME.white,
+    marginHorizontal: 16,
     marginTop: 16,
-    borderRadius: DRV_RADII.card,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
+    borderRadius: 14,
     overflow: 'hidden',
-    ...DRV_SHADOWS.card,
-  },
-  sectionTitle: {
-    fontFamily: DRV_FONTS.semiBold,
-    fontSize: 13,
-    color: DRV_COLORS.body,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   menuItem: {
     flexDirection: 'row',
@@ -319,41 +381,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: DRV_COLORS.divider,
+    borderBottomColor: THEME.grayLight,
     gap: 14,
-  },
-  menuItemLast: {
-    borderBottomWidth: 0,
   },
   menuIcon: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: DRV_COLORS.paleGreen,
+    backgroundColor: THEME.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuIconDanger: {
-    backgroundColor: DRV_COLORS.alertBg,
+  menuIconDanger: { 
+    backgroundColor: THEME.dangerBg 
   },
-  menuContent: {
-    flex: 1,
+  menuContent: { 
+    flex: 1 
   },
-  menuLabel: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 15,
-    color: DRV_COLORS.ink,
+  menuLabel: { 
+    fontSize: 15, 
+    fontWeight: '600', 
+    color: THEME.text 
   },
-  menuLabelDanger: {
-    color: DRV_COLORS.negative,
+  menuLabelDanger: { 
+    color: THEME.danger 
   },
-  menuSublabel: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 12,
-    color: DRV_COLORS.body,
-    marginTop: 2,
+  menuSublabel: { 
+    fontSize: 12, 
+    color: THEME.textSecondary, 
+    marginTop: 2 
   },
-
+  version: { 
+    textAlign: 'center', 
+    color: THEME.gray, 
+    fontSize: 12, 
+    marginTop: 24 
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: THEME.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  editBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: THEME.textSecondary,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -361,28 +446,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: DRV_COLORS.divider,
+    borderBottomColor: THEME.grayLight,
   },
-  detailText: {
-    flex: 1,
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 14,
-    color: DRV_COLORS.ink,
+  detailText: { flex: 1, fontSize: 14, color: THEME.text },
+  emptyDetailText: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 13,
+    color: THEME.textSecondary,
+    fontStyle: 'italic',
   },
   bioText: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontFamily: DRV_FONTS.medium,
     fontSize: 13,
-    color: DRV_COLORS.body,
+    color: THEME.textSecondary,
     lineHeight: 20,
-  },
-
-  version: {
-    textAlign: 'center',
-    fontFamily: DRV_FONTS.medium,
-    color: DRV_COLORS.muted,
-    fontSize: 12,
-    marginTop: 24,
   },
 });

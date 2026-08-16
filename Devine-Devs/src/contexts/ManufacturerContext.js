@@ -5,6 +5,7 @@ import {
   loadManufacturerBundle,
   updateAlertReadStatus,
   deleteAlert as deleteAlertService,
+  confirmDeliveryReceived,
 } from '../services/manufacturerService';
 
 const ManufacturerContext = createContext(null);
@@ -18,6 +19,7 @@ const EMPTY_STATE = {
   forecasts: [],
   pickups: [],
   alerts: [],
+  assignedRestaurants: [],
 };
 
 export const ManufacturerProvider = ({ children }) => {
@@ -35,6 +37,7 @@ export const ManufacturerProvider = ({ children }) => {
       forecasts: bundle.forecasts ?? [],
       pickups: bundle.pickups ?? [],
       alerts: bundle.alerts ?? [],
+      assignedRestaurants: bundle.assignedRestaurants ?? [],
     });
   }, []);
 
@@ -102,6 +105,16 @@ export const ManufacturerProvider = ({ children }) => {
     });
   }, [user?.id]);
 
+  // Refetches the whole bundle rather than patching the pickup in place —
+  // confirmDeliveryReceived's select only carries the joined fields it needs
+  // for notifications, not the full shape other screens (Suppliers, Quality)
+  // expect on pickups.restaurants, so a partial merge would silently drop data.
+  const handleConfirmDelivery = useCallback(async (pickupId, gatewayReference) => {
+    const updated = await confirmDeliveryReceived(pickupId, gatewayReference);
+    await refreshManufacturer();
+    return updated;
+  }, [refreshManufacturer]);
+
   useEffect(() => {
     if (user?.id) {
       loadManufacturerData(user.id);
@@ -121,7 +134,8 @@ export const ManufacturerProvider = ({ children }) => {
     refreshManufacturer,
     updateAlertReadStatus: handleUpdateAlertReadStatus,
     deleteAlert: handleDeleteAlert,
-  }), [state, loading, refreshing, error, loadManufacturerData, refreshManufacturer, handleUpdateAlertReadStatus, handleDeleteAlert]);
+    confirmDelivery: handleConfirmDelivery,
+  }), [state, loading, refreshing, error, loadManufacturerData, refreshManufacturer, handleUpdateAlertReadStatus, handleDeleteAlert, handleConfirmDelivery]);
 
   return (
     <ManufacturerContext.Provider value={value}>

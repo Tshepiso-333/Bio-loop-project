@@ -3,72 +3,95 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  ScrollView,
   StyleSheet,
-  Pressable,
+  TouchableOpacity,
+  StatusBar,
+  Image,
   Switch,
   Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../AuthContext';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
-import DriverHeader, { getDriverInitials } from '../../src/driver/components/DriverHeader';
-import DriverStatusBadge from '../../src/driver/components/DriverStatusBadge';
-import {
-  DriverEmptyBanner,
-  DriverLoadingBanner,
-  DriverRefreshScrollView,
-} from '../../src/components/DriverScreenStates';
-import {
-  DRV_COLORS,
-  DRV_FONTS,
-  DRV_RADII,
-  DRV_SHADOWS,
-  DRV_SPACING,
-  DRV_STATUS,
-} from '../../src/driver/driverTheme';
+import { useProfile } from '../../src/hooks/useProfile';
+import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
+import { PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
 
-const PickupCard = ({ item, onPress }) => {
-  // Same `|| pending` fallback as DriverStatusBadge — the DB can return a status
-  // that is not a key in DRV_STATUS, and this renders inside a .map().
-  const accent = (DRV_STATUS[item.status] || DRV_STATUS.pending).fg;
+// Theme colours (matching manufacturer)
+const THEME = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  primaryDarker: '#047857',
+  primaryLight: '#D1FAE5',
+  white: '#FFFFFF',
+  offWhite: '#F9FAFB',
+  text: '#111827',
+  textSecondary: '#6B7280',
+  gray: '#9CA3AF',
+  grayLight: '#E5E7EB',
+  pending: '#F59E0B',
+  pendingBg: '#FEF3C7',
+  inProgress: '#3B82F6',
+  inProgressBg: '#DBEAFE',
+  completed: '#10B981',
+  completedBg: '#D1FAE5',
+};
 
+const STATUS_BADGE_COLORS = {
+  pending: { bg: THEME.pendingBg, color: THEME.pending },
+  scheduled: { bg: THEME.pendingBg, color: THEME.pending },
+  in_transit: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  arrival: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  in_progress: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  collected: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  arrived_manufacturer: { bg: THEME.inProgressBg, color: THEME.inProgress },
+  completed: { bg: THEME.completedBg, color: THEME.completed },
+};
+
+const StatusBadge = ({ status }) => {
+  const { bg, color } = STATUS_BADGE_COLORS[status] || STATUS_BADGE_COLORS.pending;
+  const label = PICKUP_STATUS_LABELS[status] ?? 'Pending';
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.pickupCard,
-        { borderLeftColor: accent },
-        pressed && { opacity: 0.85 },
-      ]}
-      onPress={onPress}
-    >
-      <View style={styles.pickupIcon}>
-        <Ionicons name="storefront-outline" size={20} color={DRV_COLORS.primary} />
-      </View>
-      <View style={styles.pickupInfo}>
-        <Text style={styles.pickupName}>{item.name}</Text>
-        <Text style={styles.pickupAddress}>{item.address}</Text>
-        <Text style={styles.pickupTime}>{item.time} · {item.estimatedLiters}L est.</Text>
-      </View>
-      <View style={styles.pickupRight}>
-        <DriverStatusBadge status={item.status} />
-        <Ionicons name="chevron-forward" size={16} color={DRV_COLORS.muted} style={{ marginTop: 6 }} />
-      </View>
-    </Pressable>
+    <View style={[styles.badge, { backgroundColor: bg }]}>
+      <Text style={[styles.badgeText, { color }]}>{label}</Text>
+    </View>
   );
 };
 
+const PickupCard = ({ item, onPress }) => (
+  <TouchableOpacity style={styles.pickupCard} onPress={onPress} activeOpacity={0.7}>
+    <View style={styles.pickupIcon}>
+      <Ionicons name="storefront-outline" size={20} color={THEME.primary} />
+    </View>
+    <View style={styles.pickupInfo}>
+      <Text style={styles.pickupName}>{item.name}</Text>
+      <Text style={styles.pickupAddress}>{item.address}</Text>
+      <Text style={styles.pickupTime}>{item.time} · {item.estimatedLiters}L est.</Text>
+    </View>
+    <View style={styles.pickupRight}>
+      <StatusBadge status={item.status} />
+      <Ionicons name="chevron-forward" size={16} color={THEME.gray} style={{ marginTop: 6 }} />
+    </View>
+  </TouchableOpacity>
+);
+
 export default function DriverHomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  const { signOut } = useAuth();
+  const { profile } = useProfile();
   const {
     collector,
     pickups = [],
     stats,
     wallet,
     earnings = [],
-    loading,
-    refreshing,
-    refreshCollector,
     toggleDutyStatus,
     requestWithdrawal,
   } = useCollectorContext();
+  const avatarImageUrl = collector?.profile_image_url ?? profile?.profile_image_url;
   const completedStops = (pickups || []).filter((pickup) => pickup.status === 'completed').length;
   const totalStops = (pickups || []).length;
   const totalLiters = stats?.total_liters ?? collector?.total_liters ?? 0;
@@ -77,12 +100,6 @@ export default function DriverHomeScreen({ navigation }) {
   const unpaidEarnings = earnings
     .filter((row) => !row.withdrawal_id)
     .reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-
-  const onDuty = !!collector?.is_on_duty;
-  const withdrawDisabled = requestingWithdrawal || unpaidEarnings <= 0;
-  // Not selected by getCollectorStats today, so it is usually undefined. Show the
-  // figure only when the backend actually supplies one rather than "+—%".
-  const weeklyChange = stats?.weeklyChange;
 
   const handleToggleDuty = async (value) => {
     setTogglingDuty(true);
@@ -116,21 +133,58 @@ export default function DriverHomeScreen({ navigation }) {
     status: p.status ?? 'pending',
   }));
 
+  // Professional Header Component with Logo, Notifications, and Profile
+  const Header = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor={THEME.primaryDark} />
+      <LinearGradient
+        colors={[THEME.primary, THEME.primaryDark, THEME.primaryDarker]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
+        <View style={styles.headerContent}>
+          {/* Left side - Logo */}
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <Image 
+                source={require('../../assets/BioLoop_Logo.png')} 
+                style={styles.logoImage}
+                resizeMode="cover"
+              />
+            </View>
+            <View>
+              <Text style={styles.appName}>BioLoop</Text>
+              <Text style={styles.companyName}>Driver Portal</Text>
+            </View>
+          </View>
+          
+          {/* Right side - Notifications and Profile */}
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.headerSignOutButton} onPress={signOut}>
+              <Ionicons name="log-out-outline" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+              <View style={styles.notificationDot} />
+            </TouchableOpacity>
+            <ProfileAvatar
+              name={collector?.full_name ?? profile?.full_name}
+              imageUrl={avatarImageUrl}
+              size={45}
+              onPress={() => navigation.navigate('DriverProfile')}
+            />
+          </View>
+        </View>
+      </LinearGradient>
+    </>
+  );
+
   return (
     <View style={styles.container}>
-      <DriverHeader
-        variant="home"
-        avatarInitials={getDriverInitials(collector?.full_name)}
-      />
-
-      <DriverRefreshScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        refreshing={refreshing}
-        onRefresh={refreshCollector}
-      >
-        {loading && pickups.length === 0 ? <DriverLoadingBanner /> : null}
-
+      <Header />
+      
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Good day,</Text>
@@ -138,86 +192,87 @@ export default function DriverHomeScreen({ navigation }) {
           <Text style={styles.welcomeRoute}>{stats?.route_name ?? collector?.route_name ?? ''} · {stats?.district ?? collector?.district ?? ''}</Text>
         </View>
 
-        {/* On-duty toggle — the most consequential control on the screen */}
-        <View style={styles.dutyCard}>
-          <View style={styles.dutyLeft}>
-            <View
-              style={[
-                styles.dutyDot,
-                { backgroundColor: onDuty ? DRV_COLORS.primary : DRV_COLORS.muted },
-              ]}
-            />
-            <View style={styles.dutyText}>
-              <Text style={styles.dutyLabel}>{onDuty ? 'On duty' : 'Off duty'}</Text>
-              <Text style={styles.dutySub}>{onDuty ? 'You can be assigned pickups' : 'Turn on to receive assignments'}</Text>
-            </View>
+        {/* On-duty toggle */}
+        <View style={styles.dutyRow}>
+          <View>
+            <Text style={styles.dutyLabel}>{collector?.is_on_duty ? 'On duty' : 'Off duty'}</Text>
+            <Text style={styles.dutySub}>{collector?.is_on_duty ? 'You can be assigned pickups' : 'Turn on to receive assignments'}</Text>
           </View>
           <Switch
             value={!!collector?.is_on_duty}
             onValueChange={handleToggleDuty}
             disabled={togglingDuty}
-            trackColor={{ true: DRV_COLORS.primary, false: DRV_COLORS.border }}
+            trackColor={{ true: THEME.primary, false: THEME.grayLight }}
           />
         </View>
 
         {/* Earnings */}
-        <View style={styles.walletCard}>
-          <Text style={styles.walletLabel}>Wallet balance</Text>
-          <Text style={styles.walletValue}>R {Number(wallet?.balance ?? 0).toFixed(2)}</Text>
-          <Text style={styles.walletSub}>R {unpaidEarnings.toFixed(2)} unpaid</Text>
-          <Pressable
-            style={({ pressed }) => [
-              styles.withdrawBtn,
-              withdrawDisabled && styles.withdrawBtnDisabled,
-              pressed && !withdrawDisabled && { opacity: 0.85 },
-            ]}
+        <View style={styles.earningsCard}>
+          <View>
+            <Text style={styles.earningsLabel}>Wallet balance</Text>
+            <Text style={styles.earningsValue}>R {Number(wallet?.balance ?? 0).toFixed(2)}</Text>
+            <Text style={styles.earningsSub}>R {unpaidEarnings.toFixed(2)} unpaid</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.withdrawBtn, (requestingWithdrawal || unpaidEarnings <= 0) && styles.withdrawBtnDisabled]}
             onPress={handleRequestWithdrawal}
-            disabled={withdrawDisabled}
+            disabled={requestingWithdrawal || unpaidEarnings <= 0}
           >
-            <Text style={[styles.withdrawBtnText, withdrawDisabled && styles.withdrawBtnTextDisabled]}>
-              {requestingWithdrawal ? 'Requesting…' : 'Request withdrawal'}
-            </Text>
-          </Pressable>
+            <Text style={styles.withdrawBtnText}>{requestingWithdrawal ? 'Requesting…' : 'Request withdrawal'}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stats Cards */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <View style={styles.statIconWrap}>
-              <Ionicons name="water-outline" size={22} color={DRV_COLORS.primary} />
-            </View>
-            <Text style={styles.statValue}>{totalLiters} L</Text>
-            <Text style={styles.statLabel}>Collected today</Text>
+            <LinearGradient
+              colors={[THEME.primary + '15', THEME.primary + '05']}
+              style={styles.statGradient}
+            >
+              <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
+                <Ionicons name="water-outline" size={22} color={THEME.primary} />
+              </View>
+              <Text style={styles.statValue}>{totalLiters} L</Text>
+              <Text style={styles.statLabel}>Collected today</Text>
+            </LinearGradient>
           </View>
-
+          
           <View style={styles.statCard}>
-            <View style={styles.statIconWrap}>
-              <Ionicons name="location-outline" size={22} color={DRV_COLORS.primary} />
-            </View>
-            <Text style={styles.statValue}>{completedStops}/{totalStops}</Text>
-            <Text style={styles.statLabel}>Stops remaining</Text>
+            <LinearGradient
+              colors={[THEME.primary + '15', THEME.primary + '05']}
+              style={styles.statGradient}
+            >
+              <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
+                <Ionicons name="location-outline" size={22} color={THEME.primary} />
+              </View>
+              <Text style={styles.statValue}>{completedStops}/{totalStops}</Text>
+              <Text style={styles.statLabel}>Stops remaining</Text>
+            </LinearGradient>
           </View>
         </View>
 
         {/* Weekly Card */}
         <View style={styles.weeklyCard}>
-          <View style={styles.weeklyLeft}>
-            <View style={styles.weeklyIconWrap}>
-              <Ionicons name="bar-chart-outline" size={20} color={DRV_COLORS.primary} />
+          <LinearGradient
+            colors={[THEME.primary + '15', THEME.primary + '05']}
+            style={styles.weeklyGradient}
+          >
+            <View style={styles.weeklyLeft}>
+              <View style={[styles.weeklyIconWrap, { backgroundColor: THEME.primaryLight }]}>
+                <Ionicons name="bar-chart-outline" size={20} color={THEME.primary} />
+              </View>
+              <View>
+                <Text style={styles.weeklyTitle}>Weekly Total</Text>
+                <Text style={styles.weeklySub}>{totalLiters}L · {totalStops} stops</Text>
+              </View>
             </View>
-            <View>
-              <Text style={styles.weeklyTitle}>Weekly total</Text>
-              <Text style={styles.weeklySub}>{totalLiters}L · {totalStops} stops</Text>
-            </View>
-          </View>
-          {weeklyChange != null ? (
-            <Text style={styles.weeklyChange}>+{weeklyChange}%</Text>
-          ) : null}
+            <Text style={styles.weeklyChange}>+{stats?.weeklyChange ?? '—'}%</Text>
+          </LinearGradient>
         </View>
 
         {/* Section Header */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today's pickups</Text>
+          <Text style={styles.sectionTitle}>Today's Pickups</Text>
           <Text style={styles.sectionCount}>{(pickups || []).length} scheduled</Text>
         </View>
 
@@ -230,278 +285,348 @@ export default function DriverHomeScreen({ navigation }) {
           />
         ))}
 
-        {!loading && todayPickups.length === 0 ? <DriverEmptyBanner /> : null}
-
         {/* View All Button */}
-        <Pressable
-          style={({ pressed }) => [styles.viewAllBtn, pressed && { opacity: 0.85 }]}
+        <TouchableOpacity
+          style={styles.viewAllBtn}
           onPress={() => navigation.navigate('DriverCollections')}
         >
-          <Text style={styles.viewAllText}>View all pickups</Text>
-          <Ionicons name="arrow-forward-outline" size={16} color={DRV_COLORS.white} />
-        </Pressable>
+          <LinearGradient
+            colors={[THEME.primary, THEME.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.viewAllGradient}
+          >
+            <Text style={styles.viewAllText}>View All Pickups</Text>
+            <Ionicons name="arrow-forward-outline" size={16} color={THEME.white} />
+          </LinearGradient>
+        </TouchableOpacity>
 
         <View style={{ height: 30 }} />
-      </DriverRefreshScrollView>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: DRV_COLORS.page,
+  container: { 
+    flex: 1, 
+    backgroundColor: THEME.offWhite 
   },
-  scroll: {
-    flex: 1,
+  header: {
+    paddingBottom: 12,
   },
-  scrollContent: {
-    paddingHorizontal: DRV_SPACING.screenPadding,
+  headerContent: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoCircle: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    backgroundColor: THEME.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: THEME.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  logoImage: {
+    width: 41,
+    height: 41,
+    borderRadius: 20.5,
+  },
+  appName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: THEME.white,
+  },
+  companyName: {
+    fontSize: 10,
+    color: THEME.white,
+    opacity: 0.9,
+    marginTop: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  headerSignOutButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(220,38,38,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
   welcomeSection: {
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
   },
   welcomeText: {
     fontSize: 14,
-    color: DRV_COLORS.body,
-    fontFamily: DRV_FONTS.medium,
+    color: THEME.textSecondary,
+    fontFamily: 'Inter_400Regular',
   },
   welcomeName: {
     fontSize: 28,
-    color: DRV_COLORS.ink,
+    fontWeight: '700',
+    color: THEME.text,
     marginTop: 4,
-    fontFamily: DRV_FONTS.extraBold,
+    fontFamily: 'Poppins_700Bold',
   },
   welcomeRoute: {
     fontSize: 14,
-    color: DRV_COLORS.body,
+    color: THEME.textSecondary,
     marginTop: 4,
-    fontFamily: DRV_FONTS.medium,
+    fontFamily: 'Inter_400Regular',
   },
-
-  // Duty toggle — first card below the header, and the heaviest thing above the fold.
-  dutyCard: {
+  scroll: {
+    flex: 1,
+    backgroundColor: THEME.offWhite
+  },
+  dutyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-    marginTop: DRV_SPACING.gap,
-    backgroundColor: DRV_COLORS.card,
-    borderRadius: DRV_RADII.card,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
-    padding: DRV_SPACING.cardPadding,
-    ...DRV_SHADOWS.card,
+    marginHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: THEME.white,
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  dutyLeft: {
-    flex: 1,
+  dutyLabel: { fontSize: 15, fontWeight: '700', color: THEME.text },
+  dutySub: { fontSize: 12, color: THEME.textSecondary, marginTop: 2 },
+  earningsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: THEME.white,
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  dutyDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  dutyText: { flex: 1 },
-  dutyLabel: { fontFamily: DRV_FONTS.bold, fontSize: 16, color: DRV_COLORS.ink },
-  dutySub: { fontFamily: DRV_FONTS.medium, fontSize: 12, color: DRV_COLORS.body, marginTop: 2 },
-
-  // Wallet — the hero card.
-  walletCard: {
-    marginTop: DRV_SPACING.gap,
-    backgroundColor: DRV_COLORS.card,
-    borderRadius: DRV_RADII.card,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
-    padding: DRV_SPACING.cardPadding,
-    ...DRV_SHADOWS.card,
-  },
-  walletLabel: { fontFamily: DRV_FONTS.medium, fontSize: 13, color: DRV_COLORS.body },
-  walletValue: {
-    fontFamily: DRV_FONTS.extraBold,
-    fontSize: 32,
-    color: DRV_COLORS.ink,
-    marginTop: 4,
-  },
-  walletSub: { fontFamily: DRV_FONTS.medium, fontSize: 12, color: DRV_COLORS.body, marginTop: 2 },
+  earningsLabel: { fontSize: 12, color: THEME.textSecondary },
+  earningsValue: { fontSize: 20, fontWeight: '700', color: THEME.text, marginTop: 2 },
+  earningsSub: { fontSize: 12, color: THEME.primary, marginTop: 2 },
   withdrawBtn: {
-    marginTop: 16,
-    backgroundColor: DRV_COLORS.primary,
-    borderRadius: DRV_RADII.pill,
-    paddingVertical: 13,
-    alignItems: 'center',
-    ...DRV_SHADOWS.button,
+    backgroundColor: THEME.primary, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10,
   },
-  withdrawBtnDisabled: {
-    backgroundColor: DRV_COLORS.surfaceSoft,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  withdrawBtnText: { fontFamily: DRV_FONTS.bold, fontSize: 14, color: DRV_COLORS.white },
-  withdrawBtnTextDisabled: { color: DRV_COLORS.muted },
-
-  statsRow: {
-    flexDirection: 'row',
-    paddingTop: DRV_SPACING.gap,
-    gap: DRV_SPACING.gap,
+  withdrawBtnDisabled: { opacity: 0.5 },
+  withdrawBtnText: { color: THEME.white, fontSize: 12, fontWeight: '600' },
+  statsRow: { 
+    flexDirection: 'row', 
+    paddingHorizontal: 16, 
+    paddingTop: 16, 
+    gap: 12 
   },
   statCard: {
     flex: 1,
-    backgroundColor: DRV_COLORS.card,
-    borderRadius: DRV_RADII.card,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statGradient: {
     padding: 16,
     alignItems: 'center',
-    ...DRV_SHADOWS.card,
   },
   statIconWrap: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: DRV_COLORS.paleGreen,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
-  statValue: {
-    fontFamily: DRV_FONTS.extraBold,
-    fontSize: 22,
-    color: DRV_COLORS.ink,
+  statValue: { 
+    fontSize: 22, 
+    fontWeight: '700', 
+    color: THEME.text 
   },
-  statLabel: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 12,
-    color: DRV_COLORS.body,
-    marginTop: 4,
+  statLabel: { 
+    fontSize: 12, 
+    color: THEME.textSecondary, 
+    marginTop: 4 
   },
-
   weeklyCard: {
-    marginTop: DRV_SPACING.gap,
-    backgroundColor: DRV_COLORS.card,
-    borderRadius: DRV_RADII.card,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  weeklyGradient: {
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    ...DRV_SHADOWS.card,
   },
-  weeklyLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  weeklyLeft: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 12 
   },
   weeklyIconWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: DRV_COLORS.paleGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  weeklyTitle: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 14,
-    color: DRV_COLORS.ink,
+  weeklyTitle: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: THEME.text 
   },
-  weeklySub: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 12,
-    color: DRV_COLORS.body,
-    marginTop: 2,
+  weeklySub: { 
+    fontSize: 12, 
+    color: THEME.textSecondary, 
+    marginTop: 2 
   },
-  weeklyChange: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 16,
-    color: DRV_COLORS.primary,
+  weeklyChange: { 
+    fontSize: 16, 
+    fontWeight: '700', 
+    color: THEME.primary 
   },
-
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 24,
-    paddingBottom: DRV_SPACING.gap,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
-  sectionTitle: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 18,
-    color: DRV_COLORS.ink,
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: '600', 
+    color: THEME.text 
   },
-  sectionCount: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 13,
-    color: DRV_COLORS.muted,
+  sectionCount: { 
+    fontSize: 13, 
+    color: THEME.gray 
   },
-
   pickupCard: {
-    backgroundColor: DRV_COLORS.card,
+    backgroundColor: THEME.white,
+    marginHorizontal: 16,
     marginBottom: 10,
-    borderRadius: DRV_RADII.card,
-    borderWidth: 1,
-    borderColor: DRV_COLORS.border,
+    borderRadius: 14,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
     borderLeftWidth: 3,
-    ...DRV_SHADOWS.card,
+    borderLeftColor: THEME.primary,
   },
   pickupIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: DRV_COLORS.paleGreen,
+    backgroundColor: THEME.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  pickupInfo: {
-    flex: 1,
+  pickupInfo: { 
+    flex: 1 
   },
-  pickupName: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 15,
-    color: DRV_COLORS.ink,
+  pickupName: { 
+    fontSize: 15, 
+    fontWeight: '600', 
+    color: THEME.text 
   },
-  pickupAddress: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 12,
-    color: DRV_COLORS.body,
-    marginTop: 2,
+  pickupAddress: { 
+    fontSize: 12, 
+    color: THEME.textSecondary, 
+    marginTop: 2 
   },
-  pickupTime: {
-    fontFamily: DRV_FONTS.medium,
-    fontSize: 12,
-    color: DRV_COLORS.muted,
-    marginTop: 2,
+  pickupTime: { 
+    fontSize: 12, 
+    color: THEME.gray, 
+    marginTop: 2 
   },
-  pickupRight: {
-    alignItems: 'flex-end',
+  pickupRight: { 
+    alignItems: 'flex-end' 
   },
-
+  badge: { 
+    paddingHorizontal: 10, 
+    paddingVertical: 5, 
+    borderRadius: 8 
+  },
+  badgeText: { 
+    fontSize: 11, 
+    fontWeight: '600' 
+  },
   viewAllBtn: {
+    marginHorizontal: 16,
     marginTop: 8,
     marginBottom: 8,
-    backgroundColor: DRV_COLORS.primary,
-    borderRadius: DRV_RADII.pill,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  viewAllGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    ...DRV_SHADOWS.button,
   },
-  viewAllText: {
-    fontFamily: DRV_FONTS.bold,
-    fontSize: 14,
-    color: DRV_COLORS.white,
+  viewAllText: { 
+    color: THEME.white, 
+    fontWeight: '600', 
+    fontSize: 14 
   },
 });
