@@ -21,7 +21,6 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
-
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,8 +32,8 @@
         {
           "photosPermission": "Allow Devine-Devs to access your photos to upload a profile picture."
         }
-      ]
+      ],
+      "expo-status-bar"
     ]
-
   }
 }

@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { supabase } from '../../supabase';
 import {
   assignCollectorToPickup,
   assignPickup,
@@ -14,7 +15,6 @@ import {
   updateProfileStatus,
   updateRestaurantPrimaryManufacturer,
   updateWithdrawalStatus,
-  setDriverPayoutAmount,
 } from '../services/adminService';
 import { updatePlatformSettings } from '../services/payoutService';
 
@@ -30,7 +30,6 @@ const EMPTY_STATE = {
   manualPickupRequests: [],
   tanks: [],
   qualityLogs: [],
-  restaurantWallets: [],
   earnings: [],
   withdrawals: [],
   alerts: [],
@@ -41,7 +40,6 @@ const EMPTY_STATE = {
   manufacturerInventory: [],
   forecasts: [],
   aiChatMessages: [],
-  collectorWallets: [],
   platformSettings: [],
   paymentTransactions: [],
   tableOverview: [],
@@ -85,6 +83,34 @@ export function AdminProvider({ children }) {
     loadAdminData();
   }, [loadAdminData]);
 
+  // Realtime: admin sees everything, so any change on these three tables
+  // (see docs/migrations/031_enable_realtime.sql) just triggers a full
+  // bundle refresh rather than a per-row merge — simplest correct option
+  // given loadAdminBundle already fetches everything in parallel. Debounced
+  // so a burst of changes (e.g. the auto-dispatch trigger inserting several
+  // alerts at once) doesn't fire several refreshes back to back.
+  const refreshTimerRef = useRef(null);
+  useEffect(() => {
+    const debouncedRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        loadAdminData();
+      }, 800);
+    };
+
+    const channel = supabase
+      .channel('admin-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_pickup_requests' }, debouncedRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [loadAdminData]);
+
   const value = useMemo(
     () => ({
       ...state,
@@ -115,10 +141,8 @@ export function AdminProvider({ children }) {
         runMutation(() => createManualPickupRequest(payload)),
       convertManualRequestToPickup: (manualRequest) =>
         runMutation(() => convertManualRequestToPickup(manualRequest)),
-      assignCollectorToPickup: (pickupId, collector, driverPayoutAmount) =>
-        runMutation(() => assignCollectorToPickup(pickupId, collector, driverPayoutAmount)),
-      setDriverPayoutAmount: (pickupId, amount) =>
-        runMutation(() => setDriverPayoutAmount(pickupId, amount)),
+      assignCollectorToPickup: (pickupId, collector) =>
+        runMutation(() => assignCollectorToPickup(pickupId, collector)),
       updateRestaurantPrimaryManufacturer: (restaurantId, manufacturerId) =>
         runMutation(() => updateRestaurantPrimaryManufacturer(restaurantId, manufacturerId)),
       updatePlatformSettings: (settingsId, payload) =>

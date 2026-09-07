@@ -107,6 +107,8 @@ Manufacturer pays gross + `manufacturer_markup_pct` through PayFast. Both `commi
 
 There is no `restaurant_wallets`/`collector_wallets` table — those were dropped (migration 013); balances are computed live from `earnings` via `restaurant_balances`/`collector_balances` views.
 
+**Payout timing:** instant per-trip, not batched (see `BUSINESS_LOGIC_QUESTIONS.md` #8, superseded 2026-08-31). A DB trigger (migration 036) auto-creates a `pending` `withdrawals` row the instant an `earnings` row is inserted, so `restaurant_balances`/`collector_balances` read ~0 right after every completed trip by design — the money is already queued for admin's next EFT, not sitting as a held balance.
+
 ---
 
 ## PayFast integration — current status

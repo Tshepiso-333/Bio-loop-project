@@ -594,36 +594,6 @@ export default function AdminDashboardScreen({ navigation }) {
       ))}
       {(admin.paymentTransactions ?? []).length === 0 ? <EmptyState label="No manufacturer payments yet." /> : null}
 
-      <Text style={styles.sectionMiniTitle}>Wallets</Text>
-      {admin.restaurantWallets.map((wallet) => (
-        <View key={wallet.id} style={styles.card}>
-          <View style={styles.cardTop}>
-            <View style={styles.avatar}>
-              <Ionicons name="wallet-outline" size={18} color={COLORS.primary} />
-            </View>
-            <View style={styles.cardMain}>
-              <Text style={styles.cardTitle}>Restaurant wallet</Text>
-              <Text style={styles.cardSub}>Wallet ID: {wallet.id}</Text>
-              <Text style={styles.cardMeta}>Balance {currency(wallet.balance)}</Text>
-            </View>
-          </View>
-        </View>
-      ))}
-      {(admin.collectorWallets ?? []).map((wallet) => (
-        <View key={wallet.id} style={styles.card}>
-          <View style={styles.cardTop}>
-            <View style={styles.avatar}>
-              <Ionicons name="wallet-outline" size={18} color={COLORS.primary} />
-            </View>
-            <View style={styles.cardMain}>
-              <Text style={styles.cardTitle}>Driver wallet</Text>
-              <Text style={styles.cardSub}>Wallet ID: {wallet.id}</Text>
-              <Text style={styles.cardMeta}>Balance {currency(wallet.balance)}</Text>
-            </View>
-          </View>
-        </View>
-      ))}
-
       <Text style={styles.sectionMiniTitle}>Pending withdrawals</Text>
       {pendingWithdrawals.map((withdrawal) => {
         const isCollector = !!withdrawal.collector_id;
@@ -952,7 +922,7 @@ export default function AdminDashboardScreen({ navigation }) {
               onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, commission_pct: value }))}
             />
 
-            <Text style={styles.sectionMiniTitle}>Driver flat rate per pickup (R) — fallback only, used when a pickup has no admin-set driver pay</Text>
+            <Text style={styles.sectionMiniTitle}>Driver flat rate per pickup (R) — paid automatically to the driver when a trip completes</Text>
             <TextInput
               style={styles.input}
               placeholder="0"
@@ -1167,7 +1137,7 @@ function PickupCard({ pickup, onCancel }) {
           <Text style={styles.cardSub}>{pickup.restaurants?.address ?? 'No address'}</Text>
           <Text style={styles.cardMeta}>{formatDate(pickup.pickup_date)} · {pickup.estimated_volume_liters ?? pickup.actual_volume_liters ?? 0}L</Text>
           <Text style={styles.cardMeta}>
-            Driver pay: {pickup.driver_payout_amount != null ? currency(pickup.driver_payout_amount) : 'not set — falls back to flat rate'}
+            Driver pay: {pickup.driver_payout_amount != null ? currency(pickup.driver_payout_amount) : 'auto — platform flat rate on completion'}
           </Text>
         </View>
         <View style={[styles.badge, { backgroundColor: `${statusColor}22` }]}>
@@ -1177,6 +1147,9 @@ function PickupCard({ pickup, onCancel }) {
 
       <Text style={styles.businessText}>Driver: {pickup.collectors?.full_name ?? 'Not yet assigned — see Needs dispatch'}</Text>
       <Text style={styles.businessText}>Manufacturer: {pickup.manufacturers?.name ?? 'Not yet assigned — see Needs dispatch'}</Text>
+      {pickup.auto_dispatched ? (
+        <Text style={styles.cardMeta}>Auto-dispatched — driver/manufacturer assigned automatically, no admin action taken</Text>
+      ) : null}
 
       {canCancel ? (
         <View style={styles.actionRow}>

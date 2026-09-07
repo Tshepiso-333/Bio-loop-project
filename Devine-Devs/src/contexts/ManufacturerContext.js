@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../AuthContext';
+import { supabase } from '../../supabase';
 import { cacheKeys, readCache, writeCache } from '../lib/cache';
 import {
   loadManufacturerBundle,
@@ -124,6 +125,40 @@ export const ManufacturerProvider = ({ children }) => {
       setError(null);
     }
   }, [user?.id, loadManufacturerData, applyBundle]);
+
+  // Realtime: pickups routed to this manufacturer (including newly
+  // auto-dispatched ones) plus their own alerts.
+  const realtimeTimerRef = useRef(null);
+  const manufacturerId = state.manufacturer?.id;
+  useEffect(() => {
+    if (!user?.id || !manufacturerId) return undefined;
+
+    const debouncedRefresh = () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      realtimeTimerRef.current = setTimeout(() => {
+        loadManufacturerData(user.id, { fromCache: false });
+      }, 800);
+    };
+
+    const channel = supabase
+      .channel(`manufacturer-realtime-${manufacturerId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pickups', filter: `manufacturer_id=eq.${manufacturerId}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'alerts', filter: `user_id=eq.${user.id}` },
+        debouncedRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, manufacturerId, loadManufacturerData]);
 
   const value = useMemo(() => ({
     ...state,

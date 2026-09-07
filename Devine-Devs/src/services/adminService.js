@@ -12,8 +12,6 @@ const TABLES = {
   manualPickupRequests: 'manual_pickup_requests',
   tanks: 'tanks',
   qualityLogs: 'quality_logs',
-  restaurantWallets: 'restaurant_balances',
-  collectorWallets: 'collector_balances',
   earnings: 'earnings',
   withdrawals: 'withdrawals',
   alerts: 'alerts',
@@ -54,8 +52,6 @@ export async function loadAdminBundle() {
     readList('manualPickupRequests', supabase.from(TABLES.manualPickupRequests).select('*').order('created_at', { ascending: false })),
     readList('tanks', supabase.from(TABLES.tanks).select('*')),
     readList('qualityLogs', supabase.from(TABLES.qualityLogs).select('*').order('created_at', { ascending: false })),
-    readList('restaurantWallets', supabase.from(TABLES.restaurantWallets).select('*')),
-    readList('collectorWallets', supabase.from(TABLES.collectorWallets).select('*')),
     readList('earnings', supabase.from(TABLES.earnings).select('*').order('created_at', { ascending: false })),
     readList('withdrawals', supabase.from(TABLES.withdrawals).select('*').order('created_at', { ascending: false })),
     readList('alerts', supabase.from(TABLES.alerts).select('*').order('created_at', { ascending: false })),
@@ -304,24 +300,13 @@ export async function notifyCollectorAssignment(collector, pickup) {
   return data;
 }
 
-export async function assignCollectorToPickup(pickupId, collector, driverPayoutAmount) {
-  const updates = { collector_id: collector.id, status: 'scheduled' };
-  if (driverPayoutAmount !== undefined && driverPayoutAmount !== null && driverPayoutAmount !== '') {
-    updates.driver_payout_amount = Number(driverPayoutAmount);
-  }
-  const pickup = await assignPickup(pickupId, updates);
+// Driver pay is no longer set here — it's computed automatically at pickup
+// completion (see docs/migrations/042_pickups_auto_earnings.sql) from
+// platform_settings.driver_flat_rate_per_pickup. This just assigns the driver.
+export async function assignCollectorToPickup(pickupId, collector) {
+  const pickup = await assignPickup(pickupId, { collector_id: collector.id, status: 'scheduled' });
   await notifyCollectorAssignment(collector, pickup);
   return pickup;
-}
-
-/**
- * Admin sets what the driver is owed for this specific pickup — replaces the
- * old platform-wide flat rate as the primary source (payoutService.
- * finalizePickupEarnings falls back to the flat rate only if this is unset).
- * Can be set at dispatch time or any time before the pickup completes.
- */
-export async function setDriverPayoutAmount(pickupId, amount) {
-  return assignPickup(pickupId, { driver_payout_amount: Number(amount) });
 }
 
 export async function updateRestaurantPrimaryManufacturer(restaurantId, manufacturerId) {

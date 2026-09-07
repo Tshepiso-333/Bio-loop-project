@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../AuthContext';
+import { supabase } from '../../supabase';
 import { cacheKeys, readCache, writeCache } from '../lib/cache';
 import {
   loadCollectorBundle,
@@ -159,6 +160,41 @@ export const CollectorProvider = ({ children }) => {
       setError(null);
     }
   }, [user?.id, loadCollectorData, applyBundle]);
+
+  // Realtime: only pickups where this driver is (or was just auto-assigned
+  // as) the collector, plus their own alerts — so an auto-dispatched pickup
+  // shows up without the driver having to pull-to-refresh.
+  const realtimeTimerRef = useRef(null);
+  const collectorId = state.collector?.id;
+  useEffect(() => {
+    if (!user?.id || !collectorId) return undefined;
+
+    const debouncedRefresh = () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      realtimeTimerRef.current = setTimeout(() => {
+        loadCollectorData(user.id, { fromCache: false });
+      }, 800);
+    };
+
+    const channel = supabase
+      .channel(`collector-realtime-${collectorId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pickups', filter: `collector_id=eq.${collectorId}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'alerts', filter: `user_id=eq.${user.id}` },
+        debouncedRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, collectorId, loadCollectorData]);
 
   const value = useMemo(() => ({
     ...state,

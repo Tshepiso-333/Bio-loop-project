@@ -9,13 +9,17 @@
 // Supabase auth at all, so this must accept fully unauthenticated POSTs
 // (config.toml already sets verify_jwt = false for this function).
 //
-// Known limitation (see docs/PAYFAST_INTEGRATION.md): this does NOT also
-// finalize the pickup/earnings — that still happens client-side in
-// ManufacturerPaymentScreen after it polls payment_transactions and sees
-// 'complete'. A fully server-authoritative version would trigger that here
-// too, but this app has no server beyond these two functions, and
-// duplicating payoutService.js's calculation logic in Deno risked the two
-// implementations drifting apart. Flagged, not silently skipped.
+// Server-authoritative finalize (closes the gap docs/README.md used to flag):
+// once the signature checks out and payment_status is COMPLETE, this now
+// also finalizes the pickup itself (status -> completed, completed_at) and
+// creates the earnings split, instead of waiting for the manufacturer's app
+// to poll payment_transactions and call confirmDeliveryReceived. That client
+// call still exists and is now a harmless no-op for an already-completed
+// pickup (finalizePickupEarnings in src/services/payoutService.js already
+// no-ops if earnings rows for the pickup exist, and this function's own
+// finalize below has the same existing-earnings guard). The split math below
+// is a deliberate line-for-line port of payoutService.js's
+// finalizePickupEarnings — keep the two in sync if either changes.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createHash } from "node:crypto";
 
@@ -25,6 +29,134 @@ const PAYFAST_PASSPHRASE = Deno.env.get("PAYFAST_PASSPHRASE")!;
 
 function md5(input: string): string {
   return createHash("md5").update(input).digest("hex");
+}
+
+// Deno port of payoutService.js's finalizePickupEarnings. Runs with the
+// service-role key (bypasses RLS, same as the rest of this function) since
+// there is no authenticated user in an ITN callback.
+async function finalizePickupOnServer(
+  admin: ReturnType<typeof createClient>,
+  pickupId: string,
+  gatewayReference: string
+) {
+  const { data: pickup, error: pickupError } = await admin
+    .from("pickups")
+    .select("id, restaurant_id, collector_id, status, quality_grade, actual_volume_liters, estimated_volume_liters, driver_payout_amount")
+    .eq("id", pickupId)
+    .maybeSingle();
+
+  if (pickupError) {
+    console.error("payfast-itn: failed to load pickup", pickupError);
+    return;
+  }
+  if (!pickup) {
+    console.error("payfast-itn: no matching pickup for payment_transactions row", { pickupId });
+    return;
+  }
+
+  // Already finalized (e.g. the manufacturer's client-side poll won the
+  // race and called confirmDeliveryReceived first) — don't double-pay.
+  const { data: existingEarnings, error: existingError } = await admin
+    .from("earnings")
+    .select("id")
+    .eq("pickup_id", pickupId)
+    .limit(1);
+
+  if (existingError) {
+    console.error("payfast-itn: failed to check existing earnings", existingError);
+    return;
+  }
+  if (existingEarnings?.length) {
+    return;
+  }
+
+  const volume = Number(pickup.actual_volume_liters ?? pickup.estimated_volume_liters ?? 0);
+  if (!volume || !pickup.restaurant_id) {
+    return;
+  }
+
+  let rate = 0;
+  if (pickup.quality_grade) {
+    const { data: rateRow, error: rateError } = await admin
+      .from("market_rates")
+      .select("rate_per_liter")
+      .eq("grade", pickup.quality_grade)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (rateError) {
+      console.error("payfast-itn: failed to load market rate", rateError);
+      return;
+    }
+    rate = Number(rateRow?.rate_per_liter ?? 0);
+  }
+
+  const grossValue = volume * rate;
+
+  const { data: settings, error: settingsError } = await admin
+    .from("platform_settings")
+    .select("commission_pct, driver_flat_rate_per_pickup")
+    .limit(1)
+    .maybeSingle();
+
+  if (settingsError) {
+    console.error("payfast-itn: failed to load platform settings", settingsError);
+    return;
+  }
+
+  const commissionPct = Number(settings?.commission_pct ?? 0);
+  const driverFlatRate = Number(settings?.driver_flat_rate_per_pickup ?? 0);
+  const adminSetDriverPay = pickup.driver_payout_amount;
+
+  const platformCut = grossValue * (commissionPct / 100);
+  const driverEarning = pickup.collector_id
+    ? Number(adminSetDriverPay ?? driverFlatRate ?? 0)
+    : 0;
+  const restaurantEarning = Math.max(grossValue - platformCut - driverEarning, 0);
+
+  const rows: Record<string, unknown>[] = [
+    {
+      restaurant_id: pickup.restaurant_id,
+      pickup_id: pickup.id,
+      amount: restaurantEarning,
+      liters: volume,
+      quality_grade: pickup.quality_grade ?? null,
+      description: `Pickup ${pickup.id}`,
+      gateway_reference: gatewayReference ?? null,
+    },
+  ];
+
+  if (pickup.collector_id && driverEarning > 0) {
+    rows.push({
+      collector_id: pickup.collector_id,
+      pickup_id: pickup.id,
+      amount: driverEarning,
+      liters: volume,
+      quality_grade: pickup.quality_grade ?? null,
+      description: `Collection fee for pickup ${pickup.id}`,
+      gateway_reference: gatewayReference ?? null,
+    });
+  }
+
+  const { error: earningsInsertError } = await admin.from("earnings").insert(rows);
+  if (earningsInsertError) {
+    console.error("payfast-itn: failed to insert earnings", earningsInsertError);
+    return;
+  }
+
+  const { error: pickupUpdateError } = await admin
+    .from("pickups")
+    .update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", pickupId);
+
+  if (pickupUpdateError) {
+    console.error("payfast-itn: failed to mark pickup completed", pickupUpdateError);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -76,7 +208,7 @@ Deno.serve(async (req) => {
 
     const newStatus = paymentStatus === "COMPLETE" ? "complete" : "failed";
 
-    const { error } = await admin
+    const { data: transaction, error } = await admin
       .from("payment_transactions")
       .update({
         status: newStatus,
@@ -85,11 +217,25 @@ Deno.serve(async (req) => {
         raw_itn: rawItn,
         updated_at: new Date().toISOString(),
       })
-      .eq("m_payment_id", mPaymentId);
+      .eq("m_payment_id", mPaymentId)
+      .select("id, pickup_id")
+      .maybeSingle();
 
     if (error) {
       console.error("payfast-itn: failed to update transaction", error);
       return new Response("db update failed", { status: 500 });
+    }
+
+    if (newStatus === "complete" && transaction?.pickup_id) {
+      try {
+        await finalizePickupOnServer(admin, transaction.pickup_id, transaction.id);
+      } catch (finalizeErr) {
+        // Never fail the ITN response over a finalize error — PayFast has
+        // already been told the payment was received; log for follow-up
+        // instead of retrying the whole webhook (which would keep resending
+        // a payment PayFast considers settled).
+        console.error("payfast-itn: failed to finalize pickup", finalizeErr);
+      }
     }
 
     return new Response("ok", { status: 200 });

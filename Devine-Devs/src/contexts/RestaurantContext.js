@@ -4,9 +4,11 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useAuth } from '../../AuthContext';
+import { supabase } from '../../supabase';
 import { cacheKeys, readCache, writeCache } from '../lib/cache';
 import {
   cancelPickup,
@@ -224,6 +226,43 @@ export const RestaurantProvider = ({ children }) => {
       setError(null);
     }
   }, [user?.id, loadRestaurantData, applyBundle]);
+
+  // Realtime: only this restaurant's own pickups/alerts — a driver being
+  // auto-assigned, a status change, or a new admin alert should show up
+  // without waiting for pull-to-refresh. Refetches the whole bundle (via
+  // refreshRestaurant) rather than merging a single row, same tradeoff as
+  // the other contexts' realtime wiring.
+  const realtimeTimerRef = useRef(null);
+  const restaurantId = state.restaurant?.id;
+  useEffect(() => {
+    if (!user?.id || !restaurantId) return undefined;
+
+    const debouncedRefresh = () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      realtimeTimerRef.current = setTimeout(() => {
+        loadRestaurantData(user.id, { fromCache: false });
+      }, 800);
+    };
+
+    const channel = supabase
+      .channel(`restaurant-realtime-${restaurantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pickups', filter: `restaurant_id=eq.${restaurantId}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'alerts', filter: `user_id=eq.${user.id}` },
+        debouncedRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, restaurantId, loadRestaurantData]);
 
   const value = useMemo(
     () => ({
