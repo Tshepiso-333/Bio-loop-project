@@ -9,15 +9,32 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+<<<<<<< HEAD
+=======
+import { useAuth } from '../../AuthContext';
+import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { useProfile } from '../../src/hooks/useProfile';
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
 
 const { width, height } = Dimensions.get('window');
 
 function ManufacturerHomeScreen({ navigation, route }) {
+<<<<<<< HEAD
   const userName = route?.params?.userName || 'Kgopotso';
 
   const handleGoToDashboard = () => {
     // ✅ FIXED: Navigate to the screen inside the nested ManufacturerStack
     navigation.navigate('ManufacturerDashboard');
+=======
+  const { signOut } = useAuth();
+  const { manufacturer } = useManufacturerContext();
+  const { profile } = useProfile();
+  const userName = profile?.full_name || manufacturer?.contact_person || manufacturer?.name || 'there';
+
+  const handleGoToDashboard = () => {
+    // ✅ FIXED: Navigate to the screen inside the nested ManufacturerStack
+    navigation.navigate('ManufacturerDashboardScreen');
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
   };
 
   return (

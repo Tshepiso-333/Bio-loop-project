@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
@@ -170,12 +171,131 @@ export default function EarningsScreen() {
 
         <View style={{ height: 16 }} />
       </ScrollView>
+=======
+import React, { useMemo, useState } from 'react';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { useProfile } from '../../src/hooks/useProfile';
+import { useRestaurant } from '../../src/hooks/useRestaurant';
+import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
+import {
+  REST_COLORS,
+  REST_FONTS,
+  REST_RADII,
+  REST_SHADOWS,
+  REST_SPACING,
+} from '../../src/restaurant/restaurantTheme';
+import {
+  RestaurantEmptyBanner,
+  RestaurantLoadingBanner,
+  RestaurantRefreshScrollView,
+} from '../../src/components/RestaurantScreenStates';
+import {
+  getInitials,
+  mapAvgQuality,
+  mapBalance,
+  mapMarketRates,
+  mapRecentEarnings,
+  mapWithdrawalHistory,
+} from '../../src/utils/restaurantViewModels';
+
+export default function EarningsScreen() {
+  const [withdrawTab, setWithdrawTab] = useState('withdraw');
+  const { profile } = useProfile();
+  const {
+    wallet,
+    marketRates,
+    qualityLogs,
+    earnings,
+    withdrawals,
+    loading,
+    refreshing,
+    refreshRestaurant,
+    requestWithdrawal,
+  } = useRestaurant();
+  const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
+
+  const unpaidEarnings = useMemo(
+    () => (earnings ?? []).filter((row) => !row.withdrawal_id).reduce((sum, row) => sum + Number(row.amount ?? 0), 0),
+    [earnings]
+  );
+
+  const handleRequestWithdrawal = async () => {
+    setRequestingWithdrawal(true);
+    try {
+      await requestWithdrawal();
+      Alert.alert('Withdrawal requested', 'Your request has been sent for review.');
+    } catch (err) {
+      Alert.alert('Could not request withdrawal', err.message ?? 'Please try again.');
+    } finally {
+      setRequestingWithdrawal(false);
+    }
+  };
+
+  const profileInitials = useMemo(
+    () => getInitials(profile?.full_name, 'RS'),
+    [profile?.full_name]
+  );
+  const balance = useMemo(() => mapBalance(wallet), [wallet]);
+  const marketRatesView = useMemo(() => mapMarketRates(marketRates), [marketRates]);
+  const avgQuality = useMemo(() => mapAvgQuality(qualityLogs), [qualityLogs]);
+  const recentEarnings = useMemo(() => mapRecentEarnings(earnings), [earnings]);
+  const withdrawalHistory = useMemo(
+    () => mapWithdrawalHistory(withdrawals),
+    [withdrawals]
+  );
+
+  return (
+    <View style={styles.root}>
+      <RestaurantHeader title="Earnings" avatarInitials={profileInitials} />
+
+      <RestaurantRefreshScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshing={refreshing}
+        onRefresh={refreshRestaurant}
+      >
+        {loading && !wallet ? <RestaurantLoadingBanner /> : null}
+
+        <BalanceCard
+          balance={balance}
+          activeTab={withdrawTab}
+          onTabSelect={setWithdrawTab}
+          unpaidEarnings={unpaidEarnings}
+          onRequestWithdrawal={handleRequestWithdrawal}
+          requesting={requestingWithdrawal}
+        />
+
+        {marketRatesView.grades.length > 0 ? (
+          <MarketRatesCard rates={marketRatesView} />
+        ) : (
+          <RestaurantEmptyBanner message="No market rates available." />
+        )}
+
+        <AvgQualityCard quality={avgQuality} />
+
+        {recentEarnings.length > 0 ? (
+          <RecentEarnings items={recentEarnings} />
+        ) : (
+          <RestaurantEmptyBanner message="No earnings recorded yet." />
+        )}
+
+        {withdrawalHistory.length > 0 ? (
+          <WithdrawalHistory items={withdrawalHistory} />
+        ) : (
+          <RestaurantEmptyBanner message="No withdrawals yet." />
+        )}
+
+        <View style={{ height: 30 }} />
+      </RestaurantRefreshScrollView>
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
     </View>
   );
 }
 
 // ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
 
+<<<<<<< HEAD
 function RestaurantHeader({ name }) {
   return (
     <View style={styles.restaurantHeader}>
@@ -206,12 +326,35 @@ function BalanceCard({ balance, activeTab, onTabSelect }) {
       <View style={styles.balanceTabRow}>
         <Pressable
           style={[styles.balanceTab, activeTab === 'withdraw' && styles.balanceTabActive]}
+=======
+function BalanceCard({ balance, activeTab, onTabSelect, unpaidEarnings, onRequestWithdrawal, requesting }) {
+  return (
+    <View style={styles.balanceCard}>
+      <View style={styles.balanceLabelRow}>
+        <Ionicons name="wallet-outline" size={13} color={REST_COLORS.body} />
+        <Text style={styles.balanceLabel}>{balance.label}</Text>
+      </View>
+
+      <Text style={styles.balanceAmount}>{balance.amount}</Text>
+
+      <View style={styles.balanceTabRow}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.balanceTab,
+            activeTab === 'withdraw' && styles.balanceTabActive,
+            pressed && { opacity: 0.85 },
+          ]}
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
           onPress={() => onTabSelect('withdraw')}
         >
           <Ionicons
             name="arrow-up-circle-outline"
             size={14}
+<<<<<<< HEAD
             color={activeTab === 'withdraw' ? '#FFFFFF' : COLORS.textSecondary}
+=======
+            color={activeTab === 'withdraw' ? REST_COLORS.white : REST_COLORS.body}
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
           />
           <Text style={[styles.balanceTabText, activeTab === 'withdraw' && styles.balanceTabTextActive]}>
             Withdraw
@@ -219,19 +362,49 @@ function BalanceCard({ balance, activeTab, onTabSelect }) {
         </Pressable>
 
         <Pressable
+<<<<<<< HEAD
           style={[styles.balanceTab, activeTab === 'history' && styles.balanceTabActive]}
+=======
+          style={({ pressed }) => [
+            styles.balanceTab,
+            activeTab === 'history' && styles.balanceTabActive,
+            pressed && { opacity: 0.85 },
+          ]}
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
           onPress={() => onTabSelect('history')}
         >
           <Ionicons
             name="time-outline"
             size={14}
+<<<<<<< HEAD
             color={activeTab === 'history' ? '#FFFFFF' : COLORS.textSecondary}
+=======
+            color={activeTab === 'history' ? REST_COLORS.white : REST_COLORS.body}
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
           />
           <Text style={[styles.balanceTabText, activeTab === 'history' && styles.balanceTabTextActive]}>
             History
           </Text>
         </Pressable>
       </View>
+<<<<<<< HEAD
+=======
+
+      {activeTab === 'withdraw' ? (
+        <View style={styles.withdrawPanel}>
+          <Text style={styles.withdrawPanelText}>R {unpaidEarnings.toFixed(2)} available to withdraw</Text>
+          <Pressable
+            style={[styles.withdrawRequestBtn, (requesting || unpaidEarnings <= 0) && styles.withdrawRequestBtnDisabled]}
+            onPress={onRequestWithdrawal}
+            disabled={requesting || unpaidEarnings <= 0}
+          >
+            <Text style={styles.withdrawRequestBtnText}>
+              {requesting ? 'Requesting…' : 'Request withdrawal'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
     </View>
   );
 }
@@ -241,12 +414,21 @@ function MarketRatesCard({ rates }) {
     <View style={styles.card}>
       <View style={styles.marketHeaderRow}>
         <View style={styles.marketTitleRow}>
+<<<<<<< HEAD
           <Ionicons name="trending-up-outline" size={15} color={COLORS.textPrimary} />
           <Text style={styles.sectionTitle}>Market Rates</Text>
         </View>
         <View style={styles.updatedBadge}>
           <Ionicons name="refresh-outline" size={10} color={COLORS.textMuted} />
           <Text style={styles.updatedText}>{rates.updatedLabel.toUpperCase()}</Text>
+=======
+          <Ionicons name="trending-up-outline" size={15} color={REST_COLORS.ink} />
+          <Text style={styles.sectionTitle}>Market Rates</Text>
+        </View>
+        <View style={styles.updatedBadge}>
+          <Ionicons name="refresh-outline" size={10} color={REST_COLORS.muted} />
+          <Text style={styles.updatedText}>{rates.updatedLabel}</Text>
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
         </View>
       </View>
 
@@ -284,12 +466,21 @@ function AvgQualityCard({ quality }) {
   return (
     <View style={styles.card}>
       <View style={styles.avgQualityLabelRow}>
+<<<<<<< HEAD
         <Ionicons name="analytics-outline" size={13} color={COLORS.textMuted} />
         <Text style={styles.avgQualityLabel}>Your Avg Quality</Text>
       </View>
       <View style={styles.highGradeBadge}>
         <Ionicons name="star" size={13} color={COLORS.green} />
         <Text style={styles.highGradeText}>{quality.badge.toUpperCase()}</Text>
+=======
+        <Ionicons name="analytics-outline" size={13} color={REST_COLORS.muted} />
+        <Text style={styles.avgQualityLabel}>Your avg quality</Text>
+      </View>
+      <View style={styles.highGradeBadge}>
+        <Ionicons name="star" size={13} color={REST_COLORS.primary} />
+        <Text style={styles.highGradeText}>{quality.badge}</Text>
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
       </View>
       <Text style={styles.avgQualityDesc}>{quality.description}</Text>
     </View>
@@ -299,6 +490,7 @@ function AvgQualityCard({ quality }) {
 function RecentEarnings({ items }) {
   return (
     <View style={styles.section}>
+<<<<<<< HEAD
       <View style={styles.sectionHeaderRow}>
         <View style={styles.sectionTitleRow}>
           <Ionicons name="receipt-outline" size={16} color={COLORS.textPrimary} />
@@ -308,6 +500,11 @@ function RecentEarnings({ items }) {
           <Text style={styles.viewAll}>View All</Text>
           <Ionicons name="arrow-forward" size={13} color={COLORS.green} />
         </Pressable>
+=======
+      <View style={styles.sectionTitleRow}>
+        <Ionicons name="receipt-outline" size={16} color={REST_COLORS.ink} />
+        <Text style={styles.sectionTitle}>Recent Earnings</Text>
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
       </View>
 
       {items.map((item) => (
@@ -320,12 +517,19 @@ function RecentEarnings({ items }) {
 function EarningRow({ item }) {
   return (
     <View style={styles.earningRow}>
+<<<<<<< HEAD
       {/* Truck icon */}
       <View style={styles.earningIconWrap}>
         <MaterialCommunityIcons name="truck-outline" size={20} color={COLORS.green} />
       </View>
 
       {/* Date + detail */}
+=======
+      <View style={styles.earningIconWrap}>
+        <MaterialCommunityIcons name="truck-outline" size={20} color={REST_COLORS.primary} />
+      </View>
+
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
       <View style={styles.earningText}>
         <Text style={styles.earningTitle}>
           <Text style={styles.earningDate}>{item.date} </Text>
@@ -334,7 +538,10 @@ function EarningRow({ item }) {
         <Text style={styles.earningDetail}>{item.detail}</Text>
       </View>
 
+<<<<<<< HEAD
       {/* Amount + detail */}
+=======
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
       <View style={styles.earningRight}>
         <Text style={styles.earningAmount}>{item.amount}</Text>
         <Text style={styles.earningAmountDetail}>{item.amountDetail}</Text>
@@ -347,11 +554,18 @@ function WithdrawalHistory({ items }) {
   return (
     <View style={styles.section}>
       <View style={styles.sectionTitleRow}>
+<<<<<<< HEAD
         <Ionicons name="swap-vertical-outline" size={16} color={COLORS.textPrimary} />
         <Text style={styles.sectionTitle}>Withdrawal History</Text>
       </View>
 
       {/* Table header */}
+=======
+        <Ionicons name="swap-vertical-outline" size={16} color={REST_COLORS.ink} />
+        <Text style={styles.sectionTitle}>Withdrawal History</Text>
+      </View>
+
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
       <View style={styles.tableHeaderRow}>
         <Text style={[styles.tableHeaderCell, styles.colDate]}>Date</Text>
         <Text style={[styles.tableHeaderCell, styles.colMethod]}>Method</Text>
@@ -362,7 +576,11 @@ function WithdrawalHistory({ items }) {
         <View key={item.id} style={styles.tableRow}>
           <Text style={[styles.tableCell, styles.colDate]}>{item.date}</Text>
           <View style={[styles.tableMethodCell, styles.colMethod]}>
+<<<<<<< HEAD
             <Ionicons name={item.methodIcon} size={13} color={COLORS.textSecondary} />
+=======
+            <Ionicons name={item.methodIcon} size={13} color={REST_COLORS.body} />
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
             <Text style={styles.tableCell}>{item.method}</Text>
           </View>
           <Text style={[styles.tableCell, styles.colAmount, styles.withdrawalAmount]}>
@@ -377,6 +595,7 @@ function WithdrawalHistory({ items }) {
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+<<<<<<< HEAD
   root: { flex: 1, backgroundColor: COLORS.background },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 16 },
@@ -402,12 +621,27 @@ const styles = StyleSheet.create({
     padding: 20, marginBottom: 12,
     borderWidth: 1, borderColor: COLORS.border,
     alignItems: 'center',
+=======
+  root: { flex: 1, backgroundColor: REST_COLORS.page },
+
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: REST_SPACING.screenPadding, paddingTop: 8 },
+
+  // Balance card — the hero of this screen
+  balanceCard: {
+    backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card,
+    padding: 24, marginBottom: REST_SPACING.gap,
+    borderWidth: 1, borderColor: REST_COLORS.border,
+    alignItems: 'center',
+    ...REST_SHADOWS.card,
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
   },
   balanceLabelRow: {
     flexDirection: 'row', alignItems: 'center',
     gap: 5, marginBottom: 6,
   },
   balanceLabel: {
+<<<<<<< HEAD
     fontFamily: FONTS.bodySemiBold, fontSize: 10,
     color: COLORS.textMuted, letterSpacing: 1,
   },
@@ -420,6 +654,19 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderRadius: 12, padding: 4,
     borderWidth: 1, borderColor: COLORS.border,
+=======
+    fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.body,
+  },
+  balanceAmount: {
+    fontFamily: REST_FONTS.extraBold, fontSize: 44,
+    color: REST_COLORS.ink, marginBottom: 20,
+  },
+  balanceTabRow: {
+    flexDirection: 'row', gap: 10,
+    backgroundColor: REST_COLORS.surfaceSoft,
+    borderRadius: REST_RADII.chip, padding: 4,
+    borderWidth: 1, borderColor: REST_COLORS.border,
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
     alignSelf: 'stretch',
   },
   balanceTab: {
@@ -427,6 +674,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', gap: 6,
     paddingVertical: 10, borderRadius: 9,
   },
+<<<<<<< HEAD
   balanceTabActive: { backgroundColor: COLORS.greenDark },
   balanceTabText: {
     fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.textSecondary,
@@ -438,6 +686,28 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card, borderRadius: 16,
     padding: 16, marginBottom: 12,
     borderWidth: 1, borderColor: COLORS.border,
+=======
+  balanceTabActive: { backgroundColor: REST_COLORS.primary },
+  balanceTabText: {
+    fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.body,
+  },
+  balanceTabTextActive: { color: REST_COLORS.white },
+  withdrawPanel: { marginTop: 14, alignItems: 'center', alignSelf: 'stretch' },
+  withdrawPanelText: { fontFamily: REST_FONTS.medium, fontSize: 12, color: REST_COLORS.muted, marginBottom: 10 },
+  withdrawRequestBtn: {
+    backgroundColor: REST_COLORS.primary, borderRadius: 12,
+    paddingVertical: 12, alignSelf: 'stretch', alignItems: 'center',
+  },
+  withdrawRequestBtnDisabled: { opacity: 0.5 },
+  withdrawRequestBtnText: { fontFamily: REST_FONTS.semiBold, fontSize: 14, color: REST_COLORS.white },
+
+  // Shared quiet secondary card
+  card: {
+    backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card,
+    padding: 16, marginBottom: REST_SPACING.gap,
+    borderWidth: 1, borderColor: REST_COLORS.border,
+    ...REST_SHADOWS.card,
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
   },
 
   // Market rates
@@ -448,6 +718,7 @@ const styles = StyleSheet.create({
   marketTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   updatedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
+<<<<<<< HEAD
     backgroundColor: COLORS.background,
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
     borderWidth: 1, borderColor: COLORS.border,
@@ -455,11 +726,20 @@ const styles = StyleSheet.create({
   updatedText: {
     fontFamily: FONTS.bodyMedium, fontSize: 9,
     color: COLORS.textMuted, letterSpacing: 0.5,
+=======
+    backgroundColor: REST_COLORS.surfaceSoft,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20,
+    borderWidth: 1, borderColor: REST_COLORS.border,
+  },
+  updatedText: {
+    fontFamily: REST_FONTS.medium, fontSize: 10, color: REST_COLORS.muted,
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
   },
   gradesRow: { flexDirection: 'row' },
   gradeCell: { flex: 1, paddingRight: 12 },
   gradeCellRight: {
     paddingRight: 0, paddingLeft: 12,
+<<<<<<< HEAD
     borderLeftWidth: 1, borderLeftColor: COLORS.border,
   },
   gradeLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
@@ -474,6 +754,22 @@ const styles = StyleSheet.create({
   gradeChange: { fontFamily: FONTS.bodyRegular, fontSize: 11, color: COLORS.textMuted },
   gradeChangePositive: { color: COLORS.positive },
   gradeChangeNegative: { color: COLORS.negative },
+=======
+    borderLeftWidth: 1, borderLeftColor: REST_COLORS.border,
+  },
+  gradeLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  gradeDot: { width: 8, height: 8, borderRadius: 4 },
+  gradeLabel: { fontFamily: REST_FONTS.semiBold, fontSize: 12, color: REST_COLORS.body },
+  gradeRateRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 1, marginBottom: 4 },
+  gradeRate: { fontFamily: REST_FONTS.bold, fontSize: 22, color: REST_COLORS.ink },
+  gradeUnit: {
+    fontFamily: REST_FONTS.medium, fontSize: 12,
+    color: REST_COLORS.muted, marginBottom: 3,
+  },
+  gradeChange: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted },
+  gradeChangePositive: { color: REST_COLORS.positive },
+  gradeChangeNegative: { color: REST_COLORS.negative },
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
 
   // Avg quality
   avgQualityLabelRow: {
@@ -481,17 +777,26 @@ const styles = StyleSheet.create({
     gap: 5, marginBottom: 10,
   },
   avgQualityLabel: {
+<<<<<<< HEAD
     fontFamily: FONTS.bodySemiBold, fontSize: 10,
     color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.8,
+=======
+    fontFamily: REST_FONTS.semiBold, fontSize: 12, color: REST_COLORS.muted,
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
   },
   highGradeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'flex-start',
+<<<<<<< HEAD
     backgroundColor: COLORS.greenLight,
+=======
+    backgroundColor: REST_COLORS.paleGreen,
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
     paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 20, marginBottom: 10,
   },
   highGradeText: {
+<<<<<<< HEAD
     fontFamily: FONTS.bodySemiBold, fontSize: 12,
     color: COLORS.green, letterSpacing: 0.5,
   },
@@ -510,10 +815,24 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: FONTS.semiBold, fontSize: 16, color: COLORS.textPrimary },
   viewAllRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   viewAll: { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.green },
+=======
+    fontFamily: REST_FONTS.semiBold, fontSize: 12, color: REST_COLORS.primary,
+  },
+  avgQualityDesc: {
+    fontFamily: REST_FONTS.medium, fontSize: 13,
+    color: REST_COLORS.body, lineHeight: 19,
+  },
+
+  // Shared section wrapper
+  section: { marginBottom: REST_SPACING.gap },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  sectionTitle: { fontFamily: REST_FONTS.bold, fontSize: 16, color: REST_COLORS.ink },
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
 
   // Earning rows
   earningRow: {
     flexDirection: 'row', alignItems: 'center',
+<<<<<<< HEAD
     backgroundColor: COLORS.card,
     borderRadius: 14, padding: 14,
     marginBottom: 8,
@@ -531,21 +850,49 @@ const styles = StyleSheet.create({
   earningRight: { alignItems: 'flex-end' },
   earningAmount: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.positive, marginBottom: 2 },
   earningAmountDetail: { fontFamily: FONTS.bodyRegular, fontSize: 10, color: COLORS.textMuted, textAlign: 'right' },
+=======
+    backgroundColor: REST_COLORS.card,
+    borderRadius: 14, padding: 14,
+    marginBottom: 8,
+    borderWidth: 1, borderColor: REST_COLORS.border,
+  },
+  earningIconWrap: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: REST_COLORS.paleGreen,
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+  },
+  earningText: { flex: 1 },
+  earningTitle: { fontFamily: REST_FONTS.medium, fontSize: 13, color: REST_COLORS.ink, marginBottom: 2 },
+  earningDate: { fontFamily: REST_FONTS.semiBold, color: REST_COLORS.ink },
+  earningDetail: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted },
+  earningRight: { alignItems: 'flex-end' },
+  earningAmount: { fontFamily: REST_FONTS.bold, fontSize: 15, color: REST_COLORS.positive, marginBottom: 2 },
+  earningAmountDetail: { fontFamily: REST_FONTS.medium, fontSize: 10, color: REST_COLORS.muted, textAlign: 'right' },
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
 
   // Withdrawal history table
   tableHeaderRow: {
     flexDirection: 'row',
     paddingVertical: 8,
+<<<<<<< HEAD
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
     marginBottom: 2,
   },
   tableHeaderCell: {
     fontFamily: FONTS.bodySemiBold, fontSize: 10,
     color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5,
+=======
+    borderBottomWidth: 1, borderBottomColor: REST_COLORS.border,
+    marginBottom: 2,
+  },
+  tableHeaderCell: {
+    fontFamily: REST_FONTS.semiBold, fontSize: 11, color: REST_COLORS.muted,
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
   },
   tableRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 12,
+<<<<<<< HEAD
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   tableCell: { fontFamily: FONTS.bodyRegular, fontSize: 13, color: COLORS.textPrimary },
@@ -555,3 +902,14 @@ const styles = StyleSheet.create({
   colMethod: { flex: 2.2 },
   colAmount: { flex: 1.5, textAlign: 'right' },
 });
+=======
+    borderBottomWidth: 1, borderBottomColor: REST_COLORS.divider,
+  },
+  tableCell: { fontFamily: REST_FONTS.medium, fontSize: 13, color: REST_COLORS.ink },
+  tableMethodCell: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  withdrawalAmount: { fontFamily: REST_FONTS.semiBold, color: REST_COLORS.negative, textAlign: 'right' },
+  colDate:   { flex: 2.2 },
+  colMethod: { flex: 2.2 },
+  colAmount: { flex: 1.5, textAlign: 'right' },
+});
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0

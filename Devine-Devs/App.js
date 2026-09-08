@@ -13,8 +13,21 @@ import {
   Inter_500Medium,
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
+<<<<<<< HEAD
 
 import { AuthProvider } from './AuthContext';
+=======
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+
+import { AuthProvider } from './AuthContext';
+import { ProfileProvider } from './src/contexts/ProfileContext';
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
 import RootNavigator from './navigation/RootNavigator';
 
 export default function App() {
@@ -26,6 +39,14 @@ export default function App() {
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
+<<<<<<< HEAD
+=======
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
   });
 
   // Show a simple spinner while fonts are loading.
@@ -41,7 +62,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
+<<<<<<< HEAD
         <RootNavigator />
+=======
+        <ProfileProvider>
+          <RootNavigator />
+        </ProfileProvider>
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
       </AuthProvider>
     </SafeAreaProvider>
   );

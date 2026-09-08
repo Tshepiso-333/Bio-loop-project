@@ -1,17 +1,32 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useAuth } from '../../AuthContext';
+<<<<<<< HEAD
 
 export default function UnknownRoleScreen() {
   const { userRole, logout } = useAuth();
+=======
+import { useProfile } from '../../src/hooks/useProfile';
+
+export default function UnknownRoleScreen() {
+  const { signOut } = useAuth();
+  const { role } = useProfile();
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>No stack mapped for this role</Text>
+<<<<<<< HEAD
       <Text style={styles.role}>Typed role: {userRole}</Text>
       <Text style={styles.help}>Use one of: restaurant, driver, manufacturer, admin.</Text>
 
       <Pressable style={styles.button} onPress={logout}>
+=======
+      <Text style={styles.role}>Typed role: {role ?? 'unknown'}</Text>
+      <Text style={styles.help}>Use one of: collector, admin, manufacturer, restaurant.</Text>
+
+      <Pressable style={styles.button} onPress={signOut}>
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
         <Text style={styles.buttonText}>Back To Login</Text>
       </Pressable>
     </View>

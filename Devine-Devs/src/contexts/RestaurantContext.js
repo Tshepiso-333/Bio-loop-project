@@ -1,0 +1,311 @@
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useAuth } from '../../AuthContext';
+import { supabase } from '../../supabase';
+import { cacheKeys, readCache, writeCache } from '../lib/cache';
+import {
+  cancelPickup,
+  createManualPickupRequest,
+  createPickupRequest,
+  loadRestaurantBundle,
+  updateTankFillPercent,
+  updateTankGrade,
+} from '../services/restaurantService';
+import { requestWithdrawal } from '../services/payoutService';
+
+const RestaurantContext = createContext(null);
+
+export { RestaurantContext };
+
+const EMPTY_STATE = {
+  restaurant: null,
+  tank: null,
+  tankReadings: [],
+  pickups: [],
+  pickupSchedules: [],
+  wallet: null,
+  earnings: [],
+  withdrawals: [],
+  alerts: [],
+  qualityLogs: [],
+  activityLogs: [],
+  marketRates: [],
+};
+
+export const RestaurantProvider = ({ children }) => {
+  const { user } = useAuth();
+  const [state, setState] = useState(EMPTY_STATE);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const applyBundle = useCallback((bundle) => {
+    setState({
+      restaurant: bundle.restaurant ?? null,
+      tank: bundle.tank ?? null,
+      tankReadings: bundle.tankReadings ?? [],
+      pickups: bundle.pickups ?? [],
+      pickupSchedules: bundle.pickupSchedules ?? [],
+      wallet: bundle.wallet ?? null,
+      earnings: bundle.earnings ?? [],
+      withdrawals: bundle.withdrawals ?? [],
+      alerts: bundle.alerts ?? [],
+      qualityLogs: bundle.qualityLogs ?? [],
+      activityLogs: bundle.activityLogs ?? [],
+      marketRates: bundle.marketRates ?? [],
+    });
+  }, []);
+
+  const loadRestaurantData = useCallback(
+    async (userId, { fromCache = true } = {}) => {
+      if (!userId) {
+        applyBundle(EMPTY_STATE);
+        setLoading(false);
+        return;
+      }
+
+      const cacheKey = cacheKeys.restaurant(userId);
+
+      if (fromCache) {
+        const cached = await readCache(cacheKey);
+        if (cached) {
+          applyBundle(cached);
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
+      }
+
+      try {
+        setError(null);
+        const bundle = await loadRestaurantBundle(userId);
+        applyBundle(bundle);
+        await writeCache(cacheKey, bundle);
+      } catch (err) {
+        console.error('Error loading restaurant data:', err.message);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [applyBundle]
+  );
+
+  const refreshRestaurant = useCallback(async () => {
+    if (!user?.id) return;
+
+    setRefreshing(true);
+    await loadRestaurantData(user.id, { fromCache: false });
+  }, [user?.id, loadRestaurantData]);
+
+  const handleCreatePickupRequest = useCallback(
+    async (payload) => {
+      const restaurantId = state.restaurant?.id;
+      if (!restaurantId) {
+        throw new Error('Restaurant record not found');
+      }
+
+      const pickup = await createPickupRequest(restaurantId, {
+        ...payload,
+        tank_id: payload.tank_id ?? state.tank?.id ?? null,
+      });
+
+      setState((prev) => {
+        const next = { ...prev, pickups: [pickup, ...prev.pickups] };
+        if (user?.id) {
+          writeCache(cacheKeys.restaurant(user.id), next);
+        }
+        return next;
+      });
+
+      return pickup;
+    },
+    [state.restaurant?.id, state.tank?.id, user?.id]
+  );
+
+  const handleCreateManualPickupRequest = useCallback(
+    async (payload) => {
+      const restaurantId = state.restaurant?.id;
+      if (!restaurantId) {
+        throw new Error('Restaurant record not found');
+      }
+
+      return createManualPickupRequest(restaurantId, {
+        ...payload,
+        tank_id: payload.tank_id ?? state.tank?.id ?? null,
+      });
+    },
+    [state.restaurant?.id, state.tank?.id]
+  );
+
+  const handleUpdateTankGrade = useCallback(
+    async (grade) => {
+      const tankId = state.tank?.id;
+      if (!tankId) {
+        throw new Error('Tank record not found');
+      }
+
+      const tank = await updateTankGrade(tankId, grade);
+
+      setState((prev) => {
+        const next = { ...prev, tank };
+        if (user?.id) {
+          writeCache(cacheKeys.restaurant(user.id), next);
+        }
+        return next;
+      });
+
+      return tank;
+    },
+    [state.tank?.id, user?.id]
+  );
+
+  const handleUpdateTankFillPercent = useCallback(
+    async (fillPercent) => {
+      const tankId = state.tank?.id;
+      if (!tankId) {
+        throw new Error('Tank record not found');
+      }
+
+      const tank = await updateTankFillPercent(tankId, fillPercent);
+
+      setState((prev) => {
+        const next = { ...prev, tank };
+        if (user?.id) {
+          writeCache(cacheKeys.restaurant(user.id), next);
+        }
+        return next;
+      });
+
+      return tank;
+    },
+    [state.tank?.id, user?.id]
+  );
+
+  const handleCancelPickup = useCallback(
+    async (pickupId, reason) => {
+      const updatedPickup = await cancelPickup(pickupId, user?.id, reason);
+
+      setState((prev) => {
+        const next = {
+          ...prev,
+          pickups: prev.pickups.map((pickup) => (pickup.id === pickupId ? updatedPickup : pickup)),
+        };
+        if (user?.id) writeCache(cacheKeys.restaurant(user.id), next);
+        return next;
+      });
+
+      return updatedPickup;
+    },
+    [user?.id]
+  );
+
+  const handleRequestWithdrawal = useCallback(async () => {
+    const restaurantId = state.restaurant?.id;
+    if (!restaurantId) throw new Error('Restaurant record not found');
+
+    const withdrawal = await requestWithdrawal({ restaurantId });
+    await refreshRestaurant();
+    return withdrawal;
+  }, [state.restaurant?.id, refreshRestaurant]);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadRestaurantData(user.id);
+    } else {
+      applyBundle(EMPTY_STATE);
+      setLoading(false);
+      setError(null);
+    }
+  }, [user?.id, loadRestaurantData, applyBundle]);
+
+  // Realtime: only this restaurant's own pickups/alerts — a driver being
+  // auto-assigned, a status change, or a new admin alert should show up
+  // without waiting for pull-to-refresh. Refetches the whole bundle (via
+  // refreshRestaurant) rather than merging a single row, same tradeoff as
+  // the other contexts' realtime wiring.
+  const realtimeTimerRef = useRef(null);
+  const restaurantId = state.restaurant?.id;
+  useEffect(() => {
+    if (!user?.id || !restaurantId) return undefined;
+
+    const debouncedRefresh = () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      realtimeTimerRef.current = setTimeout(() => {
+        loadRestaurantData(user.id, { fromCache: false });
+      }, 800);
+    };
+
+    const channel = supabase
+      .channel(`restaurant-realtime-${restaurantId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pickups', filter: `restaurant_id=eq.${restaurantId}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'alerts', filter: `user_id=eq.${user.id}` },
+        debouncedRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, restaurantId, loadRestaurantData]);
+
+  const value = useMemo(
+    () => ({
+      ...state,
+      loading,
+      refreshing,
+      error,
+      loadRestaurantData,
+      refreshRestaurant,
+      createPickupRequest: handleCreatePickupRequest,
+      createManualPickupRequest: handleCreateManualPickupRequest,
+      updateTankGrade: handleUpdateTankGrade,
+      updateTankFillPercent: handleUpdateTankFillPercent,
+      cancelPickup: handleCancelPickup,
+      requestWithdrawal: handleRequestWithdrawal,
+    }),
+    [
+      state,
+      loading,
+      refreshing,
+      error,
+      loadRestaurantData,
+      refreshRestaurant,
+      handleCreatePickupRequest,
+      handleCreateManualPickupRequest,
+      handleUpdateTankGrade,
+      handleUpdateTankFillPercent,
+      handleCancelPickup,
+      handleRequestWithdrawal,
+    ]
+  );
+
+  return (
+    <RestaurantContext.Provider value={value}>
+      {children}
+    </RestaurantContext.Provider>
+  );
+};
+
+export const useRestaurantContext = () => {
+  const context = useContext(RestaurantContext);
+  if (!context) {
+    throw new Error('useRestaurantContext must be used within a RestaurantProvider');
+  }
+  return context;
+};

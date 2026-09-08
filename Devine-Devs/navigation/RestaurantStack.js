@@ -7,14 +7,22 @@ import RestaurantHomeScreen  from '../screens/restaurant/RestaurantHomeScreen';
 import MonitoringScreen      from '../screens/restaurant/MonitoringScreen';
 import PickupsScreen         from '../screens/restaurant/PickupsScreen';
 import EarningsScreen        from '../screens/restaurant/EarningsScreen';
+<<<<<<< HEAD
 import SchedulePickupScreen  from '../screens/restaurant/SchedulePickupScreen';
 import ManualPickupScreen    from '../screens/restaurant/ManualPickupScreen';
+=======
+import RestaurantProfileScreen from '../screens/restaurant/RestaurantProfileScreen';
+import SchedulePickupScreen  from '../screens/restaurant/SchedulePickupScreen';
+import ManualPickupScreen    from '../screens/restaurant/ManualPickupScreen';
+import ProfileEditRoute      from '../screens/profile/ProfileEditRoute';
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
 
 // ─── NAVIGATORS ───────────────────────────────────────────────────────────────
 
 const Tab   = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+<<<<<<< HEAD
 // ─── COLORS / FONTS ───────────────────────────────────────────────────────────
 
 const COLORS = {
@@ -22,6 +30,17 @@ const COLORS = {
   inactive:   '#94A3B8',
   background: '#FFFFFF',
   border:     '#E2E8F0',
+=======
+// ─── THEME COLOURS (matching manufacturer and driver) ─────────────────────────
+
+const THEME = {
+  primary: '#15643E',
+  primaryDark: '#2E8B5A',
+  white: '#FFFFFF',
+  gray: '#A9B5AD',
+  grayLight: '#E4EDE7',
+  border: '#E4EDE7',
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
 };
 
 // ─── BOTTOM TAB NAVIGATOR ─────────────────────────────────────────────────────
@@ -32,6 +51,7 @@ function RestaurantTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+<<<<<<< HEAD
         tabBarActiveTintColor:   COLORS.active,
         tabBarInactiveTintColor: COLORS.inactive,
         tabBarStyle: {
@@ -45,15 +65,40 @@ function RestaurantTabs() {
           fontFamily:   'Inter_500Medium',
           fontSize:     10,
           paddingBottom: 6,
+=======
+        tabBarActiveTintColor: THEME.primary,
+        tabBarInactiveTintColor: THEME.gray,
+        tabBarStyle: {
+          backgroundColor: THEME.white,
+          borderTopColor: THEME.grayLight,
+          borderTopWidth: 1,
+          paddingTop: 8,
+          paddingBottom: 10,
+          height: 65,
+        },
+        tabBarLabelStyle: {
+          fontFamily: 'Inter_500Medium',
+          fontSize: 11,
+          fontWeight: '500',
+          marginTop: 2,
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
         },
       }}
     >
       <Tab.Screen
+<<<<<<< HEAD
         name="Dashboard"
         component={RestaurantHomeScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="grid-outline" size={size} color={color} />
+=======
+        name="Home"
+        component={RestaurantHomeScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
           ),
         }}
       />
@@ -84,6 +129,18 @@ function RestaurantTabs() {
           ),
         }}
       />
+<<<<<<< HEAD
+=======
+      <Tab.Screen
+        name="Profile"
+        component={RestaurantProfileScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
     </Tab.Navigator>
   );
 }
@@ -109,6 +166,14 @@ export default function RestaurantStack() {
         component={ManualPickupScreen}
         options={{ presentation: 'card' }}
       />
+<<<<<<< HEAD
+=======
+      <Stack.Screen
+        name="ProfileEdit"
+        component={ProfileEditRoute}
+        options={{ presentation: 'card' }}
+      />
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
     </Stack.Navigator>
   );
 }

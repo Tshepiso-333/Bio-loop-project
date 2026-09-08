@@ -1,0 +1,22 @@
+
+[functions.payfast-checkout]
+enabled = true
+verify_jwt = false
+import_map = "./functions/payfast-checkout/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/payfast-checkout/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/payfast-checkout/*.html" ]
+
+[functions.payfast-itn]
+enabled = true
+verify_jwt = false
+import_map = "./functions/payfast-itn/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/payfast-itn/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/payfast-itn/*.html" ]

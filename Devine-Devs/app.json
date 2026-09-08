@@ -21,14 +21,29 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
+<<<<<<< HEAD
 
+=======
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+<<<<<<< HEAD
       "expo-font"
     ]
 
+=======
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Devine-Devs to access your photos to upload a profile picture."
+        }
+      ],
+      "expo-status-bar"
+    ]
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
   }
 }

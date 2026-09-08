@@ -1,2 +1,12 @@
+<<<<<<< HEAD
 node_modules/
 .expo/
+=======
+cnode_modules/
+.expo/
+
+# Claude Code tooling (local dev config, not needed to run the project)
+.claude/
+CLAUDE.md
+Devine-Devs/supabase/.temp/
+>>>>>>> 16206bc651f58ce09f2b1efc8bc5fba053d2c1d0
