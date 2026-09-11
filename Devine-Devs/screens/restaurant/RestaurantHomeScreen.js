@@ -134,7 +134,7 @@ const RING_STROKE = 13;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-function TankRing({ fillPercent }) {
+function TankRing({ fillPercent, lastDistanceCm }) {
   const clamped = Math.min(100, Math.max(0, fillPercent));
   const dashOffset = RING_CIRCUMFERENCE * (1 - clamped / 100);
 
@@ -164,8 +164,10 @@ function TankRing({ fillPercent }) {
         />
       </Svg>
       <View style={styles.ringCenter}>
-        <Text style={styles.ringPercent}>{fillPercent}%</Text>
-        <Text style={styles.ringCaption}>Full</Text>
+        <Text style={styles.ringPercent}>
+          {lastDistanceCm != null ? `${lastDistanceCm} cm` : '— cm'}
+        </Text>
+        <Text style={styles.ringCaption}>Sensor reading</Text>
       </View>
     </View>
   );
@@ -175,7 +177,7 @@ function TankCard({ data }) {
   return (
     <View style={styles.card}>
       <Text style={styles.tankLabel}>{data.label}</Text>
-      <TankRing fillPercent={data.fillPercent} />
+      <TankRing fillPercent={data.fillPercent} lastDistanceCm={data.lastDistanceCm} />
       <Text style={styles.tankStatus}>{data.statusText}</Text>
       <Text style={styles.tankNote}>
         {data.statusNote}{' '}

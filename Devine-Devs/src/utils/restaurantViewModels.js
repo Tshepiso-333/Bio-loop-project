@@ -135,6 +135,7 @@ export const mapTankCardData = (tank) => {
   return {
     label: tank.name ?? 'Main Storage Tank',
     fillPercent,
+    lastDistanceCm: tank.last_distance_cm != null ? toNumber(tank.last_distance_cm, null) : null,
     statusText:
       tank.status_text ??
       (fillPercent >= 80 ? 'Full' : fillPercent >= 50 ? 'Moderate' : 'Normal'),
