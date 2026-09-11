@@ -1,4 +1,4 @@
-cnode_modules/
+node_modules/
 .expo/
 
 # Claude Code tooling (local dev config, not needed to run the project)

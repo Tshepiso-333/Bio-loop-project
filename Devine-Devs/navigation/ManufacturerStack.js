@@ -15,55 +15,55 @@ const Stack = createNativeStackNavigator();
 
 function ManufacturerStack() {
   return (
-    <Stack.Navigator 
-      screenOptions={{ 
+    <Stack.Navigator
+      screenOptions={{
         headerShown: false,
         animation: 'slide_from_right', // Smooth transitions between screens
       }}
     >
       {/* Welcome/Entry Screen */}
-      <Stack.Screen 
-        name="ManufacturerHome" 
-        component={ManufacturerHomeScreen} 
+      <Stack.Screen
+        name="ManufacturerHome"
+        component={ManufacturerHomeScreen}
         options={{ animation: 'fade_from_bottom' }}
       />
-      
+
       {/* Main Dashboard with Bottom Tabs */}
       {/* FIXED: Changed from "ManufacturerDashboard" to "ManufacturerDashboardScreen" */}
-      <Stack.Screen 
-        name="ManufacturerDashboardScreen" 
-        component={ManufacturerDashboardScreen} 
+      <Stack.Screen
+        name="ManufacturerDashboardScreen"
+        component={ManufacturerDashboardScreen}
       />
-      
+
       {/* Feature Screens - can be accessed from dashboard tabs */}
-      <Stack.Screen 
-        name="Quality" 
-        component={QualityScreen} 
+      <Stack.Screen
+        name="Quality"
+        component={QualityScreen}
       />
-      
-      <Stack.Screen 
-        name="Forecasts" 
-        component={ForecastsScreen} 
+
+      <Stack.Screen
+        name="Forecasts"
+        component={ForecastsScreen}
       />
-      
-      <Stack.Screen 
-        name="AIChat" 
-        component={AIChatScreen} 
+
+      <Stack.Screen
+        name="AIChat"
+        component={AIChatScreen}
       />
-      
-      <Stack.Screen 
-        name="Suppliers" 
-        component={SuppliersScreen} 
+
+      <Stack.Screen
+        name="Suppliers"
+        component={SuppliersScreen}
       />
-      
-      <Stack.Screen 
-        name="Alerts" 
-        component={AlertsScreen} 
+
+      <Stack.Screen
+        name="Alerts"
+        component={AlertsScreen}
       />
-      
-      <Stack.Screen 
-        name="Profile" 
-        component={ProfileScreen} 
+
+      <Stack.Screen
+        name="Profile"
+        component={ProfileScreen}
       />
 
       <Stack.Screen

@@ -86,21 +86,19 @@ export default function DriverHomeScreen({ navigation }) {
     collector,
     pickups = [],
     stats,
-    withdrawals = [],
+    wallet,
+    earnings = [],
     toggleDutyStatus,
+    requestWithdrawal,
   } = useCollectorContext();
   const avatarImageUrl = collector?.profile_image_url ?? profile?.profile_image_url;
   const completedStops = (pickups || []).filter((pickup) => pickup.status === 'completed').length;
   const totalStops = (pickups || []).length;
   const totalLiters = stats?.total_liters ?? collector?.total_liters ?? 0;
   const [togglingDuty, setTogglingDuty] = useState(false);
-  // Payouts are automatic (trigger creates a withdrawal the instant a trip
-  // completes) — nothing to "request" anymore, just pending vs. already paid.
-  const pendingPayout = withdrawals
-    .filter((row) => row.status === 'pending')
-    .reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-  const paidTotal = withdrawals
-    .filter((row) => row.status === 'approved')
+  const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
+  const unpaidEarnings = earnings
+    .filter((row) => !row.withdrawal_id)
     .reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
 
   const handleToggleDuty = async (value) => {
@@ -111,6 +109,18 @@ export default function DriverHomeScreen({ navigation }) {
       Alert.alert('Could not update status', err.message ?? 'Please try again.');
     } finally {
       setTogglingDuty(false);
+    }
+  };
+
+  const handleRequestWithdrawal = async () => {
+    setRequestingWithdrawal(true);
+    try {
+      await requestWithdrawal();
+      Alert.alert('Withdrawal requested', 'Your request has been sent for review.');
+    } catch (err) {
+      Alert.alert('Could not request withdrawal', err.message ?? 'Please try again.');
+    } finally {
+      setRequestingWithdrawal(false);
     }
   };
 
@@ -196,15 +206,20 @@ export default function DriverHomeScreen({ navigation }) {
           />
         </View>
 
-        {/* Earnings — payout is automatic on trip completion, so this shows
-            what's queued for admin's next EFT vs. already paid, not a
-            balance to request. */}
+        {/* Earnings */}
         <View style={styles.earningsCard}>
           <View>
-            <Text style={styles.earningsLabel}>Pending payout</Text>
-            <Text style={styles.earningsValue}>R {pendingPayout.toFixed(2)}</Text>
-            <Text style={styles.earningsSub}>R {paidTotal.toFixed(2)} paid to date</Text>
+            <Text style={styles.earningsLabel}>Wallet balance</Text>
+            <Text style={styles.earningsValue}>R {Number(wallet?.balance ?? 0).toFixed(2)}</Text>
+            <Text style={styles.earningsSub}>R {unpaidEarnings.toFixed(2)} unpaid</Text>
           </View>
+          <TouchableOpacity
+            style={[styles.withdrawBtn, (requestingWithdrawal || unpaidEarnings <= 0) && styles.withdrawBtnDisabled]}
+            onPress={handleRequestWithdrawal}
+            disabled={requestingWithdrawal || unpaidEarnings <= 0}
+          >
+            <Text style={styles.withdrawBtnText}>{requestingWithdrawal ? 'Requesting…' : 'Request withdrawal'}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stats Cards */}
