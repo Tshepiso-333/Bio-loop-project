@@ -12,24 +12,75 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { computeSupplierStats } from '../../src/utils/manufacturerAnalytics';
 import { ACTIVE_TRIP_STATUSES, PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
 
 const { width } = Dimensions.get('window');
 
+// ─── THEME (matches Dashboard / Quality / Finance) ───────────────────────────
+
+const T = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  paleGreen: '#ECFDF5',
+  selectedBg: '#F0FDF4',
+
+  page: '#F9FAFB',
+  card: '#FFFFFF',
+
+  ink: '#111827',
+  body: '#6B7280',
+  muted: '#9CA3AF',
+  border: '#E5E7EB',
+  divider: '#F3F4F6',
+
+  white: '#FFFFFF',
+
+  gradeA: '#7EE92D',
+  gradeB: '#f59e0b',
+  gradeC: '#ef4444',
+
+  danger: '#ef4444',
+};
+
+const S = { screenPadding: 16, cardPadding: 16, gap: 16 };
+const R = { card: 16, pill: 999, chip: 10 };
+const SH = {
+  card: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  header: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  button: {
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+};
+
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+
 const SuppliersScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const { pickups = [], assignedRestaurants = [] } = useManufacturerContext();
+  const insets = useSafeAreaInsets();
 
-  // The pickup currently "in flight" for a given restaurant, if any — this is
-  // what lets a manufacturer see who's actually coming (driver + checkpoint)
-  // instead of just historical aggregate stats.
   const activeDeliveryByRestaurantId = useMemo(() => {
     const map = new Map();
     (pickups || []).forEach((p) => {
@@ -49,10 +100,6 @@ const SuppliersScreen = ({ navigation }) => {
     navigation.navigate('ManufacturerPayment', { pickupId });
   };
 
-  // One card per restaurant actually assigned to us (restaurants.primary_manufacturer_id),
-  // not just restaurants we happen to have pickup history with — a newly
-  // assigned restaurant with no deliveries yet should still show up here.
-  // Pickup history (when there is any) fills in the volume/reliability/quality stats.
   const statsByRestaurantId = useMemo(() => {
     const map = new Map();
     computeSupplierStats(pickups).forEach((s) => map.set(s.id, s));
@@ -86,99 +133,69 @@ const SuppliersScreen = ({ navigation }) => {
     s.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getQualityColor = (quality) => {
-    switch(quality) {
-      case 'A': return '#7EE92D';
-      case 'B': return '#f59e0b';
-      case 'C': return '#ef4444';
-      default: return '#7EE92D';
-    }
-  };
+  const summaryStats = useMemo(() => {
+    const total = suppliersList.length;
+    const totalVolume = suppliersList.reduce((sum, s) => sum + s.volume, 0);
+    const avgReliability =
+      total > 0
+        ? Math.round(suppliersList.reduce((sum, s) => sum + s.reliability, 0) / total)
+        : 0;
+    return { total, totalVolume, avgReliability };
+  }, [suppliersList]);
 
-  const getQualityBgColor = (quality) => {
-    switch(quality) {
-      case 'A': return '#7EE92D20';
-      case 'B': return '#f59e0b20';
-      case 'C': return '#ef444420';
-      default: return '#7EE92D20';
-    }
-  };
+  const getQualityColor = (q) =>
+    q === 'B' ? T.gradeB : q === 'C' ? T.gradeC : T.gradeA;
+  const getQualityBgColor = (q) =>
+    q === 'B' ? `${T.gradeB}20` : q === 'C' ? `${T.gradeC}20` : `${T.gradeA}20`;
 
-  // Icons
-  const StarIcon = ({ color = '#f59e0b', size = 16 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 2L15 9H22L16 14L19 21L12 16.5L5 21L8 14L2 9H9L12 2Z" stroke={color} strokeWidth={1.5} fill={color} fillOpacity="0.3"/>
-    </Svg>
-  );
+  // ─── HEADER (no back button — this is a tab) ─────────────────────────────
 
-  const TruckIcon = ({ color = '#fff', size = 20 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="2" y="6" width="16" height="12" rx="1" stroke={color} strokeWidth={1.6}/>
-      <Circle cx="6" cy="18" r="2" stroke={color} strokeWidth={1.6}/>
-      <Circle cx="18" cy="18" r="2" stroke={color} strokeWidth={1.6}/>
-      <Path d="M18 8H20L22 10V16H18" stroke={color} strokeWidth={1.6} strokeLinecap="round"/>
-    </Svg>
-  );
-
-  const PhoneIcon = ({ color = '#fff', size = 16 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-
-  const MailIcon = ({ color = '#fff', size = 16 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="2" y="4" width="20" height="16" rx="2" stroke={color} strokeWidth={1.6}/>
-      <Path d="M22 7L12 13L2 7" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-
-  const MapPinIcon = ({ color = '#fff', size = 16 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke={color} strokeWidth={1.6}/>
-      <Circle cx="12" cy="10" r="3" stroke={color} strokeWidth={1.6}/>
-    </Svg>
-  );
-
-  const TrendingUpIcon = ({ color = '#fff', size = 16 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Polyline points="18,15 22,11 18,7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-      <Polyline points="2,17 8,11 12,15 18,9" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
-
-  // Header Component - Updated to fill to the top and navigate to home
   const Header = () => (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#7c3aed" />
-      <LinearGradient
-        colors={['#8b5cf6', '#7c3aed', '#6d28d9']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.header}
-      >
+      <StatusBar barStyle="dark-content" backgroundColor={T.card} />
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerContent}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.navigate('ManufacturerDashboardScreen')}
-          >
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Supplier Management</Text>
-            <Text style={styles.headerSubtitle}>Active Partners</Text>
+            <Text style={styles.headerTitle}>Suppliers</Text>
+            <Text style={styles.headerSubtitle}>Active partners</Text>
           </View>
-          <View style={styles.headerSpacer} />
         </View>
-      </LinearGradient>
+      </View>
     </>
   );
 
-  // Supplier Detail Modal
+  // ─── SUMMARY CARD (now at the top) ───────────────────────────────────────
+
+  const SupplierSummary = () => (
+    <View style={styles.summaryCard}>
+      <Text style={styles.summaryTitle}>Supplier Summary</Text>
+      <View style={styles.summaryStats}>
+        <View style={styles.summaryStat}>
+          <Text style={styles.summaryStatValue}>{summaryStats.total}</Text>
+          <Text style={styles.summaryStatLabel}>Active Suppliers</Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryStat}>
+          <Text style={styles.summaryStatValue}>
+            {summaryStats.totalVolume.toLocaleString()}
+          </Text>
+          <Text style={styles.summaryStatLabel}>Litres Supplied</Text>
+        </View>
+        <View style={styles.summaryDivider} />
+        <View style={styles.summaryStat}>
+          <Text style={styles.summaryStatValue}>{summaryStats.avgReliability}%</Text>
+          <Text style={styles.summaryStatLabel}>Avg Reliability</Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  // ─── SUPPLIER DETAIL MODAL ────────────────────────────────────────────────
+
   const SupplierDetailModal = () => (
     <Modal
       animationType="slide"
-      transparent={true}
+      transparent
       visible={modalVisible}
       onRequestClose={() => setModalVisible(false)}
     >
@@ -187,19 +204,39 @@ const SuppliersScreen = ({ navigation }) => {
           <ScrollView showsVerticalScrollIndicator={false}>
             {selectedSupplier && (
               <>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.modalCloseButton}
                   onPress={() => setModalVisible(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Text style={styles.modalCloseText}>✕</Text>
+                  <Ionicons name="close" size={18} color={T.body} />
                 </TouchableOpacity>
-                
+
                 <View style={styles.modalHeader}>
-                  <Image source={{ uri: selectedSupplier.image }} style={styles.modalImage} />
+                  {selectedSupplier.image ? (
+                    <Image
+                      source={{ uri: selectedSupplier.image }}
+                      style={styles.modalImage}
+                    />
+                  ) : (
+                    <View style={[styles.modalImage, styles.modalImagePlaceholder]}>
+                      <Ionicons name="storefront-outline" size={28} color={T.primary} />
+                    </View>
+                  )}
                   <View style={styles.modalHeaderInfo}>
                     <Text style={styles.modalName}>{selectedSupplier.name}</Text>
-                    <View style={[styles.modalQualityTag, { backgroundColor: getQualityBgColor(selectedSupplier.quality) }]}>
-                      <Text style={[styles.modalQualityText, { color: getQualityColor(selectedSupplier.quality) }]}>
+                    <View
+                      style={[
+                        styles.modalQualityTag,
+                        { backgroundColor: getQualityBgColor(selectedSupplier.quality) },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.modalQualityText,
+                          { color: getQualityColor(selectedSupplier.quality) },
+                        ]}
+                      >
                         Grade {selectedSupplier.quality}
                       </Text>
                     </View>
@@ -209,20 +246,26 @@ const SuppliersScreen = ({ navigation }) => {
                 {selectedSupplier.activeDelivery && (
                   <View style={styles.incomingCard}>
                     <View style={styles.incomingCardHeader}>
-                      <Ionicons name="car-outline" size={18} color="#7c3aed" />
+                      <Ionicons name="car-outline" size={18} color={T.primary} />
                       <Text style={styles.incomingCardTitle}>Incoming delivery</Text>
                     </View>
                     <Text style={styles.incomingCardText}>
-                      {selectedSupplier.activeDelivery.driverName} — {selectedSupplier.activeDelivery.statusLabel}
+                      {selectedSupplier.activeDelivery.driverName} —{' '}
+                      {selectedSupplier.activeDelivery.statusLabel}
                     </Text>
-                    {selectedSupplier.activeDelivery.status === 'arrived_manufacturer' && (
+                    {selectedSupplier.activeDelivery.status ===
+                      'arrived_manufacturer' && (
                       <TouchableOpacity
                         style={styles.confirmReceivedBtn}
-                        onPress={() => handleConfirmDelivery(selectedSupplier.activeDelivery.pickupId)}
-                        activeOpacity={0.8}
+                        onPress={() =>
+                          handleConfirmDelivery(selectedSupplier.activeDelivery.pickupId)
+                        }
+                        activeOpacity={0.85}
                       >
-                        <Ionicons name="card-outline" size={16} color="#fff" />
-                        <Text style={styles.confirmReceivedBtnText}>Confirm Received & Pay</Text>
+                        <Ionicons name="card-outline" size={16} color={T.white} />
+                        <Text style={styles.confirmReceivedBtnText}>
+                          Confirm Received & Pay
+                        </Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -230,47 +273,53 @@ const SuppliersScreen = ({ navigation }) => {
 
                 <View style={styles.modalStats}>
                   <View style={styles.modalStat}>
-                    <Text style={styles.modalStatValue}>{selectedSupplier.volume.toLocaleString()} L</Text>
+                    <Text style={styles.modalStatValue}>
+                      {selectedSupplier.volume.toLocaleString()} L
+                    </Text>
                     <Text style={styles.modalStatLabel}>Total Volume</Text>
                   </View>
                   <View style={styles.modalStatDivider} />
                   <View style={styles.modalStat}>
-                    <Text style={styles.modalStatValue}>{selectedSupplier.reliability}%</Text>
+                    <Text style={styles.modalStatValue}>
+                      {selectedSupplier.reliability}%
+                    </Text>
                     <Text style={styles.modalStatLabel}>Reliability</Text>
                   </View>
                   <View style={styles.modalStatDivider} />
                   <View style={styles.modalStat}>
-                    <Text style={styles.modalStatValue}>{selectedSupplier.deliveries}</Text>
+                    <Text style={styles.modalStatValue}>
+                      {selectedSupplier.deliveries}
+                    </Text>
                     <Text style={styles.modalStatLabel}>Deliveries</Text>
                   </View>
                 </View>
 
                 <View style={styles.modalInfo}>
                   <View style={styles.modalInfoRow}>
-                    <MapPinIcon color="#6b7280" size={16} />
-                    <Text style={styles.modalInfoText}>{selectedSupplier.location}</Text>
+                    <Ionicons name="location-outline" size={16} color={T.muted} />
+                    <Text style={styles.modalInfoText}>
+                      {selectedSupplier.location}
+                    </Text>
                   </View>
                   <View style={styles.modalInfoRow}>
-                    <TruckIcon color="#6b7280" size={16} />
-                    <Text style={styles.modalInfoText}>Last delivery: {selectedSupplier.lastDelivery}</Text>
+                    <Ionicons name="time-outline" size={16} color={T.muted} />
+                    <Text style={styles.modalInfoText}>
+                      Last delivery: {selectedSupplier.lastDelivery}
+                    </Text>
                   </View>
                   <View style={styles.modalInfoRow}>
-                    <PhoneIcon color="#6b7280" size={16} />
+                    <Ionicons name="call-outline" size={16} color={T.muted} />
                     <Text style={styles.modalInfoText}>{selectedSupplier.contact}</Text>
                   </View>
                   <View style={styles.modalInfoRow}>
-                    <MailIcon color="#6b7280" size={16} />
+                    <Ionicons name="mail-outline" size={16} color={T.muted} />
                     <Text style={styles.modalInfoText}>{selectedSupplier.email}</Text>
                   </View>
                 </View>
 
-                <TouchableOpacity style={styles.contactButton}>
-                  <LinearGradient
-                    colors={['#8b5cf6', '#7c3aed']}
-                    style={styles.contactGradient}
-                  >
-                    <Text style={styles.contactButtonText}>Contact Supplier</Text>
-                  </LinearGradient>
+                <TouchableOpacity style={styles.contactButton} activeOpacity={0.85}>
+                  <Ionicons name="chatbubble-outline" size={16} color={T.white} />
+                  <Text style={styles.contactButtonText}>Contact Supplier</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -280,113 +329,155 @@ const SuppliersScreen = ({ navigation }) => {
     </Modal>
   );
 
+  // ─── SUPPLIER CARD ────────────────────────────────────────────────────────
+
+  const SupplierCard = ({ supplier }) => (
+    <TouchableOpacity
+      style={styles.supplierCard}
+      onPress={() => {
+        setSelectedSupplier(supplier);
+        setModalVisible(true);
+      }}
+      activeOpacity={0.9}
+    >
+      {supplier.image ? (
+        <Image source={{ uri: supplier.image }} style={styles.supplierImage} />
+      ) : (
+        <View style={[styles.supplierImage, styles.supplierImagePlaceholder]}>
+          <Ionicons name="storefront-outline" size={24} color={T.primary} />
+        </View>
+      )}
+
+      <View style={styles.supplierInfo}>
+        <View style={styles.supplierHeader}>
+          <View style={styles.supplierNameContainer}>
+            <Text style={styles.supplierName} numberOfLines={1}>
+              {supplier.name}
+            </Text>
+            <View style={styles.reliabilityBadge}>
+              <Ionicons name="star" size={11} color={T.gradeB} />
+              <Text style={styles.reliabilityText}>{supplier.reliability}%</Text>
+            </View>
+          </View>
+          <View
+            style={[
+              styles.supplierQuality,
+              { backgroundColor: getQualityBgColor(supplier.quality) },
+            ]}
+          >
+            <Text
+              style={[
+                styles.supplierQualityText,
+                { color: getQualityColor(supplier.quality) },
+              ]}
+            >
+              Grade {supplier.quality}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.supplierCuisine} numberOfLines={1}>
+          {supplier.cuisine} • {supplier.location}
+        </Text>
+
+        {supplier.activeDelivery && (
+          <View style={styles.incomingRow}>
+            <Ionicons name="car-outline" size={13} color={T.primary} />
+            <Text style={styles.incomingText} numberOfLines={1}>
+              {supplier.activeDelivery.driverName} · {supplier.activeDelivery.statusLabel}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.supplierStats}>
+          <View style={styles.supplierStat}>
+            <Text style={styles.supplierStatValue}>
+              {supplier.volume.toLocaleString()} L
+            </Text>
+            <Text style={styles.supplierStatLabel}>Total</Text>
+          </View>
+          <View style={styles.supplierDivider} />
+          <View style={styles.supplierStat}>
+            <Text style={styles.supplierStatValue}>{supplier.deliveries}</Text>
+            <Text style={styles.supplierStatLabel}>Deliveries</Text>
+          </View>
+          <View style={styles.supplierDivider} />
+          <View style={styles.supplierStat}>
+            <Text style={styles.supplierLastDelivery}>{supplier.lastDelivery}</Text>
+            <Text style={styles.supplierStatLabel}>Last Delivery</Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // ─── EMPTY STATE ──────────────────────────────────────────────────────────
+
+  const EmptyState = () => (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIconWrap}>
+        <Ionicons name="storefront-outline" size={26} color={T.primary} />
+      </View>
+      <Text style={styles.emptyTitle}>
+        {searchQuery ? 'No matching suppliers' : 'No suppliers yet'}
+      </Text>
+      <Text style={styles.emptyText}>
+        {searchQuery
+          ? 'Try a different search term.'
+          : 'Suppliers will appear here once they are assigned to you.'}
+      </Text>
+    </View>
+  );
+
+  // ─── RENDER ──────────────────────────────────────────────────────────────
+
   return (
     <View style={styles.container}>
       <Header />
-      
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search suppliers..."
-          placeholderTextColor="#9ca3af"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Supplier List */}
-        <View style={styles.suppliersList}>
-          {filteredSuppliers.map((supplier) => (
-            <TouchableOpacity
-              key={supplier.id}
-              style={styles.supplierCard}
-              onPress={() => {
-                setSelectedSupplier(supplier);
-                setModalVisible(true);
-              }}
-              activeOpacity={0.7}
-            >
-              <Image source={{ uri: supplier.image }} style={styles.supplierImage} />
-              <View style={styles.supplierInfo}>
-                <View style={styles.supplierHeader}>
-                  <View style={styles.supplierNameContainer}>
-                    <Text style={styles.supplierName}>{supplier.name}</Text>
-                    <View style={styles.reliabilityBadge}>
-                      <StarIcon color="#f59e0b" size={12} />
-                      <Text style={styles.reliabilityText}>{supplier.reliability}%</Text>
-                    </View>
-                  </View>
-                  <View style={[styles.supplierQuality, { backgroundColor: getQualityBgColor(supplier.quality) }]}>
-                    <Text style={[styles.supplierQualityText, { color: getQualityColor(supplier.quality) }]}>
-                      Grade {supplier.quality}
-                    </Text>
-                  </View>
-                </View>
-                
-                <Text style={styles.supplierCuisine}>{supplier.cuisine} • {supplier.location}</Text>
+        {/* 1. Supplier Summary (moved to top) */}
+        <SupplierSummary />
 
-                {supplier.activeDelivery && (
-                  <View style={styles.incomingRow}>
-                    <Ionicons name="car-outline" size={13} color="#7c3aed" />
-                    <Text style={styles.incomingText} numberOfLines={1}>
-                      {supplier.activeDelivery.driverName} · {supplier.activeDelivery.statusLabel}
-                    </Text>
-                  </View>
-                )}
-
-                <View style={styles.supplierStats}>
-                  <View style={styles.supplierStat}>
-                    <Text style={styles.supplierStatValue}>{supplier.volume.toLocaleString()} L</Text>
-                    <Text style={styles.supplierStatLabel}>Total</Text>
-                  </View>
-                  <View style={styles.supplierDivider} />
-                  <View style={styles.supplierStat}>
-                    <View style={styles.trendContainer}>
-                      <Text style={styles.supplierStatValue}>{supplier.deliveries}</Text>
-                      <TrendingUpIcon color="#7EE92D" size={12} />
-                    </View>
-                    <Text style={styles.supplierStatLabel}>Deliveries</Text>
-                  </View>
-                  <View style={styles.supplierDivider} />
-                  <View style={styles.supplierStat}>
-                    <Text style={styles.supplierLastDelivery}>{supplier.lastDelivery}</Text>
-                    <Text style={styles.supplierStatLabel}>Last Delivery</Text>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+        {/* 2. Search */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputWrap}>
+            <Ionicons name="search-outline" size={16} color={T.muted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search suppliers..."
+              placeholderTextColor={T.muted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={16} color={T.muted} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
-        {/* Summary Card */}
-        <LinearGradient
-          colors={['#8b5cf6', '#7c3aed']}
-          style={styles.summaryCard}
-        >
-          <Text style={styles.summaryTitle}>Supplier Summary</Text>
-          <View style={styles.summaryStats}>
-            <View style={styles.summaryStat}>
-              <Text style={styles.summaryStatValue}>{suppliersList.length}</Text>
-              <Text style={styles.summaryStatLabel}>Active Suppliers</Text>
-            </View>
-            <View style={styles.summaryStat}>
-              <Text style={styles.summaryStatValue}>
-                {suppliersList.reduce((sum, s) => sum + s.volume, 0).toLocaleString()} L
-              </Text>
-              <Text style={styles.summaryStatLabel}>Total Volume</Text>
-            </View>
-            <View style={styles.summaryStat}>
-              <Text style={styles.summaryStatValue}>
-                {Math.round(suppliersList.reduce((sum, s) => sum + s.reliability, 0) / suppliersList.length)}%
-              </Text>
-              <Text style={styles.summaryStatLabel}>Avg Reliability</Text>
-            </View>
-          </View>
-        </LinearGradient>
+        {/* 3. Supplier list */}
+        <View style={styles.suppliersList}>
+          {filteredSuppliers.length === 0 ? (
+            <EmptyState />
+          ) : (
+            filteredSuppliers.map((supplier) => (
+              <SupplierCard key={supplier.id} supplier={supplier} />
+            ))
+          )}
+        </View>
+
+        <View style={{ height: 30 }} />
       </ScrollView>
 
       <SupplierDetailModal />
@@ -394,98 +485,118 @@ const SuppliersScreen = ({ navigation }) => {
   );
 };
 
+// ─── STYLES ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
+  container: { flex: 1, backgroundColor: T.page },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 24 },
+
+  // Header (white, centered title, no back button)
   header: {
-    paddingTop: 48,
-    paddingBottom: 16,
+    backgroundColor: T.card,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
+    ...SH.header,
   },
   headerContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: S.screenPadding,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  headerTextContainer: { alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
+  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+
+  // Summary card (top of the screen)
+  summaryCard: {
+    backgroundColor: T.card,
+    borderRadius: R.card,
+    padding: S.cardPadding,
+    borderWidth: 1,
+    borderColor: T.border,
+    marginHorizontal: S.screenPadding,
+    marginTop: S.gap,
+    ...SH.card,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: T.ink,
+    marginBottom: 14,
+  },
+  summaryStats: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  summaryStat: { flex: 1, alignItems: 'center' },
+  summaryDivider: { width: 1, height: 36, backgroundColor: T.divider },
+  summaryStatValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: T.ink,
+    marginBottom: 2,
+  },
+  summaryStatLabel: {
+    fontSize: 11,
+    color: T.body,
+    textAlign: 'center',
+  },
+
+  // Search
+  searchContainer: {
+    paddingHorizontal: S.screenPadding,
+    marginTop: S.gap,
+  },
+  searchInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: T.card,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: T.border,
+    ...SH.card,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: T.ink,
+    paddingVertical: 6,
+  },
+
+  // Suppliers list
+  suppliersList: {
+    paddingHorizontal: S.screenPadding,
+    marginTop: 12,
+    gap: 12,
+  },
+  supplierCard: {
+    backgroundColor: T.card,
+    borderRadius: R.card,
+    padding: 14,
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: T.border,
+    ...SH.card,
+  },
+  supplierImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 14,
+  },
+  supplierImagePlaceholder: {
+    backgroundColor: T.paleGreen,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backButtonText: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  headerTextContainer: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: '#fff',
-    opacity: 0.9,
-    marginTop: 2,
-  },
-  headerSpacer: {
-    width: 40,
-    height: 40,
-  },
-  searchContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  searchInput: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  suppliersList: {
-    paddingHorizontal: 16,
-    marginTop: 16,
-  },
-  supplierCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  supplierImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 16,
-  },
-  supplierInfo: {
-    flex: 1,
-  },
+  supplierInfo: { flex: 1 },
   supplierHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -496,47 +607,48 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flexWrap: 'wrap',
+    paddingRight: 8,
   },
   supplierName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: T.ink,
   },
   reliabilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#fef3c7',
+    gap: 3,
+    backgroundColor: '#FEF3C7',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
   },
   reliabilityText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#f59e0b',
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#B45309',
   },
   supplierQuality: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   supplierQualityText: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   supplierCuisine: {
     fontSize: 12,
-    color: '#6b7280',
+    color: T.body,
     marginBottom: 8,
   },
   incomingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: T.selectedBg,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -547,85 +659,77 @@ const styles = StyleSheet.create({
   incomingText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#7c3aed',
+    color: T.primary,
   },
   supplierStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: T.divider,
   },
-  supplierStat: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  trendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
+  supplierStat: { alignItems: 'center', flex: 1 },
   supplierStatValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 14,
+    fontWeight: '700',
+    color: T.ink,
     marginBottom: 2,
   },
   supplierStatLabel: {
     fontSize: 10,
-    color: '#6b7280',
+    color: T.muted,
   },
   supplierLastDelivery: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#111827',
+    fontWeight: '600',
+    color: T.ink,
     marginBottom: 2,
   },
-  supplierDivider: {
-    width: 1,
-    backgroundColor: '#f3f4f6',
-  },
-  summaryCard: {
-    margin: 16,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 30,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  summaryStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  summaryStat: {
+  supplierDivider: { width: 1, backgroundColor: T.divider },
+
+  // Empty state
+  emptyState: {
+    backgroundColor: T.card,
+    borderRadius: R.card,
+    padding: 24,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: T.border,
+    ...SH.card,
   },
-  summaryStatValue: {
-    fontSize: 24,
+  emptyIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: T.paleGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  emptyTitle: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: T.ink,
     marginBottom: 4,
   },
-  summaryStatLabel: {
-    fontSize: 11,
-    color: '#fff',
-    opacity: 0.9,
+  emptyText: {
+    fontSize: 12,
+    color: T.body,
+    textAlign: 'center',
+    lineHeight: 18,
   },
+
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: T.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '80%',
+    maxHeight: '85%',
     padding: 20,
   },
   modalCloseButton: {
@@ -636,14 +740,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: T.divider,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalCloseText: {
-    fontSize: 16,
-    color: '#6b7280',
-    fontWeight: '600',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -652,35 +751,40 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   modalImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     marginRight: 16,
   },
-  modalHeaderInfo: {
-    flex: 1,
+  modalImagePlaceholder: {
+    backgroundColor: T.paleGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  modalHeaderInfo: { flex: 1 },
   modalName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 18,
+    fontWeight: '700',
+    color: T.ink,
     marginBottom: 8,
   },
   modalQualityTag: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: 8,
   },
   modalQualityText: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
   },
   incomingCard: {
-    backgroundColor: '#f5f3ff',
+    backgroundColor: T.selectedBg,
     borderRadius: 14,
     padding: 14,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: T.border,
   },
   incomingCardHeader: {
     flexDirection: 'row',
@@ -691,11 +795,11 @@ const styles = StyleSheet.create({
   incomingCardTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#7c3aed',
+    color: T.primary,
   },
   incomingCardText: {
-    fontSize: 14,
-    color: '#4c1d95',
+    fontSize: 13,
+    color: T.ink,
     marginBottom: 4,
   },
   confirmReceivedBtn: {
@@ -705,16 +809,14 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 10,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#7c3aed',
-  },
-  confirmReceivedBtnDisabled: {
-    opacity: 0.6,
+    borderRadius: R.pill,
+    backgroundColor: T.primary,
+    ...SH.button,
   },
   confirmReceivedBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: T.white,
   },
   modalStats: {
     flexDirection: 'row',
@@ -722,53 +824,43 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: T.divider,
     marginBottom: 16,
   },
-  modalStat: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  modalStatDivider: {
-    width: 1,
-    backgroundColor: '#f3f4f6',
-  },
+  modalStat: { alignItems: 'center', flex: 1 },
+  modalStatDivider: { width: 1, backgroundColor: T.divider },
   modalStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#8b5cf6',
+    fontSize: 18,
+    fontWeight: '800',
+    color: T.primary,
     marginBottom: 4,
   },
-  modalStatLabel: {
-    fontSize: 11,
-    color: '#6b7280',
-  },
-  modalInfo: {
-    gap: 12,
-    marginBottom: 20,
-  },
+  modalStatLabel: { fontSize: 11, color: T.body },
+  modalInfo: { gap: 12, marginBottom: 20 },
   modalInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   modalInfoText: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: T.body,
     flex: 1,
   },
   contactButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  contactGradient: {
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: R.pill,
+    backgroundColor: T.primary,
+    ...SH.button,
   },
   contactButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    color: T.white,
   },
 });
 

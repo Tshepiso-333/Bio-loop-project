@@ -1,5 +1,7 @@
 // screens/manufacturer/ForecastsScreen.js
-import React, { useMemo, useState } from 'react';
+// NOTE: File is still named ForecastsScreen.js for tab-wiring compatibility.
+// Contents have been replaced — this screen now renders the Finance tab.
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,697 +11,678 @@ import {
   Dimensions,
   StatusBar,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Circle, Rect, Line, Polyline, G, Text as SvgText } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
-import { groupPickupsByDay } from '../../src/utils/manufacturerAnalytics';
 
 const { width } = Dimensions.get('window');
 
-const ForecastsScreen = ({ navigation, onBack }) => {
-  const [forecastPeriod, setForecastPeriod] = useState('7days');
-  const { forecasts = [], pickups = [] } = useManufacturerContext();
+// ─── THEME ───────────────────────────────────────────────────────────────────
 
-  // Get real forecasts data by period or use empty placeholder
-  const getForecastByPeriod = (period) => {
-    const days = period === '7days' ? 7 : period === '14days' ? 14 : 30;
-    const forecast = forecasts.find(f => f.period_days === days);
-    
-    if (forecast) {
+const T = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  paleGreen: '#ECFDF5',
+  selectedBg: '#F0FDF4',
+
+  page: '#F9FAFB',
+  card: '#FFFFFF',
+
+  ink: '#111827',
+  body: '#6B7280',
+  muted: '#9CA3AF',
+  border: '#E5E7EB',
+  divider: '#F3F4F6',
+
+  white: '#FFFFFF',
+
+  gradeA: '#7EE92D',
+  gradeB: '#f59e0b',
+  gradeC: '#ef4444',
+
+  danger: '#ef4444',
+};
+
+const S = { screenPadding: 16, cardPadding: 16, gap: 16 };
+const R = { card: 16, pill: 999, chip: 10 };
+const SH = {
+  card: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+};
+
+// ─── FIXED BUSINESS CONSTANTS (were previously editable assumptions) ────────
+
+const ASSUMPTIONS = {
+  oilPrice: 3.5,         // R / L paid to restaurant
+  conversion: 90,        // % oil → biodiesel
+  biodieselPrice: 20,    // R / L selling price
+  processingCost: 4.44,  // R / L processing
+  logistics: 10000,      // R (total)
+  other: 5000,           // R (total)
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+const formatZAR = (n) =>
+  `R${Math.round(n).toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`;
+const formatZARDecimal = (n) => `R${Number(n).toFixed(2)}`;
+
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+
+const FinanceScreen = ({ navigation, onBack }) => {
+  const { pickups = [] } = useManufacturerContext();
+  const insets = useSafeAreaInsets();
+
+  // ── Aggregate oil purchased from pickups ──
+  const oilData = useMemo(() => {
+    const byGrade = {
+      A: { litres: 0, avgPrice: 0, totalPaid: 0 },
+      B: { litres: 0, avgPrice: 0, totalPaid: 0 },
+      C: { litres: 0, avgPrice: 0, totalPaid: 0 },
+    };
+    let totalLitres = 0;
+    let totalPaid = 0;
+
+    (pickups || []).forEach((p) => {
+      if (p.status !== 'completed' && p.status !== 'arrived_manufacturer') return;
+      const litres = p.actual_volume_liters ?? p.estimated_volume_liters ?? 0;
+      const grade = (p.quality_grade || 'A').toUpperCase();
+      if (!byGrade[grade]) return;
+
+      const paid =
+        p.amount_paid ??
+        p.total_paid ??
+        litres * (p.price_per_liter ?? ASSUMPTIONS.oilPrice);
+
+      byGrade[grade].litres += litres;
+      byGrade[grade].totalPaid += paid;
+      totalLitres += litres;
+      totalPaid += paid;
+    });
+
+    Object.keys(byGrade).forEach((g) => {
+      byGrade[g].avgPrice =
+        byGrade[g].litres > 0
+          ? byGrade[g].totalPaid / byGrade[g].litres
+          : ASSUMPTIONS.oilPrice;
+    });
+
+    // Demo fallback when there is no real data yet
+    if (totalLitres === 0) {
+      const demo = {
+        A: { litres: 2800, avgPrice: 3.8 },
+        B: { litres: 1700, avgPrice: 3.2 },
+        C: { litres: 500, avgPrice: 2.5 },
+      };
+      const demoTotals = {
+        A: demo.A.litres * demo.A.avgPrice,
+        B: demo.B.litres * demo.B.avgPrice,
+        C: demo.C.litres * demo.C.avgPrice,
+      };
       return {
-        total: forecast.total_volume_liters ?? 0,
-        gradeA: forecast.grade_a_pct ?? 0,
-        gradeB: forecast.grade_b_pct ?? 0,
-        gradeC: forecast.grade_c_pct ?? 0,
-        trend: forecast.trend_label ?? '—',
-        confidence: forecast.confidence_pct ?? 0,
+        byGrade: {
+          A: { ...demo.A, totalPaid: demoTotals.A },
+          B: { ...demo.B, totalPaid: demoTotals.B },
+          C: { ...demo.C, totalPaid: demoTotals.C },
+        },
+        totalLitres: 5000,
+        totalPaid: demoTotals.A + demoTotals.B + demoTotals.C,
+        isDemo: true,
       };
     }
-    return { total: 0, gradeA: 0, gradeB: 0, gradeC: 0, trend: '—', confidence: 0 };
-  };
 
-  // AI Forecast Data mapped from context
-  const forecastData = {
-    '7days': getForecastByPeriod('7days'),
-    '14days': getForecastByPeriod('14days'),
-    '30days': getForecastByPeriod('30days'),
-  };
+    return { byGrade, totalLitres, totalPaid, isDemo: false };
+  }, [pickups]);
 
-  // Historical/daily data derived from the manufacturer's own pickups (last 7 calendar days)
-  const historicalData = useMemo(() => groupPickupsByDay(pickups, 7), [pickups]);
+  // ── Calculated economics (using fixed constants) ──
+  const calculations = useMemo(() => {
+    const oilPurchased = oilData.totalPaid;
+    const biodiesel = oilData.totalLitres * (ASSUMPTIONS.conversion / 100);
+    const revenue = biodiesel * ASSUMPTIONS.biodieselPrice;
+    const processing = biodiesel * ASSUMPTIONS.processingCost;
+    const logistics = ASSUMPTIONS.logistics;
+    const other = ASSUMPTIONS.other;
 
+    const totalCosts = oilPurchased + processing + logistics + other;
+    const margin = revenue - totalCosts;
 
-  // Icons
-  const TrendingUpIcon = ({ color = '#fff', size = 24 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Polyline points="18,15 22,11 18,7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-      <Polyline points="2,17 8,11 12,15 18,9" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
+    return {
+      oilPurchased,
+      biodiesel,
+      revenue,
+      processing,
+      logistics,
+      other,
+      totalCosts,
+      margin,
+    };
+  }, [oilData]);
+
+  const totalLitres = oilData.totalLitres;
+
+  // ─── SMALL REUSABLES ─────────────────────────────────────────────────────
+
+  const SummaryCard = ({ icon, iconBg, label, value, sub, valueColor }) => (
+    <View style={styles.summaryCard}>
+      <View style={[styles.summaryIcon, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon} size={18} color={T.primary} />
+      </View>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={[styles.summaryValue, valueColor && { color: valueColor }]}>
+        {value}
+      </Text>
+      {sub ? <Text style={styles.summarySub}>{sub}</Text> : null}
+    </View>
   );
 
-  const CalendarIcon = ({ color = '#fff', size = 20 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="4" width="18" height="18" rx="2" stroke={color} strokeWidth={1.6}/>
-      <Line x1="8" y1="2" x2="8" y2="6" stroke={color} strokeWidth={1.6} strokeLinecap="round"/>
-      <Line x1="16" y1="2" x2="16" y2="6" stroke={color} strokeWidth={1.6} strokeLinecap="round"/>
-      <Line x1="3" y1="10" x2="21" y2="10" stroke={color} strokeWidth={1.6}/>
-    </Svg>
+  const CostRow = ({ label, value, emphasis, color }) => (
+    <View style={styles.costRow}>
+      <Text style={[styles.costLabel, emphasis && styles.costLabelEmphasis]}>
+        {label}
+      </Text>
+      <Text
+        style={[
+          styles.costValue,
+          emphasis && styles.costValueEmphasis,
+          color && { color },
+        ]}
+      >
+        {value}
+      </Text>
+    </View>
   );
 
-  const BrainIcon = ({ color = '#fff', size = 24 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 4a4 4 0 014 4c0 1.5-.8 2.8-2 3.5V14h-4v-2.5c-1.2-.7-2-2-2-3.5a4 4 0 014-4z" stroke={color} strokeWidth={1.6} fill="none"/>
-      <Path d="M9 12c-1.7 0-3 1.3-3 3v2h12v-2c0-1.7-1.3-3-3-3" stroke={color} strokeWidth={1.6} fill="none"/>
-      <Circle cx="9" cy="9" r="1.5" fill={color} stroke="none"/>
-      <Circle cx="15" cy="9" r="1.5" fill={color} stroke="none"/>
-    </Svg>
-  );
+  // ─── COST BAR CHART ──────────────────────────────────────────────────────
 
-  const ArrowUpIcon = ({ color = '#fff', size = 16 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 5v14M5 12l7-7 7 7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
+  const CostBarChart = () => {
+    const bars = [
+      { label: 'Oil', value: calculations.oilPurchased, color: T.primary },
+      { label: 'Logistics', value: calculations.logistics, color: T.gradeB },
+      { label: 'Processing', value: calculations.processing, color: '#3b82f6' },
+      { label: 'Other', value: calculations.other, color: T.muted },
+    ];
+    const max = Math.max(...bars.map((b) => b.value), 1);
 
-  // Forecast Line Chart Component
-  const ForecastChart = () => {
-    const data = forecastData[forecastPeriod].daily || historicalData;
-    const chartData = data.length > 0 ? data : historicalData;
-    const maxVolume = Math.max(...chartData.map(d => d.volume || 0), 1);
-    const chartHeight = 180;
-    const chartWidth = width - 80;
-    const pointSpacing = chartData.length > 1 ? chartWidth / (chartData.length - 1) : chartWidth;
-    
-    const getY = (volume) => chartHeight - (volume / maxVolume) * chartHeight;
-    
-    let volumePath = '';
-    let gradeAPath = '';
-    
-    chartData.forEach((item, index) => {
-      const x = index * pointSpacing + 20;
-      const yVolume = getY(item.volume || 0);
-      
-      if (index === 0) {
-        volumePath = `M ${x} ${yVolume}`;
-      } else {
-        volumePath += ` L ${x} ${yVolume}`;
-      }
-    });
-    
-    // Grade A trend line (if available)
-    if (chartData[0]?.gradeA) {
-      const maxGrade = 70;
-      chartData.forEach((item, index) => {
-        const x = index * pointSpacing + 20;
-        const yGrade = chartHeight - ((item.gradeA || 0) / maxGrade) * chartHeight;
-        
-        if (index === 0) {
-          gradeAPath = `M ${x} ${yGrade}`;
-        } else {
-          gradeAPath += ` L ${x} ${yGrade}`;
-        }
-      });
-    }
-    
     return (
-      <View style={styles.chartContainer}>
-        <Svg height={chartHeight + 50} width={chartWidth + 40}>
-          {/* Grid lines */}
-          {[0, 25, 50, 75, 100].map((value) => {
-            const y = chartHeight - (value / 100) * chartHeight;
-            const volumeLabel = Math.round(maxVolume * (value / 100));
-            return (
-              <React.Fragment key={value}>
-                <Line
-                  x1={20}
-                  y1={y}
-                  x2={chartWidth + 20}
-                  y2={y}
-                  stroke="#e5e7eb"
-                  strokeWidth={1}
-                  strokeDasharray="5,5"
+      <View style={styles.barChartContainer}>
+        {bars.map((b) => {
+          const pct = (b.value / max) * 100;
+          return (
+            <View key={b.label} style={styles.barRow}>
+              <Text style={styles.barLabel}>{b.label}</Text>
+              <View style={styles.barTrack}>
+                <View
+                  style={[
+                    styles.barFill,
+                    { width: `${pct}%`, backgroundColor: b.color },
+                  ]}
                 />
-                <SvgText
-                  x={15}
-                  y={y + 4}
-                  fontSize={10}
-                  fill="#9ca3af"
-                  textAnchor="end"
-                >
-                  {volumeLabel}L
-                </SvgText>
-              </React.Fragment>
-            );
-          })}
-          
-          {/* Volume line */}
-          <Path
-            d={volumePath}
-            fill="none"
-            stroke="#10b981"
-            strokeWidth={3}
-            strokeLinecap="round"
-          />
-          
-          {/* Grade A trend line */}
-          {gradeAPath && (
-            <Path
-              d={gradeAPath}
-              fill="none"
-              stroke="#7EE92D"
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeDasharray="6,4"
-            />
-          )}
-          
-          {/* Area under the curve */}
-          <Path
-            d={`${volumePath} L ${chartWidth + 20} ${chartHeight} L 20 ${chartHeight} Z`}
-            fill="#10b981"
-            opacity="0.1"
-          />
-          
-          {/* Data points */}
-          {data.map((item, index) => {
-            const x = index * pointSpacing + 20;
-            const yVolume = getY(item.volume || item.volume);
-            return (
-              <Circle
-                key={index}
-                cx={x}
-                cy={yVolume}
-                r={4}
-                fill="#10b981"
-                stroke="#fff"
-                strokeWidth={2}
-              />
-            );
-          })}
-          
-          {/* X-axis labels */}
-          {data.map((item, index) => {
-            const x = index * pointSpacing + 20;
-            return (
-              <SvgText
-                key={index}
-                x={x}
-                y={chartHeight + 20}
-                fontSize={11}
-                fill="#6b7280"
-                textAnchor="middle"
-              >
-                {item.day || item.week}
-              </SvgText>
-            );
-          })}
-        </Svg>
-        
-        {/* Chart Legend */}
-        <View style={styles.chartLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendLine, { backgroundColor: '#10b981' }]} />
-            <Text style={styles.legendText}>Forecast Volume</Text>
-          </View>
-          {gradeAPath && (
-            <View style={styles.legendItem}>
-              <View style={[styles.legendLine, { backgroundColor: '#7EE92D', borderStyle: 'dashed' }]} />
-              <Text style={styles.legendText}>Grade A Trend</Text>
+              </View>
+              <Text style={styles.barValue}>{formatZAR(b.value)}</Text>
             </View>
-          )}
-        </View>
+          );
+        })}
       </View>
     );
   };
 
-  // Header Component - Updated to fill to the top and navigate to home
+  // ─── HEADER ──────────────────────────────────────────────────────────────
+
   const Header = () => (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
-      <LinearGradient
-        colors={['#10b981', '#059669', '#047857']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.header}
-      >
+      <StatusBar barStyle="dark-content" backgroundColor={T.card} />
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerContent}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => {
-              if (onBack) {
-                onBack();
-              } else {
-                navigation.goBack();
-              }
-            }}
-          >
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>AI Supply Forecasts</Text>
-            <Text style={styles.headerSubtitle}>Powered by Machine Learning</Text>
+            <Text style={styles.headerTitle}>Finance</Text>
+            <Text style={styles.headerSubtitle}>Cost · Value · Margin</Text>
           </View>
-          <BrainIcon color="#fff" size={24} />
         </View>
-      </LinearGradient>
+      </View>
     </>
   );
+
+  // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
     <View style={styles.container}>
       <Header />
-      
-      <ScrollView 
+
+      <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Period Selector */}
-        <View style={styles.periodContainer}>
-          <TouchableOpacity 
-            style={[styles.periodBtn, forecastPeriod === '7days' && styles.activePeriodBtn]}
-            onPress={() => setForecastPeriod('7days')}
-          >
-            <CalendarIcon color={forecastPeriod === '7days' ? '#fff' : '#6b7280'} size={18} />
-            <Text style={[styles.periodText, forecastPeriod === '7days' && styles.activePeriodText]}>7 Days</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.periodBtn, forecastPeriod === '14days' && styles.activePeriodBtn]}
-            onPress={() => setForecastPeriod('14days')}
-          >
-            <CalendarIcon color={forecastPeriod === '14days' ? '#fff' : '#6b7280'} size={18} />
-            <Text style={[styles.periodText, forecastPeriod === '14days' && styles.activePeriodText]}>14 Days</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.periodBtn, forecastPeriod === '30days' && styles.activePeriodBtn]}
-            onPress={() => setForecastPeriod('30days')}
-          >
-            <CalendarIcon color={forecastPeriod === '30days' ? '#fff' : '#6b7280'} size={18} />
-            <Text style={[styles.periodText, forecastPeriod === '30days' && styles.activePeriodText]}>30 Days</Text>
-          </TouchableOpacity>
+        {/* ── 4 Big Summary Cards ── */}
+        <View style={styles.summaryGrid}>
+          <SummaryCard
+            icon="cart-outline"
+            iconBg={T.paleGreen}
+            label="Oil Purchased"
+            value={formatZAR(calculations.oilPurchased)}
+            sub={`${totalLitres.toLocaleString()} L`}
+          />
+          <SummaryCard
+            icon="flash-outline"
+            iconBg={T.paleGreen}
+            label="Est. Biodiesel"
+            value={`${Math.round(calculations.biodiesel).toLocaleString()} L`}
+            sub={`${ASSUMPTIONS.conversion}% conversion`}
+          />
+          <SummaryCard
+            icon="cash-outline"
+            iconBg={T.selectedBg}
+            label="Est. Revenue"
+            value={formatZAR(calculations.revenue)}
+            sub={`@ ${formatZARDecimal(ASSUMPTIONS.biodieselPrice)}/L`}
+          />
+          <SummaryCard
+            icon="trending-up-outline"
+            iconBg={T.selectedBg}
+            label="Est. Margin"
+            value={formatZAR(calculations.margin)}
+            sub={calculations.margin >= 0 ? 'Positive' : 'Negative'}
+            valueColor={calculations.margin >= 0 ? T.primary : T.danger}
+          />
         </View>
 
-        {/* Main Forecast Card */}
-        <LinearGradient
-          colors={['#1a1a2e', '#16213e']}
-          style={styles.mainForecastCard}
-        >
-          <View style={styles.mainForecastHeader}>
-            <TrendingUpIcon color="#7EE92D" size={28} />
-            <View style={styles.confidenceBadge}>
-              <Text style={styles.confidenceText}>
-                {forecastData[forecastPeriod].confidence}% Confidence
-              </Text>
-            </View>
-          </View>
-          
-          <Text style={styles.mainForecastTotal}>
-            {forecastData[forecastPeriod].total.toLocaleString()} L
-          </Text>
-          <Text style={styles.mainForecastTrend}>
-            <ArrowUpIcon color="#7EE92D" size={14} /> {forecastData[forecastPeriod].trend} from previous period
-          </Text>
-          
-          {/* Forecast Chart */}
-          <ForecastChart />
-          
-          {/* Quality Breakdown */}
-          <View style={styles.qualityBreakdown}>
-            <Text style={styles.qualityBreakdownTitle}>Expected Quality Mix</Text>
-            
-            <View style={styles.qualityBarItem}>
-              <View style={styles.qualityBarHeader}>
-                <Text style={styles.qualityBarLabel}>Grade A</Text>
-                <Text style={styles.qualityBarPercent}>{forecastData[forecastPeriod].gradeA}%</Text>
+        {/* ── Production Value chain ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Production Value</Text>
+          <View style={styles.card}>
+            <View style={styles.chainRow}>
+              <View style={styles.chainIconWrap}>
+                <Ionicons name="water-outline" size={18} color={T.primary} />
               </View>
-              <View style={styles.qualityBarBg}>
-                <View style={[styles.qualityBarFill, { width: `${forecastData[forecastPeriod].gradeA}%`, backgroundColor: '#7EE92D' }]} />
+              <View style={styles.chainText}>
+                <Text style={styles.chainValue}>
+                  {totalLitres.toLocaleString()} L
+                </Text>
+                <Text style={styles.chainLabel}>Waste Oil Collected</Text>
               </View>
             </View>
-            
-            <View style={styles.qualityBarItem}>
-              <View style={styles.qualityBarHeader}>
-                <Text style={styles.qualityBarLabel}>Grade B</Text>
-                <Text style={styles.qualityBarPercent}>{forecastData[forecastPeriod].gradeB}%</Text>
-              </View>
-              <View style={styles.qualityBarBg}>
-                <View style={[styles.qualityBarFill, { width: `${forecastData[forecastPeriod].gradeB}%`, backgroundColor: '#f59e0b' }]} />
-              </View>
-            </View>
-            
-            <View style={styles.qualityBarItem}>
-              <View style={styles.qualityBarHeader}>
-                <Text style={styles.qualityBarLabel}>Grade C</Text>
-                <Text style={styles.qualityBarPercent}>{forecastData[forecastPeriod].gradeC}%</Text>
-              </View>
-              <View style={styles.qualityBarBg}>
-                <View style={[styles.qualityBarFill, { width: `${forecastData[forecastPeriod].gradeC}%`, backgroundColor: '#ef4444' }]} />
-              </View>
-            </View>
-          </View>
-        </LinearGradient>
 
-        {/* AI Insights Card */}
-        <LinearGradient
-          colors={['#10b981', '#059669']}
-          style={styles.insightCard}
-        >
-          <BrainIcon color="#fff" size={32} />
-          <Text style={styles.insightTitle}>AI Insight</Text>
-          <Text style={styles.insightText}>
-            Grade A quality is projected to reach {forecastData[forecastPeriod].gradeA}% over the next {forecastPeriod === '7days' ? 'week' : forecastPeriod === '14days' ? 'two weeks' : 'month'}. 
-            This represents a {forecastData[forecastPeriod].trend} increase driven by seasonal patterns and improved supplier performance.
-          </Text>
-        </LinearGradient>
+            <View style={styles.chainDivider}>
+              <Ionicons name="arrow-down" size={14} color={T.muted} />
+            </View>
 
-        {/* Production Recommendation */}
-        <View style={styles.recommendationCard}>
-          <Text style={styles.recommendationTitle}>📊 Production Recommendation</Text>
-          <Text style={styles.recommendationText}>
-            Based on {forecastPeriod === '7days' ? '7-day' : forecastPeriod === '14days' ? '14-day' : '30-day'} forecast:
-          </Text>
-          <View style={styles.recommendationList}>
-            <View style={styles.bulletPoint}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.bulletText}>
-                Schedule processing runs on Tuesdays and Thursdays for optimal Grade A utilization
-              </Text>
+            <View style={styles.chainRow}>
+              <View style={styles.chainIconWrap}>
+                <Ionicons name="flash-outline" size={18} color={T.primary} />
+              </View>
+              <View style={styles.chainText}>
+                <Text style={styles.chainValue}>
+                  {Math.round(calculations.biodiesel).toLocaleString()} L
+                </Text>
+                <Text style={styles.chainLabel}>
+                  Estimated Biodiesel ({ASSUMPTIONS.conversion}% conversion)
+                </Text>
+              </View>
             </View>
-            <View style={styles.bulletPoint}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.bulletText}>
-                Grade C processing recommended for industrial biodiesel production
-              </Text>
+
+            <View style={styles.chainDivider}>
+              <Ionicons name="arrow-down" size={14} color={T.muted} />
             </View>
-            <View style={styles.bulletPoint}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.bulletText}>
-                Increase storage capacity by 15% to accommodate peak forecast
-              </Text>
+
+            <View style={styles.chainRow}>
+              <View
+                style={[styles.chainIconWrap, { backgroundColor: T.selectedBg }]}
+              >
+                <Ionicons name="cash-outline" size={18} color={T.primary} />
+              </View>
+              <View style={styles.chainText}>
+                <Text style={[styles.chainValue, { color: T.primary }]}>
+                  {formatZAR(calculations.revenue)}
+                </Text>
+                <Text style={styles.chainLabel}>Potential Revenue</Text>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Key Metrics */}
-        <View style={styles.metricsGrid}>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricValue}>+{forecastData[forecastPeriod].trend}</Text>
-            <Text style={styles.metricLabel}>Growth Rate</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricValue}>{forecastData[forecastPeriod].gradeA}%</Text>
-            <Text style={styles.metricLabel}>Quality Score</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <Text style={styles.metricValue}>{forecastData[forecastPeriod].confidence}%</Text>
-            <Text style={styles.metricLabel}>Accuracy</Text>
+        {/* ── Cost Breakdown ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Cost Breakdown</Text>
+          <View style={styles.card}>
+            <CostRow
+              label="Oil purchased"
+              value={formatZAR(calculations.oilPurchased)}
+            />
+            <CostRow
+              label="Collection & logistics"
+              value={formatZAR(calculations.logistics)}
+            />
+            <CostRow
+              label="Processing"
+              value={formatZAR(calculations.processing)}
+            />
+            <CostRow
+              label="Other operating costs"
+              value={formatZAR(calculations.other)}
+            />
+            <View style={styles.costDivider} />
+            <CostRow
+              label="Total Costs"
+              value={formatZAR(calculations.totalCosts)}
+              emphasis
+            />
+            <CostRow
+              label="Estimated Margin"
+              value={formatZAR(calculations.margin)}
+              emphasis
+              color={calculations.margin >= 0 ? T.primary : T.danger}
+            />
+
+            <View style={styles.chartSpacer} />
+            <CostBarChart />
           </View>
         </View>
-        
-        {/* Bottom padding for better scrolling */}
-        <View style={styles.bottomPadding} />
+
+        {/* ── Oil Inventory by Grade ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Oil Inventory by Grade</Text>
+          <View style={styles.card}>
+            {['A', 'B', 'C'].map((g, i) => {
+              const row = oilData.byGrade[g];
+              const color =
+                g === 'A' ? T.gradeA : g === 'B' ? T.gradeB : T.gradeC;
+              const label =
+                g === 'A' ? '🟢 Grade A' : g === 'B' ? '🟡 Grade B' : '🔴 Grade C';
+              return (
+                <View
+                  key={g}
+                  style={[styles.gradeRow, i === 2 && { borderBottomWidth: 0 }]}
+                >
+                  <View style={[styles.gradeDot, { backgroundColor: color }]} />
+                  <Text style={styles.gradeName}>{label}</Text>
+                  <Text style={styles.gradeVolume}>
+                    {row.litres.toLocaleString()} L
+                  </Text>
+                  <Text style={styles.gradePrice}>
+                    {formatZARDecimal(row.avgPrice)}/L
+                  </Text>
+                </View>
+              );
+            })}
+            <View style={styles.costDivider} />
+            <View style={styles.gradeRow}>
+              <View style={{ width: 12 }} />
+              <Text style={[styles.gradeName, { fontWeight: '700' }]}>Total</Text>
+              <Text style={[styles.gradeVolume, { fontWeight: '700' }]}>
+                {oilData.totalLitres.toLocaleString()} L
+              </Text>
+              <Text
+                style={[styles.gradePrice, { color: T.ink, fontWeight: '700' }]}
+              >
+                {formatZAR(oilData.totalPaid)}
+              </Text>
+            </View>
+
+            {oilData.isDemo && (
+              <Text style={styles.demoHint}>
+                Showing sample data — real figures populate once pickups are
+                confirmed.
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* ── Environmental Impact ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Environmental Impact</Text>
+          <View style={[styles.card, styles.impactCard]}>
+            <View style={styles.impactRow}>
+              <View style={styles.impactIconWrap}>
+                <Ionicons name="leaf-outline" size={18} color={T.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.impactValue}>
+                  {totalLitres.toLocaleString()} L
+                </Text>
+                <Text style={styles.impactLabel}>
+                  Waste oil diverted from landfill
+                </Text>
+              </View>
+            </View>
+            <View style={styles.impactRow}>
+              <View style={styles.impactIconWrap}>
+                <Ionicons name="flash-outline" size={18} color={T.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.impactValue}>
+                  {Math.round(calculations.biodiesel).toLocaleString()} L
+                </Text>
+                <Text style={styles.impactLabel}>
+                  Potential renewable fuel produced
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={{ height: 30 }} />
       </ScrollView>
     </View>
   );
 };
 
+// ─── STYLES ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
+  container: { flex: 1, backgroundColor: T.page },
+  scrollView: { flex: 1 },
+
   header: {
-    paddingTop: 48,
-    paddingBottom: 16,
+    backgroundColor: T.card,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
+    ...SH.card,
   },
   headerContent: {
-    paddingHorizontal: 20,
-    flexDirection: 'row',
+    paddingHorizontal: S.screenPadding,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    minHeight: 48,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  headerTextContainer: { alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
+  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+
+  // Summary grid
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: S.screenPadding,
+    marginTop: S.gap + 4,
+    rowGap: 12,
+  },
+  summaryCard: {
+    width: (width - S.screenPadding * 2 - 12) / 2,
+    backgroundColor: T.card,
+    borderRadius: R.card,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: T.border,
+    ...SH.card,
+  },
+  summaryIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 10,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  headerTextContainer: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  headerSubtitle: {
+  summaryLabel: {
     fontSize: 11,
-    color: '#fff',
-    opacity: 0.9,
-    marginTop: 2,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  periodContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 16,
-  },
-  periodBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  activePeriodBtn: {
-    backgroundColor: '#10b981',
-  },
-  periodText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  activePeriodText: {
-    color: '#fff',
-  },
-  mainForecastCard: {
-    margin: 16,
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  mainForecastHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  confidenceBadge: {
-    backgroundColor: '#7EE92D20',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  confidenceText: {
-    fontSize: 12,
-    color: '#7EE92D',
+    color: T.muted,
+    marginBottom: 4,
     fontWeight: '500',
   },
-  mainForecastTotal: {
-    fontSize: 40,
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: T.ink,
+  },
+  summarySub: {
+    fontSize: 11,
+    color: T.body,
+    marginTop: 4,
+  },
+
+  // Section wrapper
+  section: {
+    paddingHorizontal: S.screenPadding,
+    marginTop: S.gap + 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
-    marginBottom: 8,
+    color: T.ink,
+    marginBottom: 10,
   },
-  mainForecastTrend: {
-    fontSize: 13,
-    color: '#9ca3af',
-    marginBottom: 20,
+  card: {
+    backgroundColor: T.card,
+    borderRadius: R.card,
+    padding: S.cardPadding,
+    borderWidth: 1,
+    borderColor: T.border,
+    ...SH.card,
   },
-  chartContainer: {
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  chartLegend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-    marginTop: 10,
-  },
-  legendItem: {
+
+  // Production chain
+  chainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
   },
-  legendLine: {
-    width: 20,
-    height: 2,
-    borderRadius: 1,
+  chainIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: T.paleGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  legendText: {
-    fontSize: 11,
-    color: '#9ca3af',
+  chainText: { flex: 1 },
+  chainValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: T.ink,
   },
-  qualityBreakdown: {
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#ffffff20',
+  chainLabel: {
+    fontSize: 12,
+    color: T.body,
+    marginTop: 2,
   },
-  qualityBreakdownTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 16,
+  chainDivider: {
+    alignItems: 'center',
+    paddingVertical: 8,
   },
-  qualityBarItem: {
-    marginBottom: 16,
-  },
-  qualityBarHeader: {
+
+  // Cost breakdown
+  costRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    paddingVertical: 8,
   },
-  qualityBarLabel: {
-    fontSize: 13,
-    color: '#9ca3af',
+  costLabel: {
+    fontSize: 14,
+    color: T.body,
   },
-  qualityBarPercent: {
-    fontSize: 13,
+  costValue: {
+    fontSize: 14,
+    color: T.ink,
     fontWeight: '600',
-    color: '#fff',
   },
-  qualityBarBg: {
+  costLabelEmphasis: {
+    fontSize: 15,
+    color: T.ink,
+    fontWeight: '700',
+  },
+  costValueEmphasis: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  costDivider: {
+    height: 1,
+    backgroundColor: T.divider,
+    marginVertical: 8,
+  },
+  chartSpacer: { height: 8 },
+
+  // Bar chart
+  barChartContainer: { marginTop: 6, gap: 10 },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  barLabel: {
+    width: 78,
+    fontSize: 12,
+    color: T.body,
+  },
+  barTrack: {
+    flex: 1,
     height: 8,
-    backgroundColor: '#ffffff20',
+    backgroundColor: T.divider,
     borderRadius: 4,
     overflow: 'hidden',
   },
-  qualityBarFill: {
-    height: '100%',
-    borderRadius: 4,
+  barFill: { height: '100%', borderRadius: 4 },
+  barValue: {
+    width: 70,
+    fontSize: 12,
+    fontWeight: '600',
+    color: T.ink,
+    textAlign: 'right',
   },
-  insightCard: {
-    margin: 16,
-    marginTop: 0,
-    borderRadius: 20,
-    padding: 20,
+
+  // Grade inventory
+  gradeRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  insightTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  insightText: {
-    fontSize: 14,
-    color: '#fff',
-    opacity: 0.95,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  recommendationCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    marginTop: 0,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  recommendationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  recommendationText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 12,
-  },
-  recommendationList: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: T.divider,
     gap: 10,
   },
-  bulletPoint: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  bullet: {
-    fontSize: 14,
-    color: '#10b981',
-    fontWeight: '600',
-  },
-  bulletText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#6b7280',
-    lineHeight: 18,
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  metricValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#10b981',
-    marginBottom: 4,
-  },
-  metricLabel: {
+  gradeDot: { width: 10, height: 10, borderRadius: 5 },
+  gradeName: { flex: 1, fontSize: 13, color: T.ink, fontWeight: '500' },
+  gradeVolume: { fontSize: 13, color: T.body, width: 80, textAlign: 'right' },
+  gradePrice: { fontSize: 13, color: T.body, width: 70, textAlign: 'right' },
+  demoHint: {
     fontSize: 11,
-    color: '#6b7280',
+    color: T.muted,
+    marginTop: 10,
+    fontStyle: 'italic',
   },
-  bottomPadding: {
-    height: 30,
+
+  // Impact
+  impactCard: { gap: 14 },
+  impactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
+  impactIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: T.paleGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  impactValue: { fontSize: 16, fontWeight: '700', color: T.ink },
+  impactLabel: { fontSize: 12, color: T.body, marginTop: 2 },
 });
 
-export default ForecastsScreen;
+export default FinanceScreen;
