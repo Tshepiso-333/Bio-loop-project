@@ -12,6 +12,8 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../../AuthContext';
 import { useProfile } from '../../hooks/useProfile';
@@ -55,11 +57,23 @@ export default function ProfileEditScreen({
   mode = 'edit',
   onDone,
   onSkip,
+  onBack,
 }) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { user } = useAuth();
   const { profile, role, refreshProfile } = useProfile();
   const isCompletion = mode === 'completion';
+
+  // ── Back navigation (edit mode only — hidden during onboarding) ───────────
+  const showBackButton = !isCompletion;
+
+  const goBack = () => {
+    if (typeof onBack === 'function') return onBack();
+    if (typeof onDone === 'function') return onDone();
+    if (navigation.canGoBack?.()) return navigation.goBack();
+    navigation.navigate('ManufacturerDashboardScreen');
+  };
 
   const restaurantCtx = useContext(RestaurantContext);
   const collectorCtx = useContext(CollectorContext);
@@ -257,27 +271,57 @@ export default function ProfileEditScreen({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <StatusBar barStyle="dark-content" backgroundColor={THEME.bg} />
+
+      {/* ── Header ────────────────────────────────────────────────────────── */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.headerTitle}>
-          {isCompletion ? 'Complete your profile' : 'Edit profile'}
-        </Text>
-        {isCompletion ? (
-          <>
-            <Text style={styles.headerSubtitle}>
-              {completion.percent}% complete — add the details below to get started.
+        <View style={styles.headerTopRow}>
+          {showBackButton ? (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={goBack}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={22} color={THEME.ink} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.backButtonPlaceholder} />
+          )}
+
+          <View style={styles.headerTextWrap}>
+            <Text style={styles.headerTitle}>
+              {isCompletion ? 'Complete your profile' : 'Edit profile'}
             </Text>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${Math.min(100, Math.max(0, completion.percent))}%` },
-                ]}
-              />
-            </View>
-          </>
-        ) : (
-          <Text style={styles.headerSubtitle}>Update your account and business information.</Text>
-        )}
+
+            {isCompletion ? (
+              <>
+                <Text style={styles.headerSubtitle}>
+                  {completion.percent}% complete — add the details below to get started.
+                </Text>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${Math.min(
+                          100,
+                          Math.max(0, completion.percent)
+                        )}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              </>
+            ) : (
+              <Text style={styles.headerSubtitle}>
+                Update your account information.
+              </Text>
+            )}
+          </View>
+
+          {showBackButton ? <View style={styles.backButtonPlaceholder} /> : null}
+        </View>
+
         {isCompletion && completion.missing.length > 0 ? (
           <Text style={styles.missingHint}>
             Missing: {completion.missing.slice(0, 3).map((m) => m.label).join(', ')}
@@ -286,6 +330,7 @@ export default function ProfileEditScreen({
         ) : null}
       </View>
 
+      {/* ── Body ──────────────────────────────────────────────────────────── */}
       <ScrollView
         style={styles.flex}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
@@ -329,12 +374,37 @@ export default function ProfileEditScreen({
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: THEME.bg },
+
+  // ── Header ────────────────────────────────────────────────────────────────
   header: {
     paddingHorizontal: 20,
     paddingBottom: 18,
     backgroundColor: THEME.bg,
     borderBottomWidth: 1,
     borderBottomColor: THEME.border,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  headerTextWrap: {
+    flex: 1,
+    paddingHorizontal: 8,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: THEME.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: THEME.border,
+  },
+  backButtonPlaceholder: {
+    width: 40,
+    height: 40,
   },
   headerTitle: {
     fontSize: 24,
@@ -366,6 +436,8 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     color: THEME.muted,
   },
+
+  // ── Body ──────────────────────────────────────────────────────────────────
   content: {
     padding: 16,
     gap: 12,
@@ -421,6 +493,8 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: THEME.primary, borderColor: THEME.primary },
   chipText: { fontSize: 13, fontWeight: '600', color: '#334155' },
   chipTextActive: { color: '#fff' },
+
+  // ── Actions ───────────────────────────────────────────────────────────────
   saveBtn: {
     backgroundColor: THEME.primary,
     borderRadius: 30,

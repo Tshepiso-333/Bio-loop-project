@@ -641,10 +641,17 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
         return <AIChatScreen navigation={navigation} />;
       case 'suppliers':
         return <SuppliersScreen navigation={navigation} />;
-      case 'alerts':
-        return <AlertsScreen navigation={navigation} />;
+case 'alerts':
+  return (
+    <AlertsScreen
+      navigation={navigation}
+      onBack={() => setSelectedTab('home')}
+    />
+  );
       case 'profile':
-        return <ProfileScreen navigation={navigation} />;
+        return <ProfileScreen 
+        navigation={navigation}
+        onBack={() => setSelectedTab('home')} />;
       default:
         return null;
     }

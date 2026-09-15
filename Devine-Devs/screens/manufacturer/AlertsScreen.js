@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+// screens/manufacturer/AlertsScreen.js
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,287 +9,529 @@ import {
   StatusBar,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path, Line, Polyline } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 
-const AlertsScreen = ({ navigation, onBack }) => {
+// ─── THEME (matches Dashboard / Quality / Finance / Suppliers) ───────────────
+
+const T = {
+  primary: '#10b981',
+  primaryDark: '#059669',
+  paleGreen: '#ECFDF5',
+  selectedBg: '#F0FDF4',
+
+  page: '#F9FAFB',
+  card: '#FFFFFF',
+
+  ink: '#111827',
+  body: '#6B7280',
+  muted: '#9CA3AF',
+  border: '#E5E7EB',
+  divider: '#F3F4F6',
+
+  white: '#FFFFFF',
+
+  gradeA: '#7EE92D',
+  gradeB: '#f59e0b',
+  gradeC: '#ef4444',
+
+  danger: '#ef4444',
+  info: '#3b82f6',
+  success: '#10b981',
+  warning: '#f59e0b',
+  critical: '#ef4444',
+};
+
+const S = { screenPadding: 16, cardPadding: 16, gap: 16 };
+const R = { card: 16, pill: 999, chip: 10 };
+const SH = {
+  card: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  header: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  button: {
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+};
+
+// ─── ALERT TYPE REGISTRY ─────────────────────────────────────────────────────
+//
+// Only the 5 meaningful manufacturer alert types are supported. Anything
+// else coming from the backend is mapped to the closest match, or dropped
+// if it doesn't matter for a manufacturer (e.g. "driver logged in").
+
+const ALERT_TYPES = {
+  delivery_scheduled: {
+    key: 'delivery_scheduled',
+    section: 'updates',
+    icon: 'time-outline',
+    color: T.info,
+    label: 'Delivery scheduled',
+    action: { label: 'View collection', target: 'Suppliers' },
+  },
+  batch_received: {
+    key: 'batch_received',
+    section: 'action',
+    icon: 'cube-outline',
+    color: T.primary,
+    label: 'Batch received',
+    action: { label: 'Review batch', target: 'ManufacturerPayment' },
+  },
+  quality_verification: {
+    key: 'quality_verification',
+    section: 'action',
+    icon: 'shield-checkmark-outline',
+    color: T.gradeB,
+    label: 'Quality check',
+    action: { label: 'Review quality', target: 'Quality' },
+  },
+  low_quality: {
+    key: 'low_quality',
+    section: 'action',
+    icon: 'warning-outline',
+    color: T.gradeC,
+    label: 'Low quality',
+    action: { label: 'Review quality', target: 'Quality' },
+  },
+  inventory_low: {
+    key: 'inventory_low',
+    section: 'updates',
+    icon: 'trending-down-outline',
+    color: T.warning,
+    label: 'Inventory low',
+    action: { label: 'View collections', target: 'Suppliers' },
+  },
+  high_value_supply: {
+    key: 'high_value_supply',
+    section: 'updates',
+    icon: 'cash-outline',
+    color: T.primary,
+    label: 'High-value supply',
+    action: { label: 'View financial estimate', target: 'Finance' },
+  },
+};
+
+const LEGACY_MAP = {
+  quality: 'quality_verification',
+  delivery: 'delivery_scheduled',
+  inventory: 'inventory_low',
+  critical: 'low_quality',
+  warning: 'inventory_low',
+  success: 'batch_received',
+  info: 'delivery_scheduled',
+};
+
+const resolveAlertType = (rawAlert) => {
+  if (!rawAlert) return null;
+  const directKey = rawAlert.type_key ?? rawAlert.type;
+  if (directKey && ALERT_TYPES[directKey]) return ALERT_TYPES[directKey];
+  const catKey = LEGACY_MAP[rawAlert.category];
+  if (catKey && ALERT_TYPES[catKey]) return ALERT_TYPES[catKey];
+  return null;
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+// Demo alerts (ids like "demo-1") exist only in the client and have no
+// backend row, so we never hit the network for them.
+const isDemoAlert = (id) => typeof id === 'string' && id.startsWith('demo-');
+
+function formatRelative(iso) {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return '';
+  const diffMs = Date.now() - then;
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  if (days === 1) return 'yesterday';
+  return `${days} days ago`;
+}
+
+// ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
+
+const AlertsScreen = ({ onBack }) => {
+  const navigation = useNavigation();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const {
     alerts: contextAlerts = [],
+    pickups = [],
     refreshManufacturer,
     updateAlertReadStatus,
     deleteAlert: deleteAlertFromContext,
   } = useManufacturerContext();
+  const insets = useSafeAreaInsets();
 
-  // Mock data for testing
-  const mockAlerts = [
-    {
-      id: '1',
-      title: 'Critical: Production Delay',
-      message: 'Biodiesel production batch #BIO-2024-089 is delayed due to equipment maintenance. Estimated completion: 4 hours.',
-      type: 'critical',
-      category: 'delivery',
-      created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 min ago
-      is_read: false,
-    },
-    {
-      id: '2',
-      title: 'Delivery Alert: Route Change',
-      message: 'Truck #TRK-452 has been rerouted due to road closures. Delivery to Green Energy Inc. will be 2 hours late.',
-      type: 'warning',
-      category: 'delivery',
-      created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(), // 2 hours ago
-      is_read: false,
-    },
-    {
-      id: '3',
-      title: 'Inventory Low: Feedstock',
-      message: 'Waste vegetable oil inventory is below 15% capacity. Reorder recommended to maintain production schedule.',
-      type: 'warning',
-      category: 'inventory',
-      created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(), // 3 hours ago
-      is_read: false,
-    },
-    {
-      id: '4',
-      title: 'Quality Alert: Test Result',
-      message: 'Batch #BIO-2024-087 passed all quality tests with 98.7% purity. Certificate of Analysis is ready for download.',
-      type: 'success',
-      category: 'quality',
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-      is_read: true,
-    },
-    {
-      id: '5',
-      title: 'Delivery Confirmed',
-      message: 'Shipment #SHIP-8923 delivered to SunPower Biodiesel. Customer confirmed receipt and quality approval.',
-      type: 'success',
-      category: 'delivery',
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-      is_read: true,
-    },
-    {
-      id: '6',
-      title: 'Inventory Update',
-      message: 'New inventory received: 15,000 gallons of refined biodiesel added to storage tank #3.',
-      type: 'info',
-      category: 'inventory',
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), // 2 days ago
-      is_read: true,
-    },
-    {
-      id: '7',
-      title: 'Critical: Quality Deviation',
-      message: 'Batch #BIO-2024-086 shows slight deviation in viscosity levels. Investigation in progress. Production paused.',
-      type: 'critical',
-      category: 'quality',
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), // 3 days ago
-      is_read: false,
-    },
-  ];
-
-  const mapAlert = (a) => ({
-    id: a.id,
-    title: a.title ?? '—',
-    message: a.message ?? '—',
-    type: a.type ?? 'info',
-    category: a.category ?? 'general',
-    time: a.created_at ? new Date(a.created_at).toLocaleDateString() : '—',
-    read: a.is_read ?? false,
-    icon: a.type === 'critical' ? '⚠️' : a.type === 'warning' ? '⚠️' : a.type === 'success' ? '✅' : 'ℹ️',
-  });
-
-  // Use mock data if no context alerts exist, otherwise use context alerts
-  const [alerts, setAlerts] = useState(
-    (contextAlerts && contextAlerts.length > 0) 
-      ? contextAlerts.map(mapAlert)
-      : mockAlerts.map(mapAlert)
+  // ─── Demo data (replace with real backend data later) ────────────────────
+  const demoAlerts = useMemo(
+    () => [
+      {
+        id: 'demo-1',
+        type_key: 'quality_verification',
+        title: 'Quality verification required',
+        message: 'Batch #0042 · 150L has arrived and needs a quality check.',
+        created_at: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+        is_read: false,
+        meta: { batchId: '0042', volume: 150 },
+      },
+      {
+        id: 'demo-2',
+        type_key: 'batch_received',
+        title: 'New oil batch received',
+        message: 'Batch #0043 · 220L from Golden Dragon Restaurant is ready to process.',
+        created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+        is_read: false,
+        meta: { batchId: '0043', volume: 220 },
+      },
+      {
+        id: 'demo-3',
+        type_key: 'low_quality',
+        title: 'Low-quality oil detected',
+        message: 'Batch #0041 classified as Grade C. Additional processing may be required.',
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+        is_read: false,
+        meta: { batchId: '0041' },
+      },
+      {
+        id: 'demo-4',
+        type_key: 'delivery_scheduled',
+        title: 'New oil delivery scheduled',
+        message: 'Green Kitchen Restaurant · 150L. Estimated arrival 14:30.',
+        created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+        is_read: true,
+        meta: { restaurant: 'Green Kitchen', volume: 150, eta: '14:30' },
+      },
+      {
+        id: 'demo-5',
+        type_key: 'inventory_low',
+        title: 'Inventory below preferred level',
+        message: 'Available waste oil has dropped to 850L. Minimum required: 1,000L.',
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+        is_read: false,
+        meta: { current: 850, threshold: 1000 },
+      },
+      {
+        id: 'demo-6',
+        type_key: 'high_value_supply',
+        title: 'High-value batch available',
+        message: '300L of Grade A waste oil is ready. Estimated biodiesel output: 270L.',
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+        is_read: true,
+        meta: { volume: 300, output: 270 },
+      },
+    ],
+    []
   );
 
+  // ─── Map context alerts → canonical shape ────────────────────────────────
+  const mapAlert = (a) => {
+    const typeConfig = resolveAlertType(a);
+    if (!typeConfig) return null;
+    return {
+      id: a.id,
+      typeKey: typeConfig.key,
+      typeConfig,
+      title: a.title ?? typeConfig.label,
+      message: a.message ?? '—',
+      time: a.created_at ? formatRelative(a.created_at) : '',
+      read: a.is_read ?? false,
+      meta: a.meta ?? {},
+    };
+  };
+
+  const [alerts, setAlerts] = useState(() => {
+    const fromContext = (contextAlerts || []).map(mapAlert).filter(Boolean);
+    return fromContext.length > 0
+      ? fromContext
+      : demoAlerts.map(mapAlert).filter(Boolean);
+  });
+
   useEffect(() => {
-    if (contextAlerts && contextAlerts.length > 0) {
-      setAlerts(contextAlerts.map(mapAlert));
-    }
+    const fromContext = (contextAlerts || []).map(mapAlert).filter(Boolean);
+    if (fromContext.length > 0) setAlerts(fromContext);
   }, [contextAlerts]);
+
+  // ─── Refresh / read / delete handlers (hardened) ─────────────────────────
 
   const handleRefresh = () => {
     setRefreshing(true);
-    if (refreshManufacturer) {
-      refreshManufacturer().then(() => setRefreshing(false));
+    if (typeof refreshManufacturer === 'function') {
+      refreshManufacturer()
+        .catch((err) => console.warn('Refresh failed:', err?.message ?? err))
+        .finally(() => setRefreshing(false));
     } else {
-      setTimeout(() => setRefreshing(false), 1000);
+      setTimeout(() => setRefreshing(false), 800);
     }
   };
 
   const markAsRead = async (id) => {
-    setAlerts(alerts.map(alert =>
-      alert.id === id ? { ...alert, read: true } : alert
-    ));
+    // Optimistic UI — flips the badge instantly regardless of backend.
+    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, read: true } : a)));
+
+    // Demo alerts never touch the backend.
+    if (isDemoAlert(id)) return;
+
+    if (typeof updateAlertReadStatus !== 'function') {
+      console.warn('updateAlertReadStatus not available in context');
+      return;
+    }
+
     try {
       await updateAlertReadStatus(id, true);
     } catch (err) {
-      console.error('Failed to mark alert as read:', err.message);
+      console.warn('Mark-as-read failed (backend):', err?.message ?? err);
     }
   };
 
   const deleteAlert = async (id) => {
-    setAlerts(alerts.filter(alert => alert.id !== id));
+    // Optimistic UI — removes the card instantly.
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+
+    // Demo alerts never touch the backend.
+    if (isDemoAlert(id)) return;
+
+    if (typeof deleteAlertFromContext !== 'function') {
+      console.warn('deleteAlert not available in context');
+      return;
+    }
+
     try {
       await deleteAlertFromContext(id);
     } catch (err) {
-      console.error('Failed to delete alert:', err.message);
+      console.warn('Delete failed (backend):', err?.message ?? err);
     }
   };
 
-  const getAlertStyle = (type) => {
-    switch(type) {
-      case 'critical':
-        return {
-          gradient: ['#ef4444', '#dc2626'],
-          borderColor: '#ef4444',
-          iconBg: '#ef444420',
-        };
-      case 'warning':
-        return {
-          gradient: ['#f59e0b', '#d97706'],
-          borderColor: '#f59e0b',
-          iconBg: '#f59e0b20',
-        };
-      case 'success':
-        return {
-          gradient: ['#10b981', '#059669'],
-          borderColor: '#10b981',
-          iconBg: '#10b98120',
-        };
+  // ─── Action handler — routes to the target screen ────────────────────────
+
+  const handleAction = (alert) => {
+    const target = alert.typeConfig?.action?.target;
+    markAsRead(alert.id);
+
+    if (!target) return;
+
+    switch (target) {
+      case 'Quality':
+        navigation.navigate('Quality');
+        break;
+      case 'Suppliers':
+        navigation.navigate('Suppliers');
+        break;
+      case 'Finance':
+        navigation.navigate('Finance');
+        break;
+      case 'ManufacturerPayment':
+        if (alert.meta?.pickupId) {
+          navigation.navigate('ManufacturerPayment', { pickupId: alert.meta.pickupId });
+        } else if (alert.meta?.batchId) {
+          navigation.navigate('ManufacturerPayment', { pickupId: alert.meta.batchId });
+        } else {
+          navigation.navigate('Suppliers');
+        }
+        break;
       default:
-        return {
-          gradient: ['#3b82f6', '#2563eb'],
-          borderColor: '#3b82f6',
-          iconBg: '#3b82f620',
-        };
+        navigation.navigate('ManufacturerDashboardScreen');
+        break;
     }
   };
 
-  // Icons
-  const BellIcon = ({ color = '#fff', size = 22 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"/>
-      <Path d="M13.73 21a2 2 0 01-3.46 0" stroke={color} strokeWidth={1.6} strokeLinecap="round"/>
-    </Svg>
-  );
+  // ─── Header (working back button, no "All caught up") ────────────────────
 
-  const CheckIcon = ({ color = '#fff', size = 16 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Polyline points="20 6 9 17 4 12" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
+  const Header = () => {
+    const unreadCount = alerts.filter((a) => !a.read).length;
 
-  const TrashIcon = ({ color = '#fff', size = 16 }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round"/>
-    </Svg>
-  );
+    const goBack = () => {
+      if (typeof onBack === 'function') return onBack();
+      if (navigation.canGoBack?.()) return navigation.goBack();
+      navigation.navigate('ManufacturerDashboardScreen');
+    };
 
-  const UnreadDot = () => (
-    <View style={styles.unreadDot} />
-  );
+    return (
+      <>
+        <StatusBar barStyle="dark-content" backgroundColor={T.card} />
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={goBack}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chevron-back" size={22} color={T.ink} />
+            </TouchableOpacity>
 
-  // Header Component
-  const Header = () => (
-    <>
-      <StatusBar barStyle="light-content" backgroundColor="#dc2626" />
-      <LinearGradient
-        colors={['#ef4444', '#dc2626', '#b91c1c']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => {
-              if (onBack) {
-                onBack();
-              } else {
-                navigation.goBack();
-              }
-            }}
-          >
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Alerts & Notifications</Text>
-            <Text style={styles.headerSubtitle}>
-              {alerts.filter(a => !a.read).length} unread
-            </Text>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Notifications</Text>
+              {unreadCount > 0 && (
+                <Text style={styles.headerSubtitle}>
+                  {unreadCount} unread {unreadCount === 1 ? 'alert' : 'alerts'}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.headerSpacer} />
           </View>
-          <View style={styles.placeholderView} />
         </View>
-      </LinearGradient>
-    </>
-  );
+      </>
+    );
+  };
 
-  // Filter categories
+  // ─── Filters ─────────────────────────────────────────────────────────────
+
   const filters = [
     { id: 'all', label: 'All', count: alerts.length },
-    { id: 'unread', label: 'Unread', count: alerts.filter(a => !a.read).length },
-    { id: 'critical', label: 'Critical', count: alerts.filter(a => a.type === 'critical').length },
-    { id: 'delivery', label: 'Delivery', count: alerts.filter(a => a.category === 'delivery').length },
-    { id: 'inventory', label: 'Inventory', count: alerts.filter(a => a.category === 'inventory').length },
-    { id: 'quality', label: 'Quality', count: alerts.filter(a => a.category === 'quality').length },
+    {
+      id: 'action',
+      label: 'Needs action',
+      count: alerts.filter((a) => a.typeConfig.section === 'action' && !a.read).length,
+    },
+    {
+      id: 'updates',
+      label: 'Updates',
+      count: alerts.filter((a) => a.typeConfig.section === 'updates').length,
+    },
+    {
+      id: 'unread',
+      label: 'Unread',
+      count: alerts.filter((a) => !a.read).length,
+    },
   ];
 
-  // Filter alerts based on selected filter
-  const filteredAlerts = alerts.filter(alert => {
+  const visibleAlerts = alerts.filter((a) => {
     if (selectedFilter === 'all') return true;
-    if (selectedFilter === 'unread') return !alert.read;
-    if (selectedFilter === 'critical') return alert.type === 'critical';
-    return alert.category === selectedFilter;
+    if (selectedFilter === 'unread') return !a.read;
+    return a.typeConfig.section === selectedFilter;
   });
+
+  const actionAlerts = visibleAlerts.filter((a) => a.typeConfig.section === 'action');
+  const updateAlerts = visibleAlerts.filter((a) => a.typeConfig.section === 'updates');
+
+  // ─── Alert card ──────────────────────────────────────────────────────────
+
+  const AlertCard = ({ alert }) => {
+    const cfg = alert.typeConfig;
+    return (
+      <View style={[styles.alertCard, !alert.read && styles.alertCardUnread]}>
+        <View style={[styles.alertIconWrap, { backgroundColor: `${cfg.color}1A` }]}>
+          <Ionicons name={cfg.icon} size={20} color={cfg.color} />
+        </View>
+
+        <View style={styles.alertContent}>
+          <View style={styles.alertHeaderRow}>
+            <Text style={styles.alertTypeLabel}>{cfg.label}</Text>
+            {!alert.read && <View style={styles.unreadDot} />}
+          </View>
+
+          <Text style={styles.alertTitle} numberOfLines={2}>
+            {alert.title}
+          </Text>
+          <Text style={styles.alertMessage} numberOfLines={3}>
+            {alert.message}
+          </Text>
+
+          <View style={styles.alertFooter}>
+            <Text style={styles.alertTime}>{alert.time}</Text>
+
+            <View style={styles.alertFooterActions}>
+              <TouchableOpacity
+                onPress={() => deleteAlert(alert.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={15} color={T.muted} />
+              </TouchableOpacity>
+
+              {cfg.action && (
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => handleAction(alert)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.actionBtnText}>{cfg.action.label}</Text>
+                  <Ionicons name="arrow-forward" size={14} color={T.white} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // ─── Empty state ─────────────────────────────────────────────────────────
+
+  const EmptyState = () => (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="notifications-outline" size={32} color={T.primary} />
+      </View>
+      <Text style={styles.emptyTitle}>No alerts</Text>
+      <Text style={styles.emptyText}>
+        You'll see new deliveries, quality checks and inventory warnings here.
+      </Text>
+    </View>
+  );
+
+  // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
     <View style={styles.container}>
       <Header />
-      
+
       <View style={styles.filterContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersScroll}
         >
-          {filters.map((filter) => (
-            <TouchableOpacity
-              key={filter.id}
-              style={[
-                styles.filterChip,
-                selectedFilter === filter.id && styles.filterChipActive
-              ]}
-              onPress={() => setSelectedFilter(filter.id)}
-            >
-              <Text style={[
-                styles.filterChipText,
-                selectedFilter === filter.id && styles.filterChipTextActive
-              ]}>
-                {filter.label}
-              </Text>
-              {filter.count > 0 && (
-                <View style={[
-                  styles.filterBadge,
-                  selectedFilter === filter.id && styles.filterBadgeActive
-                ]}>
-                  <Text style={[
-                    styles.filterBadgeText,
-                    selectedFilter === filter.id && styles.filterBadgeTextActive
-                  ]}>
-                    {filter.count}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
+          {filters.map((filter) => {
+            const active = selectedFilter === filter.id;
+            return (
+              <TouchableOpacity
+                key={filter.id}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => setSelectedFilter(filter.id)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[styles.filterChipText, active && styles.filterChipTextActive]}
+                >
+                  {filter.label}
+                </Text>
+                {filter.count > 0 && (
+                  <View style={[styles.filterBadge, active && styles.filterBadgeActive]}>
+                    <Text
+                      style={[
+                        styles.filterBadgeText,
+                        active && styles.filterBadgeTextActive,
+                      ]}
+                    >
+                      {filter.count}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -300,127 +543,90 @@ const AlertsScreen = ({ navigation, onBack }) => {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {filteredAlerts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconContainer}>
-              <BellIcon color="#9ca3af" size={48} />
-            </View>
-            <Text style={styles.emptyTitle}>No Alerts</Text>
-            <Text style={styles.emptyText}>
-              You're all caught up! No new alerts to display.
-            </Text>
-          </View>
+        {visibleAlerts.length === 0 ? (
+          <EmptyState />
         ) : (
-          <View style={styles.alertsList}>
-            {filteredAlerts.map((alert) => {
-              const alertStyle = getAlertStyle(alert.type);
-              return (
-                <TouchableOpacity
-                  key={alert.id}
-                  style={[
-                    styles.alertCard,
-                    !alert.read && styles.alertCardUnread,
-                    { borderLeftColor: alertStyle.borderColor }
-                  ]}
-                  onPress={() => markAsRead(alert.id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.alertIcon, { backgroundColor: alertStyle.iconBg }]}>
-                    <Text style={styles.alertIconEmoji}>{alert.icon}</Text>
-                  </View>
-                  
-                  <View style={styles.alertContent}>
-                    <View style={styles.alertHeader}>
-                      <Text style={styles.alertTitle}>{alert.title}</Text>
-                      {!alert.read && <UnreadDot />}
-                    </View>
-                    <Text style={styles.alertMessage}>{alert.message}</Text>
-                    <View style={styles.alertFooter}>
-                      <Text style={styles.alertTime}>{alert.time}</Text>
-                      <View style={styles.alertActions}>
-                        <TouchableOpacity 
-                          style={styles.alertAction}
-                          onPress={() => markAsRead(alert.id)}
-                        >
-                          <CheckIcon color="#10b981" size={14} />
-                          <Text style={styles.alertActionText}>Mark read</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                          style={styles.alertAction}
-                          onPress={() => deleteAlert(alert.id)}
-                        >
-                          <TrashIcon color="#ef4444" size={14} />
-                          <Text style={[styles.alertActionText, styles.deleteText]}>Delete</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <>
+            {/* NEEDS ACTION */}
+            {actionAlerts.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={[styles.sectionDot, { backgroundColor: T.critical }]} />
+                  <Text style={styles.sectionTitle}>Requires action</Text>
+                  <Text style={styles.sectionCount}>{actionAlerts.length}</Text>
+                </View>
+                {actionAlerts.map((a) => (
+                  <AlertCard key={a.id} alert={a} />
+                ))}
+              </View>
+            )}
+
+            {/* UPDATES */}
+            {updateAlerts.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={[styles.sectionDot, { backgroundColor: T.primary }]} />
+                  <Text style={styles.sectionTitle}>Updates</Text>
+                  <Text style={styles.sectionCount}>{updateAlerts.length}</Text>
+                </View>
+                {updateAlerts.map((a) => (
+                  <AlertCard key={a.id} alert={a} />
+                ))}
+              </View>
+            )}
+          </>
         )}
-        {/* Bottom padding for better scrolling experience */}
+
         <View style={styles.bottomPadding} />
       </ScrollView>
     </View>
   );
 };
 
+// ─── STYLES ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
+  container: { flex: 1, backgroundColor: T.page },
+
+  // Header
   header: {
-    paddingTop: 0,
-    paddingBottom: 16,
+    backgroundColor: T.card,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
+    ...SH.header,
   },
   headerContent: {
-    paddingHorizontal: 20,
-    paddingTop: 48,
+    paddingHorizontal: S.screenPadding,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 48,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: T.paleGreen,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  headerTextContainer: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: '#fff',
-    opacity: 0.9,
-    marginTop: 2,
-  },
-  placeholderView: {
-    width: 40,
-  },
+  headerTextContainer: { alignItems: 'center', flex: 1 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
+  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerSpacer: { width: 40, height: 40 },
+
+  // Filters
   filterContainer: {
     paddingVertical: 12,
+    backgroundColor: T.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    backgroundColor: '#fff',
+    borderBottomColor: T.border,
   },
   filtersScroll: {
-    paddingHorizontal: 16,
+    paddingHorizontal: S.screenPadding,
     gap: 8,
   },
   filterChip: {
@@ -429,99 +635,107 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 20,
+    backgroundColor: T.divider,
+    borderRadius: R.pill,
   },
-  filterChipActive: {
-    backgroundColor: '#ef4444',
-  },
-  filterChipText: {
-    fontSize: 13,
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  filterChipTextActive: {
-    color: '#fff',
-  },
+  filterChipActive: { backgroundColor: T.primary },
+  filterChipText: { fontSize: 13, color: T.body, fontWeight: '600' },
+  filterChipTextActive: { color: T.white },
   filterBadge: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: T.border,
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 1,
     borderRadius: 10,
     minWidth: 20,
     alignItems: 'center',
   },
-  filterBadgeActive: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
+  filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
+  filterBadgeText: { fontSize: 11, color: T.body, fontWeight: '700' },
+  filterBadgeTextActive: { color: T.white },
+
+  // Scroll area
+  scrollView: { flex: 1 },
+  scrollContent: { padding: S.screenPadding, paddingBottom: 24 },
+
+  // Sections
+  section: { marginBottom: 20 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
   },
-  filterBadgeText: {
-    fontSize: 11,
-    color: '#6b7280',
-    fontWeight: '600',
-  },
-  filterBadgeTextActive: {
-    color: '#fff',
-  },
-  scrollView: {
+  sectionDot: { width: 8, height: 8, borderRadius: 4 },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: T.ink,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: 20,
+  sectionCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: T.body,
+    backgroundColor: T.divider,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
   },
-  alertsList: {
-    padding: 16,
-    gap: 12,
-  },
+
+  // Alert card
   alertCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: T.card,
+    borderRadius: R.card,
+    padding: 14,
     flexDirection: 'row',
     gap: 12,
-    borderLeftWidth: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: T.border,
+    marginBottom: 10,
+    ...SH.card,
   },
   alertCardUnread: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: T.selectedBg,
+    borderColor: `${T.primary}40`,
   },
-  alertIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  alertIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  alertIconEmoji: {
-    fontSize: 24,
-  },
-  alertContent: {
-    flex: 1,
-  },
-  alertHeader: {
+  alertContent: { flex: 1 },
+  alertHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  alertTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-    flex: 1,
+  alertTypeLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: T.body,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ef4444',
+    backgroundColor: T.primary,
+  },
+  alertTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: T.ink,
+    marginBottom: 4,
   },
   alertMessage: {
-    fontSize: 13,
-    color: '#6b7280',
+    fontSize: 12.5,
+    color: T.body,
     lineHeight: 18,
     marginBottom: 10,
   },
@@ -529,57 +743,62 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   alertTime: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: T.muted,
   },
-  alertActions: {
+  alertFooterActions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
-  alertAction: {
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: T.primary,
+    borderRadius: R.pill,
+    ...SH.button,
   },
-  alertActionText: {
-    fontSize: 11,
-    color: '#10b981',
-    fontWeight: '500',
+  actionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: T.white,
   },
-  deleteText: {
-    color: '#ef4444',
-  },
+
+  // Empty state
   emptyState: {
     alignItems: 'center',
-    paddingTop: 80,
+    paddingTop: 60,
     paddingHorizontal: 40,
   },
   emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f3f4f6',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: T.paleGreen,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: '700',
+    color: T.ink,
+    marginBottom: 6,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: T.body,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 19,
   },
-  bottomPadding: {
-    height: 30,
-  },
+  bottomPadding: { height: 30 },
 });
 
 export default AlertsScreen;
