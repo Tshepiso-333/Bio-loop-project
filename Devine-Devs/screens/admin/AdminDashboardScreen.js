@@ -54,6 +54,7 @@ const PICKUPS_FILTERS = [
 const ALERT_TYPES = ['info', 'warning', 'critical'];
 const ALERT_CATEGORIES = ['inventory', 'delivery', 'quality', 'info'];
 const REQUEST_URGENCY = ['standard', 'urgent'];
+const SPLIT_GRADES = ['A', 'B', 'C'];
 
 function getStatusColor(status) {
   if (status === 'active' || status === 'completed' || status === 'approved') return COLORS.positive;
@@ -119,7 +120,7 @@ export default function AdminDashboardScreen({ navigation }) {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileUser, setProfileUser] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsForm, setSettingsForm] = useState({ commission_pct: '0', driver_flat_rate_per_pickup: '0', manufacturer_markup_pct: '10' });
+  const [settingsForm, setSettingsForm] = useState({ manufacturer_markup_pct: '10', splits: [] });
 
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -135,20 +136,26 @@ export default function AdminDashboardScreen({ navigation }) {
 
   // Money flow, all live from the DB (no stored balance anywhere):
   //   in        = every completed manufacturer payment (payment_transactions)
-  //   toDrivers / toRestaurants = earnings rows, which the DB creates the
-  //               instant a pickup completes (042) and pays out instantly (045)
-  //   balance   = what's left in the platform's account after those payouts
+  //   toDrivers / toRestaurants = earnings rows the DB creates the instant a
+  //               pickup completes, split by grade (047). Restaurant rows are
+  //               auto-paid; driver rows are owed to the driver whether or
+  //               not they've withdrawn yet, so both count as "gone" here.
+  //   driverWallets = driver earnings not yet withdrawn (still sitting in
+  //               the platform account, but not ours)
+  //   balance   = what's left in the platform's account = our share
   const finance = useMemo(() => {
     const collected = (admin.paymentTransactions ?? [])
       .filter((t) => t.status === 'complete')
       .reduce((sum, t) => sum + Number(t.amount ?? 0), 0);
-    const toDrivers = admin.earnings
-      .filter((e) => e.collector_id)
+    const driverRows = admin.earnings.filter((e) => e.collector_id);
+    const toDrivers = driverRows.reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
+    const driverWallets = driverRows
+      .filter((e) => !e.withdrawal_id)
       .reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
     const toRestaurants = admin.earnings
       .filter((e) => e.restaurant_id)
       .reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
-    return { collected, toDrivers, toRestaurants, balance: collected - toDrivers - toRestaurants };
+    return { collected, toDrivers, toRestaurants, driverWallets, balance: collected - toDrivers - toRestaurants };
   }, [admin.paymentTransactions, admin.earnings]);
 
   const unreadAlertCount = useMemo(() => admin.alerts.filter((alert) => !alert.is_read).length, [admin.alerts]);
@@ -257,12 +264,23 @@ export default function AdminDashboardScreen({ navigation }) {
     }
   };
 
+  // Settings = the manufacturer markup (pricing lever on top of market rate)
+  // + the per-grade restaurant/driver/platform split. Commission % and the
+  // driver flat rate are gone — the split IS the platform's cut now
+  // (docs/migrations/047).
   const openSettingsModal = () => {
     const current = admin.platformSettings?.[0];
     setSettingsForm({
-      commission_pct: String(current?.commission_pct ?? 0),
-      driver_flat_rate_per_pickup: String(current?.driver_flat_rate_per_pickup ?? 0),
       manufacturer_markup_pct: String(current?.manufacturer_markup_pct ?? 10),
+      splits: SPLIT_GRADES.map((grade) => {
+        const row = admin.payoutSplits.find((s) => s.grade === grade);
+        return {
+          grade,
+          restaurant_pct: String(row?.restaurant_pct ?? ''),
+          driver_pct: String(row?.driver_pct ?? ''),
+          platform_pct: String(row?.platform_pct ?? ''),
+        };
+      }),
     });
     setShowSettingsModal(true);
   };
@@ -274,21 +292,35 @@ export default function AdminDashboardScreen({ navigation }) {
       return;
     }
 
-    const commissionPct = Number(settingsForm.commission_pct);
-    const driverRate = Number(settingsForm.driver_flat_rate_per_pickup);
     const markupPct = Number(settingsForm.manufacturer_markup_pct);
-    if (Number.isNaN(commissionPct) || Number.isNaN(driverRate) || Number.isNaN(markupPct)) {
-      Alert.alert('Invalid values', 'Enter numbers for all fields.');
+    if (Number.isNaN(markupPct) || markupPct < 0) {
+      Alert.alert('Invalid markup', 'Enter a markup percentage of 0 or more.');
+      return;
+    }
+
+    const splits = settingsForm.splits.map((row) => ({
+      grade: row.grade,
+      restaurant_pct: Number(row.restaurant_pct),
+      driver_pct: Number(row.driver_pct),
+      platform_pct: Number(row.platform_pct),
+    }));
+    const bad = splits.find(
+      (row) =>
+        [row.restaurant_pct, row.driver_pct, row.platform_pct].some((n) => Number.isNaN(n) || n < 0) ||
+        Math.round((row.restaurant_pct + row.driver_pct + row.platform_pct) * 100) / 100 !== 100
+    );
+    if (bad) {
+      Alert.alert('Split must total 100%', `Grade ${bad.grade}: restaurant + driver + platform must add up to exactly 100.`);
       return;
     }
 
     setSubmitting(true);
     try {
-      await admin.updatePlatformSettings(settingsId, {
-        commission_pct: commissionPct,
-        driver_flat_rate_per_pickup: driverRate,
-        manufacturer_markup_pct: markupPct,
-      });
+      await admin.updatePlatformSettings(settingsId, { manufacturer_markup_pct: markupPct });
+      for (const row of splits) {
+        const { grade, ...pcts } = row;
+        await admin.updatePayoutSplit(grade, pcts);
+      }
       setShowSettingsModal(false);
     } catch (err) {
       Alert.alert('Save failed', err.message ?? 'Unable to update settings.');
@@ -296,6 +328,12 @@ export default function AdminDashboardScreen({ navigation }) {
       setSubmitting(false);
     }
   };
+
+  const setSplitField = (grade, field, value) =>
+    setSettingsForm((prev) => ({
+      ...prev,
+      splits: prev.splits.map((row) => (row.grade === grade ? { ...row, [field]: value } : row)),
+    }));
 
   const renderMainTabs = () => (
     <View style={styles.mainTabs}>
@@ -416,7 +454,7 @@ export default function AdminDashboardScreen({ navigation }) {
         <View style={styles.heroHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.heroTitle}>Money flow</Text>
-            <Text style={styles.heroText}>Payouts to drivers and restaurants go out automatically when a trip completes. Nothing here needs approval.</Text>
+            <Text style={styles.heroText}>Every manufacturer payment is split by oil grade. Restaurants are paid instantly; drivers are paid the moment they withdraw. Nothing here needs approval.</Text>
           </View>
           <Pressable style={styles.primaryButton} onPress={openSettingsModal}>
             <Ionicons name="options-outline" size={15} color={COLORS.white} />
@@ -435,6 +473,34 @@ export default function AdminDashboardScreen({ navigation }) {
           value={currency(finance.balance)}
           color={finance.balance < 0 ? COLORS.negative : COLORS.positive}
         />
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardTop}>
+          <View style={styles.avatar}>
+            <Ionicons name="pie-chart-outline" size={18} color={COLORS.primary} />
+          </View>
+          <View style={styles.cardMain}>
+            <Text style={styles.cardTitle}>Split by grade</Text>
+            <Text style={styles.cardSub}>
+              Restaurant · Driver · Platform. Markup {Number(admin.platformSettings?.[0]?.manufacturer_markup_pct ?? 10)}% on top of market rate.
+              {finance.driverWallets > 0 ? ` Drivers holding ${currency(finance.driverWallets)} not yet withdrawn.` : ''}
+            </Text>
+          </View>
+        </View>
+        <View style={{ marginTop: 10 }}>
+          {SPLIT_GRADES.map((grade) => {
+            const row = admin.payoutSplits.find((s) => s.grade === grade);
+            return (
+              <View key={grade} style={styles.splitSummaryRow}>
+                <Text style={styles.splitSummaryGrade}>Grade {grade}</Text>
+                <Text style={styles.splitSummaryText}>
+                  {row ? `${Number(row.restaurant_pct)}% · ${Number(row.driver_pct)}% · ${Number(row.platform_pct)}%` : 'not set'}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
       </View>
 
       <Text style={styles.sectionMiniTitle}>Manufacturer payments</Text>
@@ -780,41 +846,47 @@ export default function AdminDashboardScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Platform settings</Text>
+              <Text style={styles.modalTitle}>Pricing &amp; payout split</Text>
               <Pressable onPress={() => setShowSettingsModal(false)}>
                 <Ionicons name="close-outline" size={22} color={COLORS.muted} />
               </Pressable>
             </View>
 
-            <Text style={styles.sectionMiniTitle}>Commission % (taken from manufacturer payment)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0"
-              placeholderTextColor={COLORS.muted}
-              keyboardType="numeric"
-              value={settingsForm.commission_pct}
-              onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, commission_pct: value }))}
-            />
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
+              <Text style={styles.sectionMiniTitle}>Manufacturer markup % (on top of market rate — sets what the manufacturer pays)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="10"
+                placeholderTextColor={COLORS.muted}
+                keyboardType="numeric"
+                value={settingsForm.manufacturer_markup_pct}
+                onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, manufacturer_markup_pct: value }))}
+              />
 
-            <Text style={styles.sectionMiniTitle}>Driver flat rate per pickup (R) — paid automatically to the driver when a trip completes</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0"
-              placeholderTextColor={COLORS.muted}
-              keyboardType="numeric"
-              value={settingsForm.driver_flat_rate_per_pickup}
-              onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, driver_flat_rate_per_pickup: value }))}
-            />
-
-            <Text style={styles.sectionMiniTitle}>Manufacturer markup % (added on top of oil value at checkout)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="10"
-              placeholderTextColor={COLORS.muted}
-              keyboardType="numeric"
-              value={settingsForm.manufacturer_markup_pct}
-              onChangeText={(value) => setSettingsForm((prev) => ({ ...prev, manufacturer_markup_pct: value }))}
-            />
+              <Text style={styles.sectionMiniTitle}>Split of every manufacturer payment, by oil grade (each row must total 100%)</Text>
+              <View style={styles.splitHeaderRow}>
+                <Text style={[styles.splitCell, styles.splitGradeCell]}>Grade</Text>
+                <Text style={styles.splitCell}>Restaurant</Text>
+                <Text style={styles.splitCell}>Driver</Text>
+                <Text style={styles.splitCell}>Platform</Text>
+              </View>
+              {settingsForm.splits.map((row) => (
+                <View key={row.grade} style={styles.splitRow}>
+                  <Text style={[styles.splitCell, styles.splitGradeCell, styles.splitGradeText]}>{row.grade}</Text>
+                  {['restaurant_pct', 'driver_pct', 'platform_pct'].map((field) => (
+                    <TextInput
+                      key={field}
+                      style={[styles.input, styles.splitInput]}
+                      placeholder="0"
+                      placeholderTextColor={COLORS.muted}
+                      keyboardType="numeric"
+                      value={row[field]}
+                      onChangeText={(value) => setSplitField(row.grade, field, value)}
+                    />
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
 
             <View style={styles.modalActions}>
               <Pressable style={styles.secondaryButton} onPress={() => setShowSettingsModal(false)}>
@@ -1011,7 +1083,7 @@ function PickupCard({ pickup, onCancel }) {
           <Text style={styles.cardSub}>{pickup.restaurants?.address ?? 'No address'}</Text>
           <Text style={styles.cardMeta}>{formatDate(pickup.pickup_date)} · {pickup.estimated_volume_liters ?? pickup.actual_volume_liters ?? 0}L</Text>
           <Text style={styles.cardMeta}>
-            Driver pay: {pickup.driver_payout_amount != null ? currency(pickup.driver_payout_amount) : 'auto — platform flat rate on completion'}
+            Driver pay: {pickup.status === 'completed' ? 'paid by grade split' : 'grade split on completion'}
           </Text>
         </View>
         <View style={[styles.badge, { backgroundColor: `${statusColor}22` }]}>
@@ -1243,4 +1315,14 @@ const styles = StyleSheet.create({
   },
   textarea: { minHeight: 90, textAlignVertical: 'top' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 12 },
+
+  splitHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  splitRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  splitCell: { flex: 1, fontFamily: ADMIN_FONTS.bold, fontSize: 10, color: COLORS.body, textTransform: 'uppercase', textAlign: 'center' },
+  splitGradeCell: { flex: 0, width: 44 },
+  splitGradeText: { fontFamily: ADMIN_FONTS.extraBold, fontSize: 15, color: COLORS.ink, textTransform: 'none' },
+  splitInput: { flex: 1, textAlign: 'center', marginBottom: 8 },
+  splitSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: COLORS.border },
+  splitSummaryGrade: { fontFamily: ADMIN_FONTS.extraBold, fontSize: 14, color: COLORS.ink, width: 60 },
+  splitSummaryText: { fontFamily: ADMIN_FONTS.medium, fontSize: 12, color: COLORS.body },
 });

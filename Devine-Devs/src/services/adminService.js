@@ -24,6 +24,7 @@ const TABLES = {
   aiChatMessages: 'ai_chat_messages',
   platformSettings: 'platform_settings',
   paymentTransactions: 'payment_transactions',
+  payoutSplits: 'payout_splits',
 };
 
 async function readList(key, query) {
@@ -67,6 +68,7 @@ export async function loadAdminBundle() {
       .from(TABLES.paymentTransactions)
       .select('*, manufacturers(name), pickups(restaurant_id, collector_id, restaurants(name), collectors(full_name))')
       .order('created_at', { ascending: false })),
+    readList('payoutSplits', supabase.from(TABLES.payoutSplits).select('*').order('grade', { ascending: true })),
   ]);
 
   const bundle = reads.reduce((acc, result) => {

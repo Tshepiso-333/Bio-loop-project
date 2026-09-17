@@ -14,7 +14,7 @@ import {
   updateRestaurantPrimaryManufacturer,
   updateWithdrawalStatus,
 } from '../services/adminService';
-import { updatePlatformSettings } from '../services/payoutService';
+import { updatePayoutSplit, updatePlatformSettings } from '../services/payoutService';
 
 const AdminContext = createContext(null);
 
@@ -40,6 +40,7 @@ const EMPTY_STATE = {
   aiChatMessages: [],
   platformSettings: [],
   paymentTransactions: [],
+  payoutSplits: [],
   tableOverview: [],
   errors: [],
 };
@@ -139,6 +140,8 @@ export function AdminProvider({ children }) {
         runMutation(() => createManualPickupRequest(payload)),
       updateRestaurantPrimaryManufacturer: (restaurantId, manufacturerId) =>
         runMutation(() => updateRestaurantPrimaryManufacturer(restaurantId, manufacturerId)),
+      updatePayoutSplit: (grade, payload) =>
+        runMutation(() => updatePayoutSplit(grade, payload)),
       updatePlatformSettings: (settingsId, payload) =>
         runMutation(() => updatePlatformSettings(settingsId, payload)),
     }),
