@@ -20,27 +20,27 @@ const { width } = Dimensions.get('window');
 // ─── THEME ───────────────────────────────────────────────────────────────────
 
 const T = {
-  primary: '#10b981',
-  primaryDark: '#059669',
-  paleGreen: '#ECFDF5',
-  selectedBg: '#F0FDF4',
+  primary: '#15643E',
+  primaryDark: '#0F4D30',
+  paleGreen: '#E7F1EB',
+  selectedBg: '#F2F8F4',
 
-  page: '#F9FAFB',
+  page: '#F6F8F7',
   card: '#FFFFFF',
 
-  ink: '#111827',
-  body: '#6B7280',
-  muted: '#9CA3AF',
-  border: '#E5E7EB',
-  divider: '#F3F4F6',
+  ink: '#122A1F',
+  body: '#6B7F75',
+  muted: '#A9B5AD',
+  border: '#E4EDE7',
+  divider: '#EEF3F0',
 
   white: '#FFFFFF',
 
-  gradeA: '#7EE92D',
+  gradeA: '#2E8B5A',
   gradeB: '#f59e0b',
-  gradeC: '#ef4444',
+  gradeC: '#DC2626',
 
-  danger: '#ef4444',
+  danger: '#DC2626',
 };
 
 const S = { screenPadding: 16, cardPadding: 16, gap: 16 };
@@ -55,7 +55,8 @@ const SH = {
   },
 };
 
-// ─── FIXED BUSINESS CONSTANTS (were previously editable assumptions) ────────
+// ─── DEFAULT BUSINESS CONSTANTS — live values come from the manufacturers row
+// (biodiesel_conversion_pct etc., migration 048); these are only the fallback ──
 
 const ASSUMPTIONS = {
   oilPrice: 3.5,         // R / L paid to restaurant
@@ -75,7 +76,21 @@ const formatZARDecimal = (n) => `R${Number(n).toFixed(2)}`;
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 
 const FinanceScreen = ({ navigation, onBack }) => {
-  const { pickups = [] } = useManufacturerContext();
+  const { pickups = [], manufacturer } = useManufacturerContext();
+
+  // Live from the manufacturers row (migration 048) — falls back to the
+  // constants above only if the row hasn't loaded yet.
+  const assumptions = useMemo(
+    () => ({
+      oilPrice: ASSUMPTIONS.oilPrice,
+      conversion: Number(manufacturer?.biodiesel_conversion_pct ?? ASSUMPTIONS.conversion),
+      biodieselPrice: Number(manufacturer?.biodiesel_price_per_liter ?? ASSUMPTIONS.biodieselPrice),
+      processingCost: Number(manufacturer?.processing_cost_per_liter ?? ASSUMPTIONS.processingCost),
+      logistics: Number(manufacturer?.logistics_cost ?? ASSUMPTIONS.logistics),
+      other: Number(manufacturer?.other_operating_cost ?? ASSUMPTIONS.other),
+    }),
+    [manufacturer]
+  );
   const insets = useSafeAreaInsets();
 
   // ── Aggregate oil purchased from pickups ──
@@ -142,11 +157,11 @@ const FinanceScreen = ({ navigation, onBack }) => {
   // ── Calculated economics (using fixed constants) ──
   const calculations = useMemo(() => {
     const oilPurchased = oilData.totalPaid;
-    const biodiesel = oilData.totalLitres * (ASSUMPTIONS.conversion / 100);
-    const revenue = biodiesel * ASSUMPTIONS.biodieselPrice;
-    const processing = biodiesel * ASSUMPTIONS.processingCost;
-    const logistics = ASSUMPTIONS.logistics;
-    const other = ASSUMPTIONS.other;
+    const biodiesel = oilData.totalLitres * (assumptions.conversion / 100);
+    const revenue = biodiesel * assumptions.biodieselPrice;
+    const processing = biodiesel * assumptions.processingCost;
+    const logistics = assumptions.logistics;
+    const other = assumptions.other;
 
     const totalCosts = oilPurchased + processing + logistics + other;
     const margin = revenue - totalCosts;
@@ -161,7 +176,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
       totalCosts,
       margin,
     };
-  }, [oilData]);
+  }, [oilData, assumptions]);
 
   const totalLitres = oilData.totalLitres;
 
@@ -203,7 +218,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
     const bars = [
       { label: 'Oil', value: calculations.oilPurchased, color: T.primary },
       { label: 'Logistics', value: calculations.logistics, color: T.gradeB },
-      { label: 'Processing', value: calculations.processing, color: '#3b82f6' },
+      { label: 'Processing', value: calculations.processing, color: '#2563EB' },
       { label: 'Other', value: calculations.other, color: T.muted },
     ];
     const max = Math.max(...bars.map((b) => b.value), 1);
@@ -272,14 +287,14 @@ const FinanceScreen = ({ navigation, onBack }) => {
             iconBg={T.paleGreen}
             label="Est. Biodiesel"
             value={`${Math.round(calculations.biodiesel).toLocaleString()} L`}
-            sub={`${ASSUMPTIONS.conversion}% conversion`}
+            sub={`${assumptions.conversion}% conversion`}
           />
           <SummaryCard
             icon="cash-outline"
             iconBg={T.selectedBg}
             label="Est. Revenue"
             value={formatZAR(calculations.revenue)}
-            sub={`@ ${formatZARDecimal(ASSUMPTIONS.biodieselPrice)}/L`}
+            sub={`@ ${formatZARDecimal(assumptions.biodieselPrice)}/L`}
           />
           <SummaryCard
             icon="trending-up-outline"
@@ -320,7 +335,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
                   {Math.round(calculations.biodiesel).toLocaleString()} L
                 </Text>
                 <Text style={styles.chainLabel}>
-                  Estimated Biodiesel ({ASSUMPTIONS.conversion}% conversion)
+                  Estimated Biodiesel ({assumptions.conversion}% conversion)
                 </Text>
               </View>
             </View>
