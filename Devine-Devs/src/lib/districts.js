@@ -1,6 +1,6 @@
 /**
  * Fixed list of delivery districts. Replaces free-text district entry so the
- * admin Dispatch board's district-match sort (src/components/admin/DispatchBoard.js)
+ * the DB-side district-match fallback in resolve_collector_for_pickup (migration 034)
  * can rely on exact matches instead of whatever text someone typed.
  *
  * Placeholder values based on the Johannesburg/Gauteng area already used as

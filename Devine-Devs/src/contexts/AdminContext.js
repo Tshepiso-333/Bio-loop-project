@@ -1,9 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../supabase';
 import {
-  assignCollectorToPickup,
   assignPickup,
-  convertManualRequestToPickup,
   createAdminAlert,
   createManualPickupRequest,
   deleteAlert,
@@ -139,10 +137,6 @@ export function AdminProvider({ children }) {
         runMutation(() => deleteAlert(alertId)),
       createManualPickupRequest: (payload) =>
         runMutation(() => createManualPickupRequest(payload)),
-      convertManualRequestToPickup: (manualRequest) =>
-        runMutation(() => convertManualRequestToPickup(manualRequest)),
-      assignCollectorToPickup: (pickupId, collector) =>
-        runMutation(() => assignCollectorToPickup(pickupId, collector)),
       updateRestaurantPrimaryManufacturer: (restaurantId, manufacturerId) =>
         runMutation(() => updateRestaurantPrimaryManufacturer(restaurantId, manufacturerId)),
       updatePlatformSettings: (settingsId, payload) =>
