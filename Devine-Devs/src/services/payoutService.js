@@ -2,11 +2,21 @@ import { supabase } from '../../supabase';
 import { notifyUser } from './notificationService';
 
 /**
- * commission_pct / driver_flat_rate_per_pickup default to 0 in the database
- * (see docs/migrations/005_dispatch_payments_and_polish.sql) — the team
- * never gave real numbers for these, so nothing here invents one. At 0,
- * restaurants get 100% of gross value and drivers get nothing, which is a
- * safe default, not silently wrong money.
+ * Money model (team-final, 2026-09-17 — see docs/migrations/047):
+ *
+ *   pool  = everything the manufacturer pays for a pickup
+ *           (litres x market_rates.rate_per_liter + manufacturer_markup_pct)
+ *   split = payout_splits row for the oil grade (restaurant / driver / platform %)
+ *             A 60/25/15 · B 50/30/20 · C 40/35/25 by default, admin-editable
+ *
+ *   restaurant share -> paid out automatically the instant the trip completes
+ *   driver share     -> credited to the wallet; driver taps Withdraw, paid instantly
+ *   platform share   -> stays in the platform account (money in - payouts)
+ *
+ * All of that is computed by DB triggers (pickups_auto_earnings,
+ * earnings_auto_payout) and the request_driver_withdrawal() RPC — nothing in
+ * this file does the arithmetic anymore, so the app can never disagree with
+ * the database about who is owed what.
  */
 export async function getPlatformSettings() {
   const { data, error } = await supabase
@@ -16,7 +26,7 @@ export async function getPlatformSettings() {
     .maybeSingle();
 
   if (error) throw error;
-  return data ?? { commission_pct: 0, driver_flat_rate_per_pickup: 0, manufacturer_markup_pct: 10 };
+  return data ?? { manufacturer_markup_pct: 10 };
 }
 
 export async function updatePlatformSettings(settingsId, payload) {
@@ -31,117 +41,75 @@ export async function updatePlatformSettings(settingsId, payload) {
   return data;
 }
 
-async function getRateForGrade(grade) {
-  if (!grade) return 0;
-
+export async function getPayoutSplits() {
   const { data, error } = await supabase
-    .from('market_rates')
-    .select('rate_per_liter')
-    .eq('grade', grade)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .from('payout_splits')
+    .select('*')
+    .order('grade', { ascending: true });
 
   if (error) throw error;
-  return Number(data?.rate_per_liter ?? 0);
+  return data ?? [];
 }
 
 /**
- * The base "value of the oil" (volume x market rate for the grade) that the
- * restaurant/driver payout pool is drawn from. What the manufacturer actually
- * pays (that value + platform_settings.manufacturer_markup_pct) is computed
- * server-side in supabase/functions/payfast-checkout — never trust a
- * client-computed charge amount for a real payment. That Edge Function
- * necessarily duplicates this same calculation (Deno, not importable from
- * here); keep the two in sync if this changes.
+ * The DB enforces restaurant + driver + platform = 100 (check constraint),
+ * so a bad split is rejected server-side rather than silently saved.
  */
-async function getGrossValue(pickup) {
-  const volume = Number(pickup.actual_volume_liters ?? pickup.estimated_volume_liters ?? 0);
-  const rate = await getRateForGrade(pickup.quality_grade);
-  return { volume, rate, grossValue: volume * rate };
-}
+export async function updatePayoutSplit(grade, { restaurant_pct, driver_pct, platform_pct }) {
+  const { data, error } = await supabase
+    .from('payout_splits')
+    .update({ restaurant_pct, driver_pct, platform_pct, updated_at: new Date().toISOString() })
+    .eq('grade', grade)
+    .select('*')
+    .single();
 
-/**
- * Creates the earnings row(s) for a completed pickup: gross value = volume
- * x market rate for the grade, platform takes its cut, driver gets whatever
- * admin set for this specific pickup at dispatch time (pickups.driver_payout_amount)
- * — falling back to the old platform-wide flat rate if admin never set one —
- * restaurant gets the remainder. Grade/volume both came from the restaurant's
- * own sensor reading captured at pickup creation (Phase 1) — no
- * re-measurement happens here. `gatewayReference` (a payment_transactions.id)
- * is stamped onto both rows so they can be traced back to the manufacturer
- * payment that funded them.
- */
-export async function finalizePickupEarnings(pickup, { gatewayReference } = {}) {
-  const { volume, grossValue } = await getGrossValue(pickup);
-  if (!volume || !pickup.restaurant_id) return null;
-
-  const { data: existing, error: existingError } = await supabase
-    .from('earnings')
-    .select('id')
-    .eq('pickup_id', pickup.id)
-    .limit(1);
-
-  if (existingError) throw existingError;
-  if (existing?.length) return existing;
-
-  const settings = await getPlatformSettings();
-  const commissionPct = Number(settings.commission_pct ?? 0);
-  const driverFlatRate = Number(settings.driver_flat_rate_per_pickup ?? 0);
-  const adminSetDriverPay = pickup.driver_payout_amount;
-
-  const platformCut = grossValue * (commissionPct / 100);
-  const driverEarning = pickup.collector_id
-    ? Number(adminSetDriverPay ?? driverFlatRate ?? 0)
-    : 0;
-  const restaurantEarning = Math.max(grossValue - platformCut - driverEarning, 0);
-
-  const rows = [
-    {
-      restaurant_id: pickup.restaurant_id,
-      pickup_id: pickup.id,
-      amount: restaurantEarning,
-      liters: volume,
-      quality_grade: pickup.quality_grade ?? null,
-      description: `Pickup ${pickup.id}`,
-      gateway_reference: gatewayReference ?? null,
-    },
-  ];
-
-  if (pickup.collector_id && driverEarning > 0) {
-    rows.push({
-      collector_id: pickup.collector_id,
-      pickup_id: pickup.id,
-      amount: driverEarning,
-      liters: volume,
-      quality_grade: pickup.quality_grade ?? null,
-      description: `Collection fee for pickup ${pickup.id}`,
-      gateway_reference: gatewayReference ?? null,
-    });
-  }
-
-  const { data, error } = await supabase.from('earnings').insert(rows).select('*');
   if (error) throw error;
   return data;
 }
 
 /**
- * Sums unpaid earnings (withdrawal_id IS NULL) for a restaurant or
- * collector, creates one withdrawal request for the total, and links the
- * covered earnings rows to it so a future request never double-counts them.
+ * Earnings are created by the DB the instant pickups.status flips to
+ * 'completed' (trg_pickups_auto_earnings). This just reads them back so
+ * callers that used to depend on the return value still get the rows.
+ * Kept for call-site compatibility (manufacturerService, adminService).
+ */
+export async function finalizePickupEarnings(pickup) {
+  if (!pickup?.id) return null;
+
+  const { data, error } = await supabase
+    .from('earnings')
+    .select('*')
+    .eq('pickup_id', pickup.id);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * Driver: server-side RPC sums the driver's unpaid earnings, creates an
+ * instantly-approved withdrawal for the total and links the earnings to it
+ * (balance drops to 0, history kept). The amount is never sent from the
+ * client.
+ *
+ * Restaurant: restaurant earnings are auto-paid the moment they're created,
+ * so there is normally nothing left to withdraw; this path only exists for
+ * any pre-047 unpaid rows and mirrors the old behaviour (instant approved).
  */
 export async function requestWithdrawal({ restaurantId, collectorId }) {
-  if (!restaurantId && !collectorId) {
-    throw new Error('requestWithdrawal needs a restaurantId or collectorId.');
+  if (collectorId) {
+    const { data, error } = await supabase.rpc('request_driver_withdrawal');
+    if (error) throw error;
+    return data;
   }
 
-  const ownerColumn = restaurantId ? 'restaurant_id' : 'collector_id';
-  const ownerId = restaurantId ?? collectorId;
+  if (!restaurantId) {
+    throw new Error('requestWithdrawal needs a restaurantId or collectorId.');
+  }
 
   const { data: unpaidEarnings, error: earningsError } = await supabase
     .from('earnings')
     .select('id, amount')
-    .eq(ownerColumn, ownerId)
+    .eq('restaurant_id', restaurantId)
     .is('withdrawal_id', null);
 
   if (earningsError) throw earningsError;
@@ -154,10 +122,10 @@ export async function requestWithdrawal({ restaurantId, collectorId }) {
   const { data: withdrawal, error: withdrawalError } = await supabase
     .from('withdrawals')
     .insert({
-      [ownerColumn]: ownerId,
+      restaurant_id: restaurantId,
       amount: total,
-      status: 'pending',
-      method: 'manual',
+      status: 'approved',
+      method: 'instant',
     })
     .select('*')
     .single();
@@ -176,8 +144,9 @@ export async function requestWithdrawal({ restaurantId, collectorId }) {
 }
 
 /**
- * Marks a withdrawal paid/rejected and notifies the owner. Called from
- * admin only.
+ * Marks a withdrawal paid/rejected and notifies the owner. Admin-only;
+ * no longer reachable from the admin UI (payouts are automatic) but kept
+ * for adminService.updateWithdrawalStatus.
  */
 export async function finalizeWithdrawal(withdrawal, status) {
   const ownerTable = withdrawal.restaurant_id ? 'restaurants' : 'collectors';
