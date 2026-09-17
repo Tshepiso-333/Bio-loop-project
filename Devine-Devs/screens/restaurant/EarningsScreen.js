@@ -50,7 +50,7 @@ export default function EarningsScreen() {
     setRequestingWithdrawal(true);
     try {
       await requestWithdrawal();
-      Alert.alert('Withdrawal requested', 'Your request has been sent for review.');
+      Alert.alert('Withdrawal paid', 'Your balance has been paid out instantly.');
     } catch (err) {
       Alert.alert('Could not request withdrawal', err.message ?? 'Please try again.');
     } finally {

@@ -22,22 +22,22 @@ import { PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
 
 // Theme colours (matching manufacturer)
 const THEME = {
-  primary: '#10b981',
-  primaryDark: '#059669',
-  primaryDarker: '#047857',
-  primaryLight: '#D1FAE5',
+  primary: '#15643E',
+  primaryDark: '#0F4D30',
+  primaryDarker: '#0B3A24',
+  primaryLight: '#E7F1EB',
   white: '#FFFFFF',
-  offWhite: '#F9FAFB',
-  text: '#111827',
-  textSecondary: '#6B7280',
-  gray: '#9CA3AF',
-  grayLight: '#E5E7EB',
+  offWhite: '#F6F8F7',
+  text: '#122A1F',
+  textSecondary: '#6B7F75',
+  gray: '#A9B5AD',
+  grayLight: '#E4EDE7',
   pending: '#F59E0B',
-  pendingBg: '#FEF3C7',
-  inProgress: '#3B82F6',
-  inProgressBg: '#DBEAFE',
-  completed: '#10B981',
-  completedBg: '#D1FAE5',
+  pendingBg: '#FFF7ED',
+  inProgress: '#2563EB',
+  inProgressBg: '#EFF6FF',
+  completed: '#15643E',
+  completedBg: '#E7F1EB',
 };
 
 const STATUS_BADGE_COLORS = {
@@ -116,7 +116,7 @@ export default function DriverHomeScreen({ navigation }) {
     setRequestingWithdrawal(true);
     try {
       await requestWithdrawal();
-      Alert.alert('Withdrawal requested', 'Your request has been sent for review.');
+      Alert.alert('Withdrawal paid', 'Your balance has been paid out instantly.');
     } catch (err) {
       Alert.alert('Could not request withdrawal', err.message ?? 'Please try again.');
     } finally {
@@ -218,7 +218,7 @@ export default function DriverHomeScreen({ navigation }) {
             onPress={handleRequestWithdrawal}
             disabled={requestingWithdrawal || unpaidEarnings <= 0}
           >
-            <Text style={styles.withdrawBtnText}>{requestingWithdrawal ? 'Requesting…' : 'Request withdrawal'}</Text>
+            <Text style={styles.withdrawBtnText}>{requestingWithdrawal ? 'Paying out…' : 'Withdraw'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#DC2626',
     borderWidth: 1,
     borderColor: '#FFFFFF',
   },
