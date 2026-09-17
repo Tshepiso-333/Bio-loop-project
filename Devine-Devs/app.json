@@ -33,7 +33,8 @@
           "photosPermission": "Allow Devine-Devs to access your photos to upload a profile picture."
         }
       ],
-      "expo-status-bar"
+      "expo-status-bar",
+      "@maplibre/maplibre-react-native"
     ]
   }
 }
