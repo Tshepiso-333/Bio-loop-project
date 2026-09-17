@@ -14,7 +14,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../AuthContext';
 import { useAdminContext } from '../../src/contexts/AdminContext';
-import DispatchBoard from '../../src/components/admin/DispatchBoard';
 import AdminHeader from '../../src/admin/components/AdminHeader';
 import { PRE_TRIP_STATUSES, PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
 import {
@@ -25,33 +24,33 @@ import {
   ADMIN_SPACING,
 } from '../../src/admin/adminTheme';
 
-// Kept as a local alias so the rest of this file (and the ui bundle handed to
-// DispatchBoard) can keep referring to `COLORS.xxx` — same object, admin theme keys.
+// Local alias so the rest of this file can keep referring to `COLORS.xxx` —
+// same object, admin theme keys.
 const COLORS = ADMIN_COLORS;
 
 const ROLE_FILTERS = ['all', 'restaurant', 'collector', 'manufacturer', 'admin'];
+// Overview and Alerts tabs were dropped (2026-09-11 team decision): dispatch,
+// payouts, and request conversion are all DB-automated now (migrations
+// 034/041/042/045/046), so there's nothing left for an "attention feed" to
+// point at, and alerts live behind the bell in the header instead.
 const MAIN_TABS = [
-  { key: 'overview', label: 'Overview', icon: 'grid-outline' },
-  { key: 'users', label: 'Users', icon: 'people-outline' },
   { key: 'pickups', label: 'Pickups', icon: 'git-branch-outline' },
+  { key: 'users', label: 'Users', icon: 'people-outline' },
   { key: 'finance', label: 'Finance', icon: 'cash-outline' },
-  { key: 'alerts', label: 'Alerts', icon: 'notifications-outline' },
   { key: 'health', label: 'Health', icon: 'server-outline' },
 ];
-// Sub-filter within the Pickups tab. "Needs dispatch" is the old Dispatch
-// board (convert requests, assign a driver) — the only place a pickup's
-// driver/manufacturer gets assigned from the admin UI. Everything else here
-// is read-only history; admin doesn't get to jump a pickup's status around
-// once it's moving (see updatePickupStatus's finalizePickupEarnings side
-// effect on 'completed' — that must only ever fire from the real trip flow).
+// Sub-filter within the Pickups tab. Everything here is read-only history —
+// driver/manufacturer assignment is fully automatic (trg_pickups_auto_dispatch
+// on insert, trg_collectors_dispatch_waiting_pickups when a driver comes on
+// duty), and admin doesn't get to jump a pickup's status around once it's
+// moving (see updatePickupStatus's finalizePickupEarnings side effect on
+// 'completed' — that must only ever fire from the real trip flow).
 const PICKUPS_FILTERS = [
-  { key: 'needs-dispatch', label: 'Needs dispatch' },
   { key: 'active', label: 'Active' },
   { key: 'completed', label: 'Completed' },
   { key: 'cancelled', label: 'Cancelled' },
   { key: 'all', label: 'All' },
 ];
-const WITHDRAWAL_STATUSES = ['pending', 'approved', 'rejected'];
 const ALERT_TYPES = ['info', 'warning', 'critical'];
 const ALERT_CATEGORIES = ['inventory', 'delivery', 'quality', 'info'];
 const REQUEST_URGENCY = ['standard', 'urgent'];
@@ -93,10 +92,11 @@ function currency(value) {
 export default function AdminDashboardScreen({ navigation }) {
   const { signOut } = useAuth();
   const admin = useAdminContext();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [pickupsFilter, setPickupsFilter] = useState('needs-dispatch');
+  const [activeTab, setActiveTab] = useState('pickups');
+  const [pickupsFilter, setPickupsFilter] = useState('active');
   const [roleFilter, setRoleFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [showAlertsPanel, setShowAlertsPanel] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -133,97 +133,25 @@ export default function AdminDashboardScreen({ navigation }) {
     });
   }, [admin.users, roleFilter, search]);
 
-  const pendingWithdrawals = useMemo(() =>
-    admin.withdrawals.filter((withdrawal) => withdrawal.status !== 'approved' && withdrawal.status !== 'rejected'),
-    [admin.withdrawals]
-  );
-
-  // Everything the admin actually needs to act on right now, in one feed,
-  // instead of separate passive count tiles — each item jumps to where it's
-  // actioned. This replaces the old 4-box stats grid.
-  const attentionItems = useMemo(() => {
-    const items = [];
-
-    const convertedRequestIds = new Set(
-      admin.pickups.filter((pickup) => pickup.manual_request_id).map((pickup) => pickup.manual_request_id)
-    );
-    admin.manualPickupRequests
-      .filter((request) => !convertedRequestIds.has(request.id))
-      .forEach((request) => {
-        const restaurant = admin.restaurants.find((r) => r.id === request.restaurant_id);
-        items.push({
-          key: `request-${request.id}`,
-          icon: 'alert-circle-outline',
-          color: COLORS.amber,
-          title: `Pickup request — ${restaurant?.name ?? 'Unknown restaurant'}`,
-          subtitle: request.is_auto_generated ? 'Auto-triggered at 85% tank fill' : (request.reason ?? 'No reason given'),
-          onPress: () => { setActiveTab('pickups'); setPickupsFilter('needs-dispatch'); },
-        });
-      });
-
-    admin.pickups
-      .filter((pickup) => !pickup.collector_id || !pickup.manufacturer_id)
-      .forEach((pickup) => {
-        const restaurant = admin.restaurants.find((r) => r.id === pickup.restaurant_id) ?? pickup.restaurants;
-        const missing = !pickup.collector_id && !pickup.manufacturer_id
-          ? 'No driver or manufacturer assigned'
-          : !pickup.collector_id
-          ? 'No driver assigned'
-          : 'No manufacturer assigned';
-        items.push({
-          key: `pickup-${pickup.id}`,
-          icon: 'navigate-outline',
-          color: COLORS.blue,
-          title: `Unassigned pickup — ${restaurant?.name ?? 'Unknown restaurant'}`,
-          subtitle: missing,
-          onPress: () => { setActiveTab('pickups'); setPickupsFilter('needs-dispatch'); },
-        });
-      });
-
-    pendingWithdrawals.forEach((withdrawal) => {
-      const isCollector = !!withdrawal.collector_id;
-      const owner = isCollector
-        ? admin.collectors.find((c) => c.id === withdrawal.collector_id)
-        : admin.restaurants.find((r) => r.id === withdrawal.restaurant_id);
-      items.push({
-        key: `withdrawal-${withdrawal.id}`,
-        icon: 'cash-outline',
-        color: COLORS.primary,
-        title: `${currency(withdrawal.amount)} withdrawal — ${owner?.full_name ?? owner?.name ?? 'Unknown'}`,
-        subtitle: isCollector ? 'Driver payout' : 'Restaurant payout',
-        onPress: () => setActiveTab('finance'),
-      });
-    });
-
-    admin.alerts
-      .filter((alert) => !alert.is_read)
-      .forEach((alert) => {
-        items.push({
-          key: `alert-${alert.id}`,
-          icon: 'notifications-outline',
-          color: COLORS.negative,
-          title: alert.title,
-          subtitle: alert.message,
-          onPress: () => setActiveTab('alerts'),
-        });
-      });
-
-    return items;
-  }, [admin.manualPickupRequests, admin.pickups, admin.restaurants, admin.collectors, pendingWithdrawals, admin.alerts]);
-
-  // What the platform actually has on hand: everything manufacturers have
-  // paid in, minus everything already paid out to restaurants/drivers via
-  // approved withdrawals. Approving a withdrawal that exceeds this means
-  // paying out money the platform hasn't actually collected yet.
-  const platformBalance = useMemo(() => {
+  // Money flow, all live from the DB (no stored balance anywhere):
+  //   in        = every completed manufacturer payment (payment_transactions)
+  //   toDrivers / toRestaurants = earnings rows, which the DB creates the
+  //               instant a pickup completes (042) and pays out instantly (045)
+  //   balance   = what's left in the platform's account after those payouts
+  const finance = useMemo(() => {
     const collected = (admin.paymentTransactions ?? [])
       .filter((t) => t.status === 'complete')
       .reduce((sum, t) => sum + Number(t.amount ?? 0), 0);
-    const paidOut = admin.withdrawals
-      .filter((w) => w.status === 'approved')
-      .reduce((sum, w) => sum + Number(w.amount ?? 0), 0);
-    return collected - paidOut;
-  }, [admin.paymentTransactions, admin.withdrawals]);
+    const toDrivers = admin.earnings
+      .filter((e) => e.collector_id)
+      .reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
+    const toRestaurants = admin.earnings
+      .filter((e) => e.restaurant_id)
+      .reduce((sum, e) => sum + Number(e.amount ?? 0), 0);
+    return { collected, toDrivers, toRestaurants, balance: collected - toDrivers - toRestaurants };
+  }, [admin.paymentTransactions, admin.earnings]);
+
+  const unreadAlertCount = useMemo(() => admin.alerts.filter((alert) => !alert.is_read).length, [admin.alerts]);
 
   const withMutation = async (label, action) => {
     try {
@@ -283,7 +211,7 @@ export default function AdminDashboardScreen({ navigation }) {
       });
       setShowRequestModal(false);
       setRequestForm({ restaurantId: '', urgency: 'standard', reason: '', notes: '' });
-      Alert.alert('Manual request created', 'The pickup request is now available in the admin queue.');
+      Alert.alert('Pickup created', 'A pickup was created from this request and auto-dispatched.');
     } catch (err) {
       Alert.alert('Create request failed', err.message ?? 'Unable to create the request.');
     } finally {
@@ -383,54 +311,6 @@ export default function AdminDashboardScreen({ navigation }) {
     </View>
   );
 
-  const renderOverview = () => (
-    <View>
-      <View style={styles.heroCard}>
-        <View style={styles.heroHeader}>
-          <View>
-            <Text style={styles.heroTitle}>Live operations</Text>
-            <Text style={styles.heroText}>Review the platform and act on pending work from one place.</Text>
-          </View>
-          <Pressable style={styles.primaryButton} onPress={() => setShowAlertModal(true)}>
-            <Ionicons name="notifications-outline" size={15} color={COLORS.white} />
-            <Text style={styles.primaryButtonText}>Create alert</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.heroActions}>
-          <Pressable style={styles.secondaryButton} onPress={() => setShowRequestModal(true)}>
-            <Ionicons name="add-circle-outline" size={16} color={COLORS.primary} />
-            <Text style={styles.secondaryButtonText}>Manual pickup request</Text>
-          </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={() => setActiveTab('health')}>
-            <Ionicons name="server-outline" size={16} color={COLORS.primary} />
-            <Text style={styles.secondaryButtonText}>Inspect data health</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Needs your attention ({attentionItems.length})</Text>
-      </View>
-
-      {attentionItems.map((item) => (
-        <Pressable key={item.key} style={styles.card} onPress={item.onPress}>
-          <View style={styles.cardTop}>
-            <View style={[styles.avatar, { backgroundColor: `${item.color}22` }]}>
-              <Ionicons name={item.icon} size={18} color={item.color} />
-            </View>
-            <View style={styles.cardMain}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardSub}>{item.subtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.muted} />
-          </View>
-        </Pressable>
-      ))}
-      {attentionItems.length === 0 ? <EmptyState label="Nothing needs attention right now." /> : null}
-    </View>
-  );
-
   const renderUsers = () => (
     <View>
       <TextInput
@@ -483,7 +363,7 @@ export default function AdminDashboardScreen({ navigation }) {
     if (pickupsFilter === 'completed') return admin.pickups.filter((p) => p.status === 'completed');
     if (pickupsFilter === 'cancelled') return admin.pickups.filter((p) => p.status === 'cancelled');
     if (pickupsFilter === 'active') {
-      return admin.pickups.filter((p) => p.collector_id && p.status !== 'completed' && p.status !== 'cancelled');
+      return admin.pickups.filter((p) => p.status !== 'completed' && p.status !== 'cancelled');
     }
     return admin.pickups;
   }, [admin.pickups, pickupsFilter]);
@@ -497,6 +377,21 @@ export default function AdminDashboardScreen({ navigation }) {
 
   const renderPickups = () => (
     <View>
+      <View style={styles.heroCard}>
+        <View style={styles.heroHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroTitle}>Pickups</Text>
+            <Text style={styles.heroText}>
+              Driver and manufacturer assignment is automatic. A pickup with no driver yet is assigned the moment an eligible driver comes on duty.
+            </Text>
+          </View>
+          <Pressable style={styles.primaryButton} onPress={() => setShowRequestModal(true)}>
+            <Ionicons name="add-circle-outline" size={15} color={COLORS.white} />
+            <Text style={styles.primaryButtonText}>Request</Text>
+          </Pressable>
+        </View>
+      </View>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {PICKUPS_FILTERS.map((filter) => {
           const active = pickupsFilter === filter.key;
@@ -508,47 +403,20 @@ export default function AdminDashboardScreen({ navigation }) {
         })}
       </ScrollView>
 
-      {pickupsFilter === 'needs-dispatch' ? (
-        <DispatchBoard
-          admin={admin}
-          ui={{ styles, COLORS, getStatusColor, formatDate, labelFromKey, AssignmentRow, ActionButton, EmptyState }}
-        />
-      ) : (
-        <View>
-          {filteredPickups.map((pickup) => (
-            <PickupCard key={pickup.id} pickup={pickup} onCancel={() => handleCancelPickup(pickup)} />
-          ))}
-          {filteredPickups.length === 0 ? <EmptyState label="No pickups in this view." /> : null}
-        </View>
-      )}
+      {filteredPickups.map((pickup) => (
+        <PickupCard key={pickup.id} pickup={pickup} onCancel={() => handleCancelPickup(pickup)} />
+      ))}
+      {filteredPickups.length === 0 ? <EmptyState label="No pickups in this view." /> : null}
     </View>
   );
-
-  const handleApproveWithdrawal = (withdrawal) => {
-    const proceed = () => withMutation('Approve withdrawal', () => admin.updateWithdrawalStatus(withdrawal.id, 'approved'));
-
-    if (Number(withdrawal.amount ?? 0) > platformBalance) {
-      Alert.alert(
-        'Balance too low',
-        `Platform balance is ${currency(platformBalance)}, but this withdrawal is ${currency(withdrawal.amount)}. Approve anyway?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Approve anyway', style: 'destructive', onPress: proceed },
-        ]
-      );
-      return;
-    }
-
-    proceed();
-  };
 
   const renderFinance = () => (
     <View>
       <View style={styles.heroCard}>
         <View style={styles.heroHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.heroTitle}>Wallet and payout controls</Text>
-            <Text style={styles.heroText}>Approve or reject incoming withdrawal requests from the live finance queue.</Text>
+            <Text style={styles.heroTitle}>Money flow</Text>
+            <Text style={styles.heroText}>Payouts to drivers and restaurants go out automatically when a trip completes. Nothing here needs approval.</Text>
           </View>
           <Pressable style={styles.primaryButton} onPress={openSettingsModal}>
             <Ionicons name="options-outline" size={15} color={COLORS.white} />
@@ -557,19 +425,16 @@ export default function AdminDashboardScreen({ navigation }) {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.cardTop}>
-          <View style={styles.avatar}>
-            <Ionicons name="business-outline" size={18} color={COLORS.primary} />
-          </View>
-          <View style={styles.cardMain}>
-            <Text style={styles.cardTitle}>Platform balance</Text>
-            <Text style={styles.cardSub}>Collected from manufacturers minus approved payouts</Text>
-          </View>
-          <Text style={[styles.cardTitle, { color: platformBalance < 0 ? COLORS.negative : COLORS.primary }]}>
-            {currency(platformBalance)}
-          </Text>
-        </View>
+      <View style={styles.statsGrid}>
+        <StatTile icon="business-outline" label="From manufacturers" value={currency(finance.collected)} color={COLORS.blue} />
+        <StatTile icon="car-outline" label="Paid to drivers" value={currency(finance.toDrivers)} color={COLORS.amber} />
+        <StatTile icon="restaurant-outline" label="Paid to restaurants" value={currency(finance.toRestaurants)} color={COLORS.amber} />
+        <StatTile
+          icon="wallet-outline"
+          label="Our balance"
+          value={currency(finance.balance)}
+          color={finance.balance < 0 ? COLORS.negative : COLORS.positive}
+        />
       </View>
 
       <Text style={styles.sectionMiniTitle}>Manufacturer payments</Text>
@@ -594,8 +459,8 @@ export default function AdminDashboardScreen({ navigation }) {
       ))}
       {(admin.paymentTransactions ?? []).length === 0 ? <EmptyState label="No manufacturer payments yet." /> : null}
 
-      <Text style={styles.sectionMiniTitle}>Pending withdrawals</Text>
-      {pendingWithdrawals.map((withdrawal) => {
+      <Text style={styles.sectionMiniTitle}>Payouts</Text>
+      {admin.withdrawals.map((withdrawal) => {
         const isCollector = !!withdrawal.collector_id;
         const owner = isCollector
           ? admin.collectors.find((c) => c.id === withdrawal.collector_id)
@@ -606,49 +471,32 @@ export default function AdminDashboardScreen({ navigation }) {
           <View key={withdrawal.id} style={styles.card}>
             <View style={styles.cardTop}>
               <View style={styles.avatar}>
-                <Ionicons name="cash-outline" size={18} color={COLORS.primary} />
+                <Ionicons name={isCollector ? 'car-outline' : 'restaurant-outline'} size={18} color={COLORS.primary} />
               </View>
               <View style={styles.cardMain}>
                 <Text style={styles.cardTitle}>{currency(withdrawal.amount)} · {ownerName}</Text>
-                <Text style={styles.cardSub}>{isCollector ? 'Driver payout' : 'Restaurant payout'} · Method: {withdrawal.method ?? 'manual'}</Text>
+                <Text style={styles.cardSub}>{isCollector ? 'Driver payout' : 'Restaurant payout'} · {withdrawal.method ?? 'manual'}</Text>
                 <Text style={styles.cardMeta}>{formatDateTime(withdrawal.created_at)}</Text>
               </View>
               <View style={[styles.badge, { backgroundColor: `${getStatusColor(withdrawal.status)}22` }]}>
-                <Text style={[styles.badgeText, { color: getStatusColor(withdrawal.status) }]}>{withdrawal.status}</Text>
+                <Text style={[styles.badgeText, { color: getStatusColor(withdrawal.status) }]}>{withdrawal.status === 'approved' ? 'paid' : withdrawal.status}</Text>
               </View>
-            </View>
-            <View style={styles.actionRow}>
-              <ActionButton label="Approve" icon="checkmark-circle-outline" onPress={() => handleApproveWithdrawal(withdrawal)} />
-              <ActionButton label="Reject" icon="close-circle-outline" onPress={() => withMutation('Reject withdrawal', () => admin.updateWithdrawalStatus(withdrawal.id, 'rejected'))} />
             </View>
           </View>
         );
       })}
-
-      {pendingWithdrawals.length === 0 ? <EmptyState label="No withdrawals awaiting review." /> : null}
+      {admin.withdrawals.length === 0 ? <EmptyState label="No payouts yet." /> : null}
     </View>
   );
 
+  // Rendered inside the bell sheet (header), not as a tab.
   const renderAlerts = () => (
     <View>
-      <View style={styles.heroCard}>
-        <View style={styles.heroHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.heroTitle}>Alert operations</Text>
-            <Text style={styles.heroText}>Create targeted messages and manage the live alert queue.</Text>
-          </View>
-          <Pressable style={styles.primaryButton} onPress={() => setShowAlertModal(true)}>
-            <Ionicons name="add-outline" size={15} color={COLORS.white} />
-            <Text style={styles.primaryButtonText}>New alert</Text>
-          </Pressable>
-        </View>
-      </View>
-
       {admin.alerts.map((alert) => (
         <View key={alert.id} style={styles.card}>
           <View style={styles.cardTop}>
-            <View style={styles.avatar}>
-              <Ionicons name="notifications-outline" size={18} color={COLORS.primary} />
+            <View style={[styles.avatar, !alert.is_read && { backgroundColor: `${COLORS.negative}22` }]}>
+              <Ionicons name="notifications-outline" size={18} color={alert.is_read ? COLORS.primary : COLORS.negative} />
             </View>
             <View style={styles.cardMain}>
               <Text style={styles.cardTitle}>{alert.title}</Text>
@@ -666,40 +514,48 @@ export default function AdminDashboardScreen({ navigation }) {
         </View>
       ))}
 
-      {admin.alerts.length === 0 ? <EmptyState label="No alerts found." /> : null}
+      {admin.alerts.length === 0 ? <EmptyState label="No alerts." /> : null}
     </View>
   );
 
-  const renderHealth = () => (
-    <View>
-      {admin.errors.length > 0 ? (
-        <View style={styles.warningCard}>
-          <Ionicons name="warning-outline" size={18} color={COLORS.warnText} />
-          <Text style={styles.warningText}>Some tables could not be read. This usually means RLS policies are missing for admin users.</Text>
+  // Compact tile grid so the whole table list fits on one screen without
+  // scrolling — a tile per table, red when admin RLS could not read it.
+  const renderHealth = () => {
+    const failing = admin.tableOverview.filter((table) => table.error);
+    return (
+      <View>
+        <View style={styles.healthSummary}>
+          <Ionicons
+            name={failing.length ? 'warning-outline' : 'checkmark-circle-outline'}
+            size={18}
+            color={failing.length ? COLORS.negative : COLORS.positive}
+          />
+          <Text style={styles.healthSummaryText}>
+            {failing.length
+              ? `${failing.length} of ${admin.tableOverview.length} tables unreadable — usually a missing admin RLS policy.`
+              : `All ${admin.tableOverview.length} tables readable. Counts are live row totals.`}
+          </Text>
         </View>
-      ) : null}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Data access overview</Text>
+        <View style={styles.healthGrid}>
+          {admin.tableOverview.map((table) => (
+            <View key={table.key} style={[styles.healthTile, table.error && styles.healthTileError]}>
+              <Text style={[styles.healthCount, table.error && styles.tableCountError]}>{table.error ? '!' : table.count}</Text>
+              <Text style={styles.healthLabel} numberOfLines={2}>{table.label}</Text>
+            </View>
+          ))}
+        </View>
       </View>
-      {admin.tableOverview.map((table) => (
-        <View key={table.key} style={styles.tableRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.tableName}>{table.label}</Text>
-            {table.error ? <Text style={styles.tableError}>{table.error}</Text> : null}
-          </View>
-          <Text style={[styles.tableCount, table.error && styles.tableCountError]}>{table.count}</Text>
-        </View>
-      ))}
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.root}>
       <AdminHeader
         variant="home"
-        subtitle="Operations center for users, pickups, finance, and alerts"
+        subtitle="Operations center for pickups, users, and finance"
         actions={[
+          { key: 'alerts', icon: 'notifications-outline', badge: unreadAlertCount, onPress: () => setShowAlertsPanel(true) },
           { key: 'settings', icon: 'settings-outline', onPress: () => navigation.navigate('AdminSettings') },
           { key: 'signout', icon: 'log-out-outline', onPress: handleSignOut },
         ]}
@@ -720,13 +576,31 @@ export default function AdminDashboardScreen({ navigation }) {
           </View>
         ) : null}
 
-        {!admin.loading && activeTab === 'overview' ? renderOverview() : null}
-        {!admin.loading && activeTab === 'users' ? renderUsers() : null}
         {!admin.loading && activeTab === 'pickups' ? renderPickups() : null}
+        {!admin.loading && activeTab === 'users' ? renderUsers() : null}
         {!admin.loading && activeTab === 'finance' ? renderFinance() : null}
-        {!admin.loading && activeTab === 'alerts' ? renderAlerts() : null}
         {!admin.loading && activeTab === 'health' ? renderHealth() : null}
       </ScrollView>
+
+      <Modal visible={showAlertsPanel} transparent animationType="slide" onRequestClose={() => setShowAlertsPanel(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Alerts{unreadAlertCount ? ` (${unreadAlertCount} unread)` : ''}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Pressable style={styles.primaryButton} onPress={() => { setShowAlertsPanel(false); setShowAlertModal(true); }}>
+                  <Ionicons name="add-outline" size={15} color={COLORS.white} />
+                  <Text style={styles.primaryButtonText}>New</Text>
+                </Pressable>
+                <Pressable onPress={() => setShowAlertsPanel(false)}>
+                  <Ionicons name="close-outline" size={22} color={COLORS.muted} />
+                </Pressable>
+              </View>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>{renderAlerts()}</ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showAlertModal} transparent animationType="slide" onRequestClose={() => setShowAlertModal(false)}>
         <View style={styles.modalOverlay}>
@@ -1120,10 +994,10 @@ function UserCard({ user, onPress, onToggleProfile, onToggleBusinessStatus, onTo
   );
 }
 
-// Read-only history/status view — assigning a driver or manufacturer only
-// ever happens from the "Needs dispatch" flow (DispatchBoard); once a pickup
-// is assigned, this card can't touch collector_id/manufacturer_id/status at
-// all except the single guarded Cancel action.
+// Read-only history/status view — driver/manufacturer assignment is done by
+// DB triggers (034/046), never from here; this card can't touch
+// collector_id/manufacturer_id/status at all except the single guarded
+// Cancel action.
 function PickupCard({ pickup, onCancel }) {
   const statusColor = getStatusColor(pickup.status);
   const statusLabel = PICKUP_STATUS_LABELS[pickup.status] ?? labelFromKey(pickup.status);
@@ -1145,8 +1019,8 @@ function PickupCard({ pickup, onCancel }) {
         </View>
       </View>
 
-      <Text style={styles.businessText}>Driver: {pickup.collectors?.full_name ?? 'Not yet assigned — see Needs dispatch'}</Text>
-      <Text style={styles.businessText}>Manufacturer: {pickup.manufacturers?.name ?? 'Not yet assigned — see Needs dispatch'}</Text>
+      <Text style={styles.businessText}>Driver: {pickup.collectors?.full_name ?? 'Waiting — auto-assigns when a driver is on duty nearby'}</Text>
+      <Text style={styles.businessText}>Manufacturer: {pickup.manufacturers?.name ?? 'None accepts this grade yet'}</Text>
       {pickup.auto_dispatched ? (
         <Text style={styles.cardMeta}>Auto-dispatched — driver/manufacturer assigned automatically, no admin action taken</Text>
       ) : null}
@@ -1185,6 +1059,20 @@ function ActionButton({ label, icon, onPress, disabled = false }) {
       <Ionicons name={icon} size={14} color={disabled ? COLORS.muted : COLORS.primary} />
       <Text style={[styles.actionText, disabled && styles.actionTextDisabled]}>{label}</Text>
     </Pressable>
+  );
+}
+
+function StatTile({ icon, label, value, color }) {
+  return (
+    <View style={styles.statCard}>
+      <View style={styles.statCardTop}>
+        <View style={[styles.statIcon, { backgroundColor: `${color}22` }]}>
+          <Ionicons name={icon} size={16} color={color} />
+        </View>
+      </View>
+      <Text style={[styles.statValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -1309,10 +1197,23 @@ const styles = StyleSheet.create({
   assignmentChipText: { fontFamily: ADMIN_FONTS.semiBold, fontSize: 12, color: COLORS.body, textTransform: 'capitalize' },
   assignmentChipTextActive: { color: COLORS.white },
 
-  tableRow: { backgroundColor: COLORS.card, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 14, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  tableName: { fontFamily: ADMIN_FONTS.bold, fontSize: 14, color: COLORS.ink, textTransform: 'capitalize' },
-  tableError: { maxWidth: 260, marginTop: 4, fontFamily: ADMIN_FONTS.medium, fontSize: 11, color: COLORS.negative },
-  tableCount: { fontFamily: ADMIN_FONTS.extraBold, fontSize: 18, color: COLORS.primary },
+  healthSummary: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.card, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 12, marginBottom: 10 },
+  healthSummaryText: { flex: 1, fontFamily: ADMIN_FONTS.medium, fontSize: 12, color: COLORS.body, lineHeight: 17 },
+  healthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  healthTile: {
+    flexBasis: '31%',
+    flexGrow: 1,
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  healthTileError: { backgroundColor: COLORS.alertBg, borderColor: COLORS.alertBorder },
+  healthCount: { fontFamily: ADMIN_FONTS.extraBold, fontSize: 16, color: COLORS.primary },
+  healthLabel: { marginTop: 2, fontFamily: ADMIN_FONTS.medium, fontSize: 10, color: COLORS.body, textAlign: 'center', textTransform: 'capitalize', lineHeight: 13 },
   tableCountError: { color: COLORS.negative },
 
   warningCard: { flexDirection: 'row', gap: 8, backgroundColor: COLORS.warnBg, borderColor: COLORS.warnBorder, borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12 },
