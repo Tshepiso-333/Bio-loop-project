@@ -116,9 +116,9 @@ const AIChatScreen = ({ navigation, onBack }) => {
   // Header Component - Updated to fill to the top
   const Header = () => (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#059669" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F4D30" />
       <LinearGradient
-        colors={['#10b981', '#059669', '#047857']}
+        colors={['#15643E', '#0F4D30', '#0B3A24']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
@@ -254,7 +254,7 @@ const AIChatScreen = ({ navigation, onBack }) => {
             <TextInput
               style={styles.input}
               placeholder="Ask me about production, quality, forecasts..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor="#A9B5AD"
               value={chatMessage}
               onChangeText={setChatMessage}
               multiline
@@ -266,7 +266,7 @@ const AIChatScreen = ({ navigation, onBack }) => {
               disabled={!chatMessage.trim()}
             >
               <LinearGradient
-                colors={chatMessage.trim() ? ['#10b981', '#059669'] : ['#d1d5db', '#9ca3af']}
+                colors={chatMessage.trim() ? ['#15643E', '#0F4D30'] : ['#C9D4CE', '#A9B5AD']}
                 style={styles.sendGradient}
               >
                 <Text style={styles.sendButtonText}>Send</Text>
@@ -288,7 +288,7 @@ const AIChatScreen = ({ navigation, onBack }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#F6F8F7',
   },
   header: {
     paddingTop: 48,
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#7EE92D',
+    backgroundColor: '#2E8B5A',
     borderWidth: 2,
     borderColor: '#fff',
   },
@@ -390,14 +390,14 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#E4EDE7',
   },
   userIconContainer: {
     marginLeft: 8,
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#10b981',
+    backgroundColor: '#15643E',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   userBubble: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#15643E',
     borderBottomRightRadius: 4,
   },
   aiBubble: {
@@ -431,12 +431,12 @@ const styles = StyleSheet.create({
   },
   aiMessageText: {
     fontSize: 15,
-    color: '#111827',
+    color: '#122A1F',
     lineHeight: 20,
   },
   messageTime: {
     fontSize: 10,
-    color: '#9ca3af',
+    color: '#A9B5AD',
     marginTop: 4,
     textAlign: 'right',
   },
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10b981',
+    backgroundColor: '#15643E',
     opacity: 0.6,
   },
   typingDotDelay: {
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   },
   typingText: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: '#A9B5AD',
     marginTop: 4,
   },
   suggestionsScroll: {
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#E4EDE7',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -491,13 +491,13 @@ const styles = StyleSheet.create({
   },
   suggestionChipText: {
     fontSize: 13,
-    color: '#10b981',
+    color: '#15643E',
     fontWeight: '500',
   },
   inputContainer: {
     backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#E4EDE7',
     paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 20 : 12,
   },
@@ -509,13 +509,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#EEF3F0',
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
     maxHeight: 100,
-    color: '#111827',
+    color: '#122A1F',
   },
   sendButton: {
     borderRadius: 24,
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
   },
   inputHintText: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: '#A9B5AD',
     textAlign: 'center',
   },
 });

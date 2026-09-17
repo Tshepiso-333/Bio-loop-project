@@ -26,12 +26,12 @@ import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { startPayfastCheckout, pollForCompletion } from '../../src/services/paymentService';
 
 const THEME = {
-  primary: '#10b981',
-  primaryDark: '#059669',
-  ink: '#111827',
-  muted: '#6b7280',
-  border: '#e5e7eb',
-  bg: '#f9fafb',
+  primary: '#15643E',
+  primaryDark: '#0F4D30',
+  ink: '#122A1F',
+  muted: '#6B7F75',
+  border: '#E4EDE7',
+  bg: '#F6F8F7',
 };
 
 const currency = (n) => `R${Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

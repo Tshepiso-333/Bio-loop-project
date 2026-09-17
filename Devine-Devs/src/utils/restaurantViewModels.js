@@ -186,9 +186,9 @@ export const mapHomeStats = ({ qualityLogs = [], earnings = [], pickups = [] }) 
 };
 
 const ACTIVITY_ICON_CYCLE = [
-  { name: 'water-outline', color: '#10B981', bg: '#D1FAE5' },
-  { name: 'checkmark-circle-outline', color: '#2563EB', bg: '#DBEAFE' },
-  { name: 'receipt-outline', color: '#D97706', bg: '#FEF3C7' },
+  { name: 'water-outline', color: '#15643E', bg: '#E7F1EB' },
+  { name: 'checkmark-circle-outline', color: '#2563EB', bg: '#EFF6FF' },
+  { name: 'receipt-outline', color: '#D97706', bg: '#FFF7ED' },
 ];
 
 export const mapActivityItems = (activityLogs = []) => {
@@ -291,7 +291,7 @@ export const mapDeviceStats = (tank, pickups = []) => {
     {
       label: 'Connectivity',
       value: tank?.connectivity ? String(tank.connectivity) : '—',
-      valueColor: '#10b981',
+      valueColor: '#15643E',
     },
     {
       label: 'Last Pickup',
@@ -364,7 +364,7 @@ export const mapBalance = (wallet) => ({
 });
 
 const GRADE_COLORS = {
-  A: '#10b981',
+  A: '#15643E',
   B: '#F59E0B',
   C: '#64748B',
 };
@@ -383,7 +383,7 @@ export const mapMarketRates = (marketRates = []) => ({
       change: rate.change_label ?? 'Current market rate',
       changePositive:
         rate.change_positive === true ? true : rate.change_positive === false ? false : null,
-      dotColor: GRADE_COLORS[String(grade).charAt(0)] ?? '#10b981',
+      dotColor: GRADE_COLORS[String(grade).charAt(0)] ?? '#15643E',
     };
   }),
 });

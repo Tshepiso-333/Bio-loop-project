@@ -12,22 +12,22 @@ import { ACTIVE_TRIP_STATUSES, PICKUP_STATUS_LABELS, PRE_TRIP_STATUSES } from '.
 
 // Theme colours (matching manufacturer)
 const THEME = {
-  primary: '#10b981',
-  primaryDark: '#059669',
-  primaryDarker: '#047857',
-  primaryLight: '#D1FAE5',
+  primary: '#15643E',
+  primaryDark: '#0F4D30',
+  primaryDarker: '#0B3A24',
+  primaryLight: '#E7F1EB',
   white: '#FFFFFF',
-  offWhite: '#F9FAFB',
-  text: '#111827',
-  textSecondary: '#6B7280',
-  gray: '#9CA3AF',
-  grayLight: '#E5E7EB',
+  offWhite: '#F6F8F7',
+  text: '#122A1F',
+  textSecondary: '#6B7F75',
+  gray: '#A9B5AD',
+  grayLight: '#E4EDE7',
   pending: '#F59E0B',
-  pendingBg: '#FEF3C7',
-  inProgress: '#3B82F6',
-  inProgressBg: '#DBEAFE',
-  completed: '#10B981',
-  completedBg: '#D1FAE5',
+  pendingBg: '#FFF7ED',
+  inProgress: '#2563EB',
+  inProgressBg: '#EFF6FF',
+  completed: '#15643E',
+  completedBg: '#E7F1EB',
 };
 
 const FILTERS = ['All', 'Pending', 'In Progress', 'Completed'];

@@ -33,16 +33,16 @@ const TRIP_ACTIONS = {
 const LOCATION_PERSIST_INTERVAL_MS = 20000; // don't write to the DB on every 3s GPS tick
 
 const THEME = {
-  primary: '#10b981',
-  primaryDark: '#059669',
-  primaryDarker: '#047857',
-  primaryLight: '#D1FAE5',
+  primary: '#15643E',
+  primaryDark: '#0F4D30',
+  primaryDarker: '#0B3A24',
+  primaryLight: '#E7F1EB',
   white: '#FFFFFF',
-  offWhite: '#F9FAFB',
-  text: '#111827',
-  textSecondary: '#6B7280',
-  gray: '#9CA3AF',
-  grayLight: '#E5E7EB',
+  offWhite: '#F6F8F7',
+  text: '#122A1F',
+  textSecondary: '#6B7F75',
+  gray: '#A9B5AD',
+  grayLight: '#E4EDE7',
 };
 
 export default function DriverMapScreen({ route }) {

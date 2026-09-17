@@ -31,35 +31,35 @@ import ProfileScreen from './ProfileScreen';
 
 const MANU_THEME = {
   colors: {
-    primary: '#10b981',
-    primaryDark: '#059669',
-    primaryDarker: '#047857',
-    primaryLight: '#D1FAE5',
-    paleGreen: '#ECFDF5',
-    selectedBg: '#F0FDF4',
+    primary: '#15643E',
+    primaryDark: '#0F4D30',
+    primaryDarker: '#0B3A24',
+    primaryLight: '#E7F1EB',
+    paleGreen: '#E7F1EB',
+    selectedBg: '#F2F8F4',
 
-    page: '#F9FAFB',
+    page: '#F6F8F7',
     card: '#FFFFFF',
 
-    ink: '#111827',
-    body: '#6B7280',
-    muted: '#9CA3AF',
-    border: '#E5E7EB',
-    divider: '#F3F4F6',
+    ink: '#122A1F',
+    body: '#6B7F75',
+    muted: '#A9B5AD',
+    border: '#E4EDE7',
+    divider: '#EEF3F0',
 
     white: '#FFFFFF',
 
-    gradeA: '#7EE92D',
+    gradeA: '#2E8B5A',
     gradeB: '#f59e0b',
-    gradeC: '#ef4444',
+    gradeC: '#DC2626',
 
-    alertText: '#B91C1C',
-    alertBg: '#FEF2F2',
+    alertText: '#DC2626',
+    alertBg: '#FFF1F1',
     alertBorder: '#FECACA',
-    negative: '#EF4444',
+    negative: '#DC2626',
 
-    darkSurface: '#111827',
-    darkSurfaceText: '#D1D5DB',
+    darkSurface: '#122A1F',
+    darkSurfaceText: '#C9D4CE',
   },
   fonts: {
     regular: 'System',
@@ -86,7 +86,7 @@ const MANU_THEME = {
       elevation: 3,
     },
     button: {
-      shadowColor: '#10b981',
+      shadowColor: '#15643E',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.2,
       shadowRadius: 4,

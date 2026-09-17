@@ -120,21 +120,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const COLORS = {
   formBg:           '#FFFFFF',
-  green:            '#10b981',
-  greenDark:        '#059669',
-  greenLight:       '#D1FAE5',
-  textPrimary:      '#0F172A',
-  textSecondary:    '#64748B',
-  textMuted:        '#94A3B8',
-  inputBorder:      '#E2E8F0',
-  inputBorderFocus: '#10b981',
-  inputBg:          '#F8FAFC',
-  border:           '#E2E8F0',
+  green:            '#15643E',
+  greenDark:        '#0F4D30',
+  greenLight:       '#E7F1EB',
+  textPrimary:      '#122A1F',
+  textSecondary:    '#6B7F75',
+  textMuted:        '#A9B5AD',
+  inputBorder:      '#E4EDE7',
+  inputBorderFocus: '#15643E',
+  inputBg:          '#F5F8F6',
+  border:           '#E4EDE7',
   errorBg:          '#FFF1F1',
   errorBorder:      '#FECACA',
   errorText:        '#DC2626',
-  successBg:        '#ECFDF5',
-  successBorder:    '#A7F3D0',
+  successBg:        '#E7F1EB',
+  successBorder:    '#9FD3B3',
 };
 
 const FONTS = {
@@ -195,7 +195,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         style={styles.root}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <StatusBar barStyle="light-content" backgroundColor="#10b981" />
+        <StatusBar barStyle="light-content" backgroundColor="#15643E" />
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -204,7 +204,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         >
           {/* Hero Section with Green Gradient */}
           <LinearGradient
-            colors={['#10b981', '#059669', '#047857']}
+            colors={['#15643E', '#0F4D30', '#0B3A24']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.heroSection, { paddingTop: insets.top + 28 }]}
@@ -295,7 +295,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                   disabled={loading}
                 >
                   <LinearGradient
-                    colors={['#10b981', '#059669']}
+                    colors={['#15643E', '#0F4D30']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.signInGradient}
@@ -370,7 +370,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#F6F8F7',
   },
   scrollContent: {
     flexGrow: 1,

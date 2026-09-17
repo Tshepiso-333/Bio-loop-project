@@ -25,25 +25,25 @@ const { width } = Dimensions.get('window');
 // ─── THEME ───────────────────────────────────────────────────────────────────
 
 const T = {
-  primary: '#10b981',
-  primaryDark: '#059669',
-  paleGreen: '#ECFDF5',
-  selectedBg: '#F0FDF4',
+  primary: '#15643E',
+  primaryDark: '#0F4D30',
+  paleGreen: '#E7F1EB',
+  selectedBg: '#F2F8F4',
 
-  page: '#F9FAFB',
+  page: '#F6F8F7',
   card: '#FFFFFF',
 
-  ink: '#111827',
-  body: '#6B7280',
-  muted: '#9CA3AF',
-  border: '#E5E7EB',
-  divider: '#F3F4F6',
+  ink: '#122A1F',
+  body: '#6B7F75',
+  muted: '#A9B5AD',
+  border: '#E4EDE7',
+  divider: '#EEF3F0',
 
   white: '#FFFFFF',
 
-  gradeA: '#7EE92D',
+  gradeA: '#2E8B5A',
   gradeB: '#f59e0b',
-  gradeC: '#ef4444',
+  gradeC: '#DC2626',
 };
 
 const S = { screenPadding: 16, cardPadding: 16, gap: 16 };
