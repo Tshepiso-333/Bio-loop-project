@@ -63,6 +63,11 @@ export default function AdminHeader({
               onPress={action.onPress}
             >
               <Ionicons name={action.icon} size={18} color={ADMIN_COLORS.ink} />
+              {action.badge > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{action.badge > 99 ? '99+' : action.badge}</Text>
+                </View>
+              ) : null}
             </Pressable>
           ))}
           {showBack ? <View style={styles.backSpacer} /> : null}
@@ -131,6 +136,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: ADMIN_COLORS.negative,
+    borderWidth: 2,
+    borderColor: ADMIN_COLORS.page,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { fontFamily: ADMIN_FONTS.bold, fontSize: 9, color: ADMIN_COLORS.white, lineHeight: 11 },
 
   subtitle: {
     fontFamily: ADMIN_FONTS.medium,
