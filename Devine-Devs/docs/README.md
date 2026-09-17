@@ -16,7 +16,7 @@ Four roles share one database via `profiles.role`:
 | `restaurant` | Monitor oil tanks, schedule/request pickups, track earnings |
 | `collector` (driver) | Accept pickups, drive the restaurant → manufacturer leg |
 | `manufacturer` | Receive oil, pay for it (PayFast), manage stock, view forecasts |
-| `admin` | Dispatch drivers, manage users, approve withdrawals, platform settings |
+| `admin` | Oversee pickups, manage users, finance overview, pricing & payout split settings |
 
 After login the app reads `profiles.role` and routes the user to their own navigation stack + data context. There is no hardcoded/mock auth anywhere anymore — this is real Supabase Auth end to end.
 
@@ -89,25 +89,28 @@ pending → scheduled → in_transit → arrival → in_progress → collected �
 
 **Driver leg:** accepting a pending pickup moves it through `in_transit → arrival → in_progress → collected → arrived_manufacturer` — see `src/lib/pickupStatus.js` for the shared status vocabulary. The driver's responsibility ends at `arrived_manufacturer`; there is no driver-facing "complete trip" action.
 
-**Completion:** only the manufacturer confirming receipt (`manufacturerService.confirmDeliveryReceived`) moves a pickup to `completed`, records `completed_at`, and creates `earnings` rows via `payoutService.finalizePickupEarnings`. Admin can still override-complete a pickup manually.
+**Completion:** the manufacturer confirming receipt (`manufacturerService.confirmDeliveryReceived`) or the `payfast-itn` webhook moves a pickup to `completed` and records `completed_at`. The `earnings` rows are created by the DB trigger `pickups_auto_earnings()` (migration 047 — grade-based split of the manufacturer payment; see `BUSINESS_LOGIC_QUESTIONS.md` §5–8 FINAL), not by app code. Restaurant earnings are auto-paid instantly; driver earnings sit in the wallet until `request_driver_withdrawal()` pays them out instantly.
 
 ---
 
 ## Money flow
 
-Gross value = volume × `market_rates.rate_per_liter` (by grade A/B/C). Split three ways at completion:
+**Pool** = what the manufacturer pays = volume × `market_rates.rate_per_liter` (by grade A/B/C) + `platform_settings.manufacturer_markup_pct` on top. The pool is split at completion by the pickup's oil grade (`payout_splits`, admin-editable, defaults from the team's 2026-09-17 table):
 
-| Party | Gets |
-|---|---|
-| Platform | `platform_settings.commission_pct` of gross |
-| Driver | per-pickup `driver_payout_amount` if admin set one, else `driver_flat_rate_per_pickup` |
-| Restaurant | remainder |
+| Grade | Restaurant | Driver | Platform |
+|---|---|---|---|
+| A | 60% | 25% | 15% |
+| B | 50% | 30% | 20% |
+| C | 40% | 35% | 25% |
 
-Manufacturer pays gross + `manufacturer_markup_pct` through PayFast. Both `commission_pct` and `driver_flat_rate_per_pickup` default to `0` — real numbers must be set once via admin Finance settings, or restaurants get 100%/drivers get 0.
+The split is computed once, in the DB (`pickups_auto_earnings()` trigger, migration 047) — no app code does this arithmetic. `commission_pct` / `driver_flat_rate_per_pickup` / `pickups.driver_payout_amount` are no longer read.
 
-There is no `restaurant_wallets`/`collector_wallets` table — those were dropped (migration 013); balances are computed live from `earnings` via `restaurant_balances`/`collector_balances` views.
+There is no `restaurant_wallets`/`collector_wallets` table — those were dropped (migration 013); balances are computed live from `earnings` via `restaurant_balances`/`collector_balances` views (sum of earnings with no `withdrawal_id`).
 
-**Payout timing:** instant per-trip, not batched (see `BUSINESS_LOGIC_QUESTIONS.md` #8, superseded 2026-08-31). A DB trigger (migration 036) auto-creates a `pending` `withdrawals` row the instant an `earnings` row is inserted, so `restaurant_balances`/`collector_balances` read ~0 right after every completed trip by design — the money is already queued for admin's next EFT, not sitting as a held balance.
+**Payout timing:**
+- Restaurant share → auto-paid the instant the trip completes (`earnings_auto_payout()` inserts an `approved`/`instant` withdrawal and links the earning). Restaurant balance reads 0 right after each trip by design. Direct bank deposit is still to be finalised by the team.
+- Driver share → sits in the driver's wallet. Driver taps **Withdraw** → `request_driver_withdrawal()` RPC pays out instantly, balance drops to 0, `withdrawals` history kept.
+- Platform share → stays in the platform account. Admin Finance shows money in, paid to restaurants, paid to drivers, driver wallets not yet withdrawn, and "our balance". No admin approval step exists anywhere.
 
 ---
 
@@ -117,7 +120,7 @@ There is no `restaurant_wallets`/`collector_wallets` table — those were droppe
 
 **RLS:** the manufacturer's client is read-only on `payment_transactions` (can only `SELECT` its own rows to poll). All writes happen inside the two Edge Functions using the service-role key — the anon key never gets insert/update rights on that table.
 
-**Known limitation, not yet closed:** `payfast-itn` only flips the transaction row to `complete` — it does not itself finalize the pickup or create earnings (that still happens client-side, after the app observes the row go `complete`). If the manufacturer closes the app between "PayFast confirms" and "the poll observes it," the trip won't auto-finalize until they reopen that screen. A fully server-authoritative version would trigger `finalizePickupEarnings`'s logic from the ITN webhook itself.
+**Closed (migration 047 + payfast-itn v3):** `payfast-itn` now marks the pickup `completed` itself once the payment is `complete`, and the DB trigger creates the earnings from that status flip using the real payment amount as the pool — no app screen needs to be open. The manufacturer client call is a harmless no-op afterwards.
 
 **Not yet done:** PayFast's recommended server-to-server "validate" callback and source-IP allowlisting on the ITN endpoint — worth adding before a real (non-sandbox) merchant account.
 

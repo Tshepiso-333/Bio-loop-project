@@ -77,6 +77,11 @@ Authoritative column names for all Supabase tables. **Use these exact names** in
 |---|---|---|
 | `id` | `uuid` | Primary |
 | `owner_user_id` | `uuid` | Links to `profiles.id` |
+| `biodiesel_conversion_pct` | `numeric` | Added 048, not null default `90`. Finance tab assumption — % of collected oil that becomes biodiesel |
+| `biodiesel_price_per_liter` | `numeric` | Added 048, default `20` (R/L biodiesel selling price) |
+| `processing_cost_per_liter` | `numeric` | Added 048, default `4.44` (R per litre of biodiesel) |
+| `logistics_cost` | `numeric` | Added 048, default `10000` (R total collection & logistics) |
+| `other_operating_cost` | `numeric` | Added 048, default `5000` (R total). All five are per-manufacturer and only read by `screens/manufacturer/ForecastsScreen.js` (the Finance tab); no UI edits them yet |
 | `name` | `text` | |
 | `address` | `text` | Nullable |
 | `latitude` | `numeric` | Nullable — added `016_manufacturer_location.sql`. Needed for driver map navigation to the manufacturer leg; no UI writes this yet, so expect it null until an admin/manufacturer sets it. |
@@ -134,9 +139,14 @@ null — nothing writes them for manufacturers today.
 
 ## `pickups`
 
+RLS for restaurants (049/050): owner can INSERT, SELECT, and UPDATE **only** a pre-trip pickup (`pending`/`scheduled`/`assigned`) to `status = cancelled` (`pickups_restaurant_cancel`). Restaurants can also SELECT the `collectors` / `manufacturers` rows referenced by their own pickups (`collectors_select_restaurant_gap`, `manufacturers_select_restaurant_gap`) so the driver-name join on pickup cards resolves.
+
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` | Primary |
+| `amount_paid` | `numeric` | Added 048. What the manufacturer actually paid for this pickup — stamped by `trg_payment_transactions_stamp_pickup` when the matching `payment_transactions` row goes `complete`. Null until paid. Read by the manufacturer Finance tab. |
+| `paid_at` | `timestamptz` | Added 048, set with `amount_paid` |
+| `price_per_liter` | `numeric` | Added 048, `amount_paid / litres` (2 dp) — the real per-litre price for this pickup, null until paid |
 | `restaurant_id` | `uuid` | |
 | `collector_id` | `uuid` | Nullable |
 | `manufacturer_id` | `uuid` | Nullable — auto-set by `manufacturerRoutingService.resolveManufacturerForPickup` when the restaurant has a matching primary manufacturer, else admin sets it manually |
@@ -281,9 +291,29 @@ Same owner-FK pattern as `earnings` (`withdrawals_owner_check`).
 
 ---
 
+## `payout_splits`
+
+Added `047_grade_based_payout_splits_and_driver_instant_withdrawal.sql` (2026-09-17). One row per oil grade: how every manufacturer payment ("the pool") is divided. Admin-editable from the Finance tab's settings modal. `pickups_auto_earnings()` reads this at completion time — it is the **only** place the payout split is computed (no JS copy of the math exists anymore).
+
+| Column | Type | Notes |
+|---|---|---|
+| `grade` | `quality_grade` | Primary key (`A`/`B`/`C`) |
+| `restaurant_pct` | `numeric` | 0–100 |
+| `driver_pct` | `numeric` | 0–100 |
+| `platform_pct` | `numeric` | 0–100 |
+| `updated_at` | `timestamptz` | |
+
+Check constraint `payout_splits_sum_100`: the three percentages must total exactly 100 — a bad edit is rejected by the DB. Seeded A 60/25/15, B 50/30/20, C 40/35/25. Unknown/null pickup grade → the C row is used.
+
+RLS: any signed-in user can read; only `is_admin()` can insert/update.
+
+Related RPC: `request_driver_withdrawal()` — SECURITY DEFINER, callable by `authenticated`. Finds the caller's `collectors` row via `auth.uid()`, sums their unpaid `earnings`, inserts an `approved`/`instant` `withdrawals` row, links the earnings, alerts driver + admins. The amount is never accepted from the client.
+
+---
+
 ## `platform_settings`
 
-Single-row table. Both figures default to `0` — the team never gave real numbers, so nothing computes payouts from an invented figure. Set real values via the admin Finance tab's Settings modal before treating payout amounts as real.
+Single-row table. **As of migration 047 only `manufacturer_markup_pct` is read by any payout path** — `commission_pct` and `driver_flat_rate_per_pickup` are dead columns kept for safety (the grade split in `payout_splits` replaced them).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -347,6 +377,8 @@ Added `026_manufacturer_payment_flow.sql` — records a manufacturer's payment f
 ---
 
 ## `activity_logs`
+
+Written **only by DB triggers** (migration 051): `trg_pickups_write_activity_log` (requested / driver assigned / collected / completed / cancelled) and `trg_earnings_write_activity_log` (payout received, `badge_type = money`). No app code inserts here. Read by `RestaurantHomeScreen` "Recent activity".
 
 | Column | Type | Notes |
 |---|---|---|
