@@ -467,3 +467,19 @@ Written **only by DB triggers** (migration 051): `trg_pickups_write_activity_log
 | Driver name | `collectors.full_name` (via join) |
 | Next recurring pickup | `pickup_schedules.next_pickup_date` |
 | Chart readings | `tank_readings.fill_percent` @ `recorded_at` |
+
+---
+
+## `platform_ledger` (view, not a table)
+
+Added 054. Admin's bank statement: one line per completed pickup — `received` (manufacturer payment), `to_restaurant`, `to_driver` (from `earnings`), `platform_kept`, `platform_running_balance`, `source` (`payfast` / `no_gateway`), `driver_unwithdrawn`. `security_invoker = true` — admin sees all, others only their own lines. Read by the admin Finance tab "Statement".
+
+## DB-maintained stats (no app code writes these)
+
+| Table / columns | Kept true by | Since |
+|---|---|---|
+| `manufacturer_inventory.current_stock_liters`, `stock_change_pct` | `refresh_manufacturer_stats()` on pickup insert/status/volume change | 052 |
+| `forecasts` (period 7): `total_volume_liters`, `grade_a/b/c_pct`, `trend_label`, `confidence_pct` | same | 052 |
+| `collectors.total_collections`, `total_liters`, `co2_saved_kg` (litres × 2.5) | `refresh_collector_stats()` on pickup status/collector/volume change | 053 |
+| `activity_logs` | pickup + earnings triggers | 051 |
+| `collectors.is_on_duty` → false after 30 min without GPS | `sweep_stale_drivers()` via pg_cron every 5 min | 055 |

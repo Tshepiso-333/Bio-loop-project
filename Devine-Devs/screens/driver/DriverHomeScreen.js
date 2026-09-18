@@ -1,5 +1,5 @@
 // Devine-Devs/screens/driver/DriverHomeScreen.js
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import { PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
+import MoneyPop, { parseAmountFromAlert } from '../../src/components/MoneyPop';
 
 // Theme colours (matching manufacturer)
 const THEME = {
@@ -90,11 +91,39 @@ export default function DriverHomeScreen({ navigation }) {
     earnings = [],
     toggleDutyStatus,
     requestWithdrawal,
+    alerts = [],
+    markAlertRead,
   } = useCollectorContext();
+  // Post-trip money moment: the newest unread wallet/withdrawal alert the
+  // DB wrote (earnings_auto_payout / request_driver_withdrawal) drives the
+  // pop. Dismissing marks it read, so it shows once per event.
+  const moneyAlert = useMemo(() => {
+    const isMoney = (a) => /wallet|withdrawal paid|payout/i.test(`${a?.title ?? ''}`);
+    return (alerts || []).filter((a) => !a.is_read && isMoney(a))
+      .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))[0] ?? null;
+  }, [alerts]);
+  const moneyIsWithdrawal = /withdrawal/i.test(moneyAlert?.title ?? '');
+
   const avatarImageUrl = collector?.profile_image_url ?? profile?.profile_image_url;
   const completedStops = (pickups || []).filter((pickup) => pickup.status === 'completed').length;
   const totalStops = (pickups || []).length;
-  const totalLiters = stats?.total_liters ?? collector?.total_liters ?? 0;
+  // "Weekly Total" = litres from trips completed in the last 7 days, and the
+  // change vs the 7 days before that — computed from real pickup rows, not a
+  // stored figure. All-time totals live on the Profile screen.
+  const weekly = useMemo(() => {
+    const now = Date.now();
+    const week = 7 * 24 * 60 * 60 * 1000;
+    const litresOf = (p) => Number(p.actual_volume_liters ?? p.estimated_volume_liters ?? 0);
+    const completedAt = (p) => new Date(p.completed_at ?? p.updated_at ?? p.pickup_date ?? 0).getTime();
+    const done = (pickups || []).filter((p) => p.status === 'completed');
+    const thisWeek = done.filter((p) => now - completedAt(p) < week);
+    const lastWeek = done.filter((p) => { const age = now - completedAt(p); return age >= week && age < 2 * week; });
+    const thisL = thisWeek.reduce((s, p) => s + litresOf(p), 0);
+    const lastL = lastWeek.reduce((s, p) => s + litresOf(p), 0);
+    const change = lastL > 0 ? Math.round(((thisL - lastL) / lastL) * 100) : thisL > 0 ? 100 : 0;
+    return { liters: thisL, stops: thisWeek.length, change };
+  }, [pickups]);
+  const totalLiters = weekly.liters;
   const [togglingDuty, setTogglingDuty] = useState(false);
   const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
   const unpaidEarnings = earnings
@@ -116,7 +145,7 @@ export default function DriverHomeScreen({ navigation }) {
     setRequestingWithdrawal(true);
     try {
       await requestWithdrawal();
-      Alert.alert('Withdrawal paid', 'Your balance has been paid out instantly.');
+      // The DB writes a 'Withdrawal paid' alert; MoneyPop below shows it.
     } catch (err) {
       Alert.alert('Could not request withdrawal', err.message ?? 'Please try again.');
     } finally {
@@ -263,10 +292,10 @@ export default function DriverHomeScreen({ navigation }) {
               </View>
               <View>
                 <Text style={styles.weeklyTitle}>Weekly Total</Text>
-                <Text style={styles.weeklySub}>{totalLiters}L · {totalStops} stops</Text>
+                <Text style={styles.weeklySub}>{totalLiters}L · {weekly.stops} {weekly.stops === 1 ? 'trip' : 'trips'}</Text>
               </View>
             </View>
-            <Text style={styles.weeklyChange}>+{stats?.weeklyChange ?? '—'}%</Text>
+            <Text style={styles.weeklyChange}>{weekly.change >= 0 ? '+' : ''}{weekly.change}%</Text>
           </LinearGradient>
         </View>
 
@@ -303,6 +332,14 @@ export default function DriverHomeScreen({ navigation }) {
 
         <View style={{ height: 30 }} />
       </ScrollView>
+      <MoneyPop
+        visible={!!moneyAlert}
+        amount={parseAmountFromAlert(moneyAlert)}
+        title={moneyIsWithdrawal ? 'Withdrawal paid' : 'Trip complete — you earned'}
+        subtitle={moneyIsWithdrawal ? 'Paid out instantly. Your wallet is now R0.00.' : `Added to your wallet. Balance: R ${Number(wallet?.balance ?? 0).toFixed(2)}`}
+        ctaLabel={moneyIsWithdrawal ? 'Done' : 'Nice!'}
+        onDismiss={() => moneyAlert && markAlertRead?.(moneyAlert.id)}
+      />
     </View>
   );
 }

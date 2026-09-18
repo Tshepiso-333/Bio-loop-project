@@ -19,6 +19,7 @@ import {
   updateTankGrade,
 } from '../services/restaurantService';
 import { requestWithdrawal } from '../services/payoutService';
+import { markAlertRead } from '../services/notificationService';
 
 const RestaurantContext = createContext(null);
 
@@ -264,6 +265,20 @@ export const RestaurantProvider = ({ children }) => {
     };
   }, [user?.id, restaurantId, loadRestaurantData]);
 
+  // Optimistic: flip locally first so banners/pops dismiss instantly, then
+  // persist. Realtime on `alerts` re-syncs if the write fails.
+  const handleMarkAlertRead = useCallback(async (alertId) => {
+    setState((prev) => ({
+      ...prev,
+      alerts: (prev.alerts ?? []).map((a) => (a.id === alertId ? { ...a, is_read: true } : a)),
+    }));
+    try {
+      await markAlertRead(alertId, true);
+    } catch (err) {
+      console.warn('markAlertRead failed:', err?.message ?? err);
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       ...state,
@@ -278,6 +293,7 @@ export const RestaurantProvider = ({ children }) => {
       updateTankFillPercent: handleUpdateTankFillPercent,
       cancelPickup: handleCancelPickup,
       requestWithdrawal: handleRequestWithdrawal,
+      markAlertRead: handleMarkAlertRead,
     }),
     [
       state,
@@ -292,6 +308,7 @@ export const RestaurantProvider = ({ children }) => {
       handleUpdateTankFillPercent,
       handleCancelPickup,
       handleRequestWithdrawal,
+      handleMarkAlertRead,
     ]
   );
 

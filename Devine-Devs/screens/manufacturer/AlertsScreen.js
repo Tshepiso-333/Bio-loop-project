@@ -148,9 +148,6 @@ const resolveAlertType = (rawAlert) => {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-// Demo alerts (ids like "demo-1") exist only in the client and have no
-// backend row, so we never hit the network for them.
-const isDemoAlert = (id) => typeof id === 'string' && id.startsWith('demo-');
 
 function formatRelative(iso) {
   const then = new Date(iso).getTime();
@@ -181,68 +178,10 @@ const AlertsScreen = ({ onBack }) => {
   } = useManufacturerContext();
   const insets = useSafeAreaInsets();
 
-  // ─── Demo data (replace with real backend data later) ────────────────────
-  const demoAlerts = useMemo(
-    () => [
-      {
-        id: 'demo-1',
-        type_key: 'quality_verification',
-        title: 'Quality verification required',
-        message: 'Batch #0042 · 150L has arrived and needs a quality check.',
-        created_at: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-        is_read: false,
-        meta: { batchId: '0042', volume: 150 },
-      },
-      {
-        id: 'demo-2',
-        type_key: 'batch_received',
-        title: 'New oil batch received',
-        message: 'Batch #0043 · 220L from Golden Dragon Restaurant is ready to process.',
-        created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-        is_read: false,
-        meta: { batchId: '0043', volume: 220 },
-      },
-      {
-        id: 'demo-3',
-        type_key: 'low_quality',
-        title: 'Low-quality oil detected',
-        message: 'Batch #0041 classified as Grade C. Additional processing may be required.',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        is_read: false,
-        meta: { batchId: '0041' },
-      },
-      {
-        id: 'demo-4',
-        type_key: 'delivery_scheduled',
-        title: 'New oil delivery scheduled',
-        message: 'Green Kitchen Restaurant · 150L. Estimated arrival 14:30.',
-        created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        is_read: true,
-        meta: { restaurant: 'Green Kitchen', volume: 150, eta: '14:30' },
-      },
-      {
-        id: 'demo-5',
-        type_key: 'inventory_low',
-        title: 'Inventory below preferred level',
-        message: 'Available waste oil has dropped to 850L. Minimum required: 1,000L.',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-        is_read: false,
-        meta: { current: 850, threshold: 1000 },
-      },
-      {
-        id: 'demo-6',
-        type_key: 'high_value_supply',
-        title: 'High-value batch available',
-        message: '300L of Grade A waste oil is ready. Estimated biodiesel output: 270L.',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-        is_read: true,
-        meta: { volume: 300, output: 270 },
-      },
-    ],
-    []
-  );
-
   // ─── Map context alerts → canonical shape ────────────────────────────────
+  // Alerts come from the `alerts` table only (written by DB triggers on
+  // dispatch, delivery, payment). No client-side sample data — an empty
+  // list renders the empty state below.
   const mapAlert = (a) => {
     const typeConfig = resolveAlertType(a);
     if (!typeConfig) return null;
@@ -258,16 +197,12 @@ const AlertsScreen = ({ onBack }) => {
     };
   };
 
-  const [alerts, setAlerts] = useState(() => {
-    const fromContext = (contextAlerts || []).map(mapAlert).filter(Boolean);
-    return fromContext.length > 0
-      ? fromContext
-      : demoAlerts.map(mapAlert).filter(Boolean);
-  });
+  const [alerts, setAlerts] = useState(() =>
+    (contextAlerts || []).map(mapAlert).filter(Boolean)
+  );
 
   useEffect(() => {
-    const fromContext = (contextAlerts || []).map(mapAlert).filter(Boolean);
-    if (fromContext.length > 0) setAlerts(fromContext);
+    setAlerts((contextAlerts || []).map(mapAlert).filter(Boolean));
   }, [contextAlerts]);
 
   // ─── Refresh / read / delete handlers (hardened) ─────────────────────────
@@ -287,8 +222,6 @@ const AlertsScreen = ({ onBack }) => {
     // Optimistic UI — flips the badge instantly regardless of backend.
     setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, read: true } : a)));
 
-    // Demo alerts never touch the backend.
-    if (isDemoAlert(id)) return;
 
     if (typeof updateAlertReadStatus !== 'function') {
       console.warn('updateAlertReadStatus not available in context');
@@ -306,8 +239,6 @@ const AlertsScreen = ({ onBack }) => {
     // Optimistic UI — removes the card instantly.
     setAlerts((prev) => prev.filter((a) => a.id !== id));
 
-    // Demo alerts never touch the backend.
-    if (isDemoAlert(id)) return;
 
     if (typeof deleteAlertFromContext !== 'function') {
       console.warn('deleteAlert not available in context');

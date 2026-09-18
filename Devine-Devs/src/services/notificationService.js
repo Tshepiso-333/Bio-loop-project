@@ -44,3 +44,19 @@ export async function notifyUser(userId, { title, message, category = 'info', ty
   if (error) throw error;
   return data;
 }
+
+/**
+ * Marks one of the current user's alerts read. RLS (alerts_access) limits
+ * this to the caller's own rows, so no ownership check is needed here.
+ */
+export async function markAlertRead(alertId, isRead = true) {
+  const { data, error } = await supabase
+    .from('alerts')
+    .update({ is_read: isRead })
+    .eq('id', alertId)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data;
+}

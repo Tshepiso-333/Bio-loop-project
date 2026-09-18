@@ -25,6 +25,7 @@ const TABLES = {
   platformSettings: 'platform_settings',
   paymentTransactions: 'payment_transactions',
   payoutSplits: 'payout_splits',
+  platformLedger: 'platform_ledger',
 };
 
 async function readList(key, query) {
@@ -69,6 +70,7 @@ export async function loadAdminBundle() {
       .select('*, manufacturers(name), pickups(restaurant_id, collector_id, restaurants(name), collectors(full_name))')
       .order('created_at', { ascending: false })),
     readList('payoutSplits', supabase.from(TABLES.payoutSplits).select('*').order('grade', { ascending: true })),
+    readList('platformLedger', supabase.from(TABLES.platformLedger).select('*')),
   ]);
 
   const bundle = reads.reduce((acc, result) => {
