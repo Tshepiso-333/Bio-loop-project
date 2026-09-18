@@ -9,6 +9,7 @@ import {
   declinePickup as saveDeclinePickup,
 } from '../services/collectorService';
 import { requestWithdrawal } from '../services/payoutService';
+import { markAlertRead } from '../services/notificationService';
 
 const CollectorContext = createContext(null);
 
@@ -196,6 +197,20 @@ export const CollectorProvider = ({ children }) => {
     };
   }, [user?.id, collectorId, loadCollectorData]);
 
+  // Optimistic: flip locally first so banners/pops dismiss instantly, then
+  // persist. Realtime on `alerts` re-syncs if the write fails.
+  const handleMarkAlertRead = useCallback(async (alertId) => {
+    setState((prev) => ({
+      ...prev,
+      alerts: (prev.alerts ?? []).map((a) => (a.id === alertId ? { ...a, is_read: true } : a)),
+    }));
+    try {
+      await markAlertRead(alertId, true);
+    } catch (err) {
+      console.warn('markAlertRead failed:', err?.message ?? err);
+    }
+  }, []);
+
   const value = useMemo(() => ({
     ...state,
     loading,
@@ -207,6 +222,7 @@ export const CollectorProvider = ({ children }) => {
     toggleDutyStatus: handleToggleDutyStatus,
     declinePickup: handleDeclinePickup,
     requestWithdrawal: handleRequestWithdrawal,
+    markAlertRead: handleMarkAlertRead,
   }), [
     state,
     loading,
@@ -218,6 +234,7 @@ export const CollectorProvider = ({ children }) => {
     handleToggleDutyStatus,
     handleDeclinePickup,
     handleRequestWithdrawal,
+    handleMarkAlertRead,
   ]);
 
   return (

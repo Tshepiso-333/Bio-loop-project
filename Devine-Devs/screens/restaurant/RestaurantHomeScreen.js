@@ -25,6 +25,7 @@ import {
   mapPickupAlert,
   mapTankCardData,
 } from '../../src/utils/restaurantViewModels';
+import MoneyPop, { parseAmountFromAlert } from '../../src/components/MoneyPop';
 
 // ─── ICON HELPER ──────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ export default function RestaurantHomeScreen() {
     refreshing,
     refreshRestaurant,
     restaurant,
+    markAlertRead,
   } = useRestaurant();
 
   const profileInitials = useMemo(
@@ -61,7 +63,22 @@ export default function RestaurantHomeScreen() {
   const profileImageUrl = restaurant?.profile_image_url ?? profile?.profile_image_url;
 
   const tankData = useMemo(() => mapTankCardData(tank), [tank]);
-  const pickupAlert = useMemo(() => mapPickupAlert(alerts, tank), [alerts, tank]);
+  // "You've been paid" moment: newest unread payout alert written by the DB
+  // (earnings_auto_payout). Dismiss = mark read, so it shows once.
+  const payoutAlert = useMemo(
+    () =>
+      (alerts || [])
+        .filter((a) => !a.is_read && /payout/i.test(`${a?.title ?? ''}`))
+        .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))[0] ?? null,
+    [alerts]
+  );
+  // Only unread, non-money alerts feed the pickup banner.
+  const bannerAlerts = useMemo(
+    () => (alerts || []).filter((a) => !a.is_read && !/payout|paid/i.test(`${a?.title ?? ''}`)),
+    [alerts]
+  );
+
+  const pickupAlert = useMemo(() => mapPickupAlert(bannerAlerts, tank), [bannerAlerts, tank]);
   const stats = useMemo(
     () => mapHomeStats({ qualityLogs, earnings, pickups }),
     [qualityLogs, earnings, pickups]
@@ -123,6 +140,14 @@ export default function RestaurantHomeScreen() {
         )}
         <View style={{ height: 30 }} />
       </RestaurantRefreshScrollView>
+      <MoneyPop
+        visible={!!payoutAlert}
+        amount={parseAmountFromAlert(payoutAlert)}
+        title="You have been paid"
+        subtitle="Your share of the last pickup was paid out instantly."
+        ctaLabel="Great"
+        onDismiss={() => payoutAlert && markAlertRead?.(payoutAlert.id)}
+      />
     </View>
   );
 }

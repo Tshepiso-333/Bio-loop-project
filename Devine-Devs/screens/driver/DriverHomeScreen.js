@@ -19,6 +19,7 @@ import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import { PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
+import MoneyPop, { parseAmountFromAlert } from '../../src/components/MoneyPop';
 
 // Theme colours (matching manufacturer)
 const THEME = {
@@ -90,7 +91,19 @@ export default function DriverHomeScreen({ navigation }) {
     earnings = [],
     toggleDutyStatus,
     requestWithdrawal,
+    alerts = [],
+    markAlertRead,
   } = useCollectorContext();
+  // Post-trip money moment: the newest unread wallet/withdrawal alert the
+  // DB wrote (earnings_auto_payout / request_driver_withdrawal) drives the
+  // pop. Dismissing marks it read, so it shows once per event.
+  const moneyAlert = useMemo(() => {
+    const isMoney = (a) => /wallet|withdrawal paid|payout/i.test(`${a?.title ?? ''}`);
+    return (alerts || []).filter((a) => !a.is_read && isMoney(a))
+      .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))[0] ?? null;
+  }, [alerts]);
+  const moneyIsWithdrawal = /withdrawal/i.test(moneyAlert?.title ?? '');
+
   const avatarImageUrl = collector?.profile_image_url ?? profile?.profile_image_url;
   const completedStops = (pickups || []).filter((pickup) => pickup.status === 'completed').length;
   const totalStops = (pickups || []).length;
@@ -132,7 +145,7 @@ export default function DriverHomeScreen({ navigation }) {
     setRequestingWithdrawal(true);
     try {
       await requestWithdrawal();
-      Alert.alert('Withdrawal paid', 'Your balance has been paid out instantly.');
+      // The DB writes a 'Withdrawal paid' alert; MoneyPop below shows it.
     } catch (err) {
       Alert.alert('Could not request withdrawal', err.message ?? 'Please try again.');
     } finally {
@@ -319,6 +332,14 @@ export default function DriverHomeScreen({ navigation }) {
 
         <View style={{ height: 30 }} />
       </ScrollView>
+      <MoneyPop
+        visible={!!moneyAlert}
+        amount={parseAmountFromAlert(moneyAlert)}
+        title={moneyIsWithdrawal ? 'Withdrawal paid' : 'Trip complete — you earned'}
+        subtitle={moneyIsWithdrawal ? 'Paid out instantly. Your wallet is now R0.00.' : `Added to your wallet. Balance: R ${Number(wallet?.balance ?? 0).toFixed(2)}`}
+        ctaLabel={moneyIsWithdrawal ? 'Done' : 'Nice!'}
+        onDismiss={() => moneyAlert && markAlertRead?.(moneyAlert.id)}
+      />
     </View>
   );
 }
