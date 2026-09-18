@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import RestaurantHomeScreen  from '../screens/restaurant/RestaurantHomeScreen';
 import MonitoringScreen      from '../screens/restaurant/MonitoringScreen';
@@ -29,9 +30,12 @@ const THEME = {
 };
 
 // ─── BOTTOM TAB NAVIGATOR ─────────────────────────────────────────────────────
-// Holds the four main screens. All tab-switching happens here automatically.
+// Holds the three primary restaurant screens. Monitoring and Profile remain
+// available from the restaurant stack without occupying persistent tab space.
 
 function RestaurantTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -43,8 +47,8 @@ function RestaurantTabs() {
           borderTopColor: THEME.grayLight,
           borderTopWidth: 1,
           paddingTop: 8,
-          paddingBottom: 10,
-          height: 65,
+          paddingBottom: Math.max(10, insets.bottom),
+          height: 65 + insets.bottom,
         },
         tabBarLabelStyle: {
           fontFamily: 'Inter_500Medium',
@@ -60,15 +64,6 @@ function RestaurantTabs() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Monitoring"
-        component={MonitoringScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pulse-outline" size={size} color={color} />
           ),
         }}
       />
@@ -90,15 +85,6 @@ function RestaurantTabs() {
           ),
         }}
       />
-      <Tab.Screen
-        name="Profile"
-        component={RestaurantProfileScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
-      />
     </Tab.Navigator>
   );
 }
@@ -112,6 +98,17 @@ export default function RestaurantStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {/* Main tabs — always the entry point */}
       <Stack.Screen name="RestaurantTabs" component={RestaurantTabs} />
+
+      <Stack.Screen
+        name="Monitoring"
+        component={MonitoringScreen}
+        options={{ presentation: 'card' }}
+      />
+      <Stack.Screen
+        name="Profile"
+        component={RestaurantProfileScreen}
+        options={{ presentation: 'card' }}
+      />
 
       {/* Screens that slide in over the tabs */}
       <Stack.Screen

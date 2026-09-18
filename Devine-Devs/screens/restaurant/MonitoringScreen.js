@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
@@ -18,63 +18,123 @@ import {
   RestaurantRefreshScrollView,
 } from '../../src/components/RestaurantScreenStates';
 import {
+  formatRelativeTime,
   getInitials,
-  mapDeviceStats,
-  mapMonitoringTankInfo,
-  mapOilTrendData,
-  mapPredictiveAlert,
-  mapQualityLogRows,
 } from '../../src/utils/restaurantViewModels';
 
-// ─── ICON HELPER ──────────────────────────────────────────────────────────────
+const OPEN_PICKUP_STATUSES = [
+  'pending', 'assigned', 'scheduled', 'in_transit', 'arrival', 'in_progress',
+  'collected', 'arrived_manufacturer',
+];
 
-function Icon({ library = 'Ionicons', name, size, color }) {
-  if (library === 'MaterialCommunityIcons') {
-    return <MaterialCommunityIcons name={name} size={size} color={color} />;
-  }
-  return <Ionicons name={name} size={size} color={color} />;
+function getFiniteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
-// The mapper returns legacy emerald for some stat values; remap to theme
-// display-side so the view model stays untouched.
-const remapStatColor = (color) =>
-  color === '#10b981' ? REST_COLORS.primary : color;
+function mapTankSummary(tank) {
+  if (!tank) return null;
+  const capacity = getFiniteNumber(tank.fill_percent);
+  const distance = getFiniteNumber(tank.last_distance_cm);
+  const lastUpdated = tank.last_updated ? new Date(tank.last_updated) : null;
+  const hasValidUpdate = lastUpdated && !Number.isNaN(lastUpdated.getTime());
+  const ageHours = hasValidUpdate ? (Date.now() - lastUpdated.getTime()) / 3600000 : null;
+  const relativeUpdate = hasValidUpdate ? formatRelativeTime(tank.last_updated) : null;
 
-// ─── MAIN SCREEN ──────────────────────────────────────────────────────────────
+  return {
+    name: tank.name ?? 'Tank monitoring',
+    capacity,
+    distance,
+    isActive: tank.is_active === true,
+    connectionLabel: tank.is_active === true ? 'Tank connected' : 'Tank not marked active',
+    freshnessTitle: relativeUpdate ? `Updated ${relativeUpdate}` : 'Update time unavailable',
+    freshnessDetail: ageHours !== null && ageHours >= 24
+      ? 'This sensor reading may be out of date and is not real-time.'
+      : relativeUpdate
+        ? 'Latest recorded sensor update.'
+        : 'Sensor freshness cannot be confirmed.',
+    isStale: ageHours === null || ageHours >= 24,
+  };
+}
+
+function mapOilHistory(tankReadings = []) {
+  return [...tankReadings]
+    .map((reading, index) => {
+      const value = getFiniteNumber(reading.fill_percent);
+      const date = new Date(reading.recorded_at);
+      if (value === null || value < 0 || Number.isNaN(date.getTime())) return null;
+      return {
+        id: String(reading.id ?? reading.recorded_at ?? index),
+        timestamp: date.getTime(),
+        day: date.toLocaleDateString('en-ZA', { weekday: 'short' }).toUpperCase(),
+        value,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 7)
+    .reverse();
+}
+
+function mapDeviceDetails(tank, pickups = []) {
+  const fahrenheit = getFiniteNumber(tank?.temperature_f);
+  const lastCompletedPickup = pickups.find((pickup) => pickup.status === 'completed');
+  const pickupDateValue = lastCompletedPickup?.completed_at ?? lastCompletedPickup?.pickup_date;
+  const pickupDate = pickupDateValue ? new Date(pickupDateValue) : null;
+  const pickupDateIsValid = pickupDate && !Number.isNaN(pickupDate.getTime());
+  const sediment = tank?.sediment_level;
+
+  return [
+    {
+      label: 'Temperature',
+      value: fahrenheit === null ? 'Unavailable' : `${Math.round((fahrenheit - 32) * 5 / 9)}°C`,
+      icon: 'thermometer-outline',
+    },
+    {
+      label: 'Connection',
+      value: tank?.connectivity ? String(tank.connectivity) : 'Unavailable',
+      icon: 'wifi-outline',
+    },
+    {
+      label: 'Last collection',
+      value: pickupDateIsValid ? formatRelativeTime(pickupDateValue) : 'Unavailable',
+      icon: 'time-outline',
+    },
+    {
+      label: 'Sediment',
+      value: sediment === null || sediment === undefined || sediment === '' ? 'Unavailable' : String(sediment),
+      icon: 'beaker-outline',
+    },
+  ];
+}
 
 export default function MonitoringScreen() {
+  const navigation = useNavigation();
   const { profile } = useProfile();
-  const {
-    tank,
-    tankReadings,
-    qualityLogs,
-    pickups,
-    alerts,
-    loading,
-    refreshing,
-    refreshRestaurant,
-  } = useRestaurant();
+  const { tank, tankReadings, pickups, loading, refreshing, refreshRestaurant } = useRestaurant();
 
-  const profileInitials = useMemo(
-    () => getInitials(profile?.full_name, 'RS'),
-    [profile?.full_name]
-  );
-  const tankInfo = useMemo(() => mapMonitoringTankInfo(tank), [tank]);
-  const oilTrendData = useMemo(() => mapOilTrendData(tankReadings), [tankReadings]);
-  const predictiveAlert = useMemo(
-    () => mapPredictiveAlert(tank, alerts),
-    [tank, alerts]
-  );
-  const qualityLogRows = useMemo(() => mapQualityLogRows(qualityLogs), [qualityLogs]);
-  const deviceStats = useMemo(
-    () => mapDeviceStats(tank, pickups),
-    [tank, pickups]
+  const profileInitials = useMemo(() => getInitials(profile?.full_name, 'RS'), [profile?.full_name]);
+  const tankSummary = useMemo(() => mapTankSummary(tank), [tank]);
+  const oilHistory = useMemo(() => mapOilHistory(tankReadings), [tankReadings]);
+  const deviceDetails = useMemo(() => mapDeviceDetails(tank, pickups), [tank, pickups]);
+  const hasOpenPickup = useMemo(
+    () => pickups.some((pickup) => OPEN_PICKUP_STATUSES.includes(pickup.status)),
+    [pickups]
   );
 
   return (
     <View style={styles.root}>
-      <RestaurantHeader title="Monitoring" avatarInitials={profileInitials} />
-
+      <RestaurantHeader
+        title="Monitoring"
+        avatarInitials={profileInitials}
+        onAvatarPress={() => navigation.navigate('Profile')}
+        showBack
+        onBack={() => {
+          if (navigation.canGoBack()) navigation.goBack();
+          else navigation.navigate('RestaurantTabs', { screen: 'Home' });
+        }}
+      />
       <RestaurantRefreshScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -82,91 +142,101 @@ export default function MonitoringScreen() {
         onRefresh={refreshRestaurant}
       >
         {loading && !tank ? <RestaurantLoadingBanner /> : null}
+        {tankSummary ? <TankSummaryCard summary={tankSummary} /> : !loading ? (
+          <RestaurantEmptyBanner message="No oil tank is connected to this restaurant yet." />
+        ) : null}
 
-        <TankHeader info={tankInfo} />
-        <CapacityDisplay percent={tankInfo.currentCapacity} />
-        {oilTrendData.length > 0 ? (
-          <OilTrendChart data={oilTrendData} />
-        ) : (
-          <RestaurantEmptyBanner message="No tank trend readings yet." />
+        <SectionLabel>Tank history</SectionLabel>
+        {oilHistory.length > 0 ? <OilTrendChart data={oilHistory} /> : (
+          <RestaurantEmptyBanner message="No valid tank history readings yet." />
         )}
-        {predictiveAlert.visible ? <PredictiveAlert alert={predictiveAlert} /> : null}
-        {qualityLogRows.length > 0 ? (
-          <QualityLogs logs={qualityLogRows} />
-        ) : (
-          <RestaurantEmptyBanner message="No quality logs yet." />
-        )}
-        <DeviceStatsGrid stats={deviceStats} />
+
+        <PickupActionCard
+          hasOpenPickup={hasOpenPickup}
+          onPress={() => {
+            if (hasOpenPickup) navigation.navigate('RestaurantTabs', { screen: 'Pickups' });
+            else navigation.navigate('SchedulePickup');
+          }}
+        />
+
+        <SectionLabel>Device information</SectionLabel>
+        <DeviceDetailsGrid details={deviceDetails} />
         <View style={{ height: 30 }} />
       </RestaurantRefreshScrollView>
     </View>
   );
 }
 
-// ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
+function SectionLabel({ children }) {
+  return <Text style={styles.sectionLabel}>{children}</Text>;
+}
 
-function TankHeader({ info }) {
+function TankSummaryCard({ summary }) {
   return (
-    <View style={styles.tankHeaderBlock}>
-      <Text style={styles.tankName}>{info.name}</Text>
-      <View style={styles.tankBadgeRow}>
-        {info.isActive && (
-          <View style={styles.activeBadge}>
-            <View style={styles.activeDot} />
-            <Text style={styles.activeBadgeText}>Active (IoT)</Text>
-          </View>
-        )}
-        <View style={styles.lastPingRow}>
-          <Ionicons name="wifi-outline" size={12} color={REST_COLORS.muted} />
-          <Text style={styles.lastPingText}>Last ping: {info.lastPing}</Text>
+    <View style={styles.summaryCard}>
+      <View style={styles.tankNameRow}>
+        <View style={styles.tankNameText}>
+          <Text style={styles.tankEyebrow}>Oil tank</Text>
+          <Text style={styles.tankName}>{summary.name}</Text>
         </View>
+        <View style={[styles.connectionBadge, !summary.isActive && styles.connectionBadgeInactive]}>
+          <View style={[styles.connectionDot, !summary.isActive && styles.connectionDotInactive]} />
+          <Text style={[styles.connectionText, !summary.isActive && styles.connectionTextInactive]}>
+            {summary.connectionLabel}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={styles.capacityLabel}>Tank capacity</Text>
+      <Text style={styles.capacityValue}>
+        {summary.capacity === null ? 'Unavailable' : `${Math.round(summary.capacity)}%`}
+      </Text>
+
+      <View style={styles.sensorRow}>
+        <SensorDetail
+          icon="resize-outline"
+          label="Last sensor reading"
+          value={summary.distance === null ? 'Unavailable' : `${summary.distance} cm`}
+        />
+        <SensorDetail
+          icon={summary.isStale ? 'alert-circle-outline' : 'time-outline'}
+          label="Sensor freshness"
+          value={summary.freshnessTitle}
+          detail={summary.freshnessDetail}
+        />
       </View>
     </View>
   );
 }
 
-function CapacityDisplay({ percent }) {
+function SensorDetail({ icon, label, value, detail }) {
   return (
-    <View style={styles.capacityBlock}>
-      <Text style={styles.capacityLabel}>Current capacity</Text>
-      <View style={styles.capacityRow}>
-        <Text style={styles.capacityNumber}>{percent}</Text>
-        <Text style={styles.capacityUnit}>%</Text>
-      </View>
+    <View style={styles.sensorDetail}>
+      <Ionicons name={icon} size={17} color={REST_COLORS.primary} />
+      <Text style={styles.sensorLabel}>{label}</Text>
+      <Text style={styles.sensorValue}>{value}</Text>
+      {detail ? <Text style={styles.sensorNote}>{detail}</Text> : null}
     </View>
   );
 }
 
 function OilTrendChart({ data }) {
-  const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const BAR_MAX_HEIGHT = 90;
-
+  const maxValue = Math.max(...data.map((item) => item.value), 1);
   return (
     <View style={styles.card}>
-      <View style={styles.chartHeaderRow}>
-        <View style={styles.chartTitleRow}>
-          <Ionicons name="bar-chart-outline" size={16} color={REST_COLORS.ink} />
-          <Text style={styles.chartTitle}>Oil Level Trends</Text>
-        </View>
-        <Text style={styles.chartSubtitle}>Last 7 days</Text>
+      <View style={styles.cardHeaderRow}>
+        <Text style={styles.cardTitle}>Recorded tank levels</Text>
+        <Text style={styles.cardSubtitle}>Latest 7 readings</Text>
       </View>
-
       <View style={styles.chartArea}>
         {data.map((item, index) => {
-          const barHeight = (item.value / maxValue) * BAR_MAX_HEIGHT;
+          const height = Math.max(2, (item.value / maxValue) * 84);
           const isLatest = index === data.length - 1;
           return (
-            <View key={item.day} style={styles.barColumn}>
+            <View key={item.id} style={styles.barColumn}>
               <View style={{ flex: 1 }} />
-              <View
-                style={[
-                  styles.bar,
-                  {
-                    height: barHeight,
-                    backgroundColor: isLatest ? REST_COLORS.primary : REST_COLORS.accent,
-                  },
-                ]}
-              />
+              <Text style={styles.barValue}>{Math.round(item.value)}%</Text>
+              <View style={[styles.bar, { height, backgroundColor: isLatest ? REST_COLORS.primary : REST_COLORS.accent }]} />
               <Text style={styles.barLabel}>{item.day}</Text>
             </View>
           );
@@ -176,190 +246,81 @@ function OilTrendChart({ data }) {
   );
 }
 
-function PredictiveAlert({ alert }) {
-  const navigation = useNavigation();
+function PickupActionCard({ hasOpenPickup, onPress }) {
   return (
-    <View style={styles.alertCard}>
-      <View style={styles.alertTitleRow}>
-        <Ionicons name="warning-outline" size={14} color={REST_COLORS.alertText} />
-        <Text style={styles.alertTitle}> Predictive alert</Text>
+    <View style={styles.pickupActionCard}>
+      <View style={styles.pickupActionText}>
+        <Text style={styles.pickupActionTitle}>
+          {hasOpenPickup ? 'A collection is already recorded.' : 'Need to arrange a collection?'}
+        </Text>
+        <Text style={styles.pickupActionDetail}>
+          {hasOpenPickup ? 'Follow its latest status in Pickups.' : 'Choose a date using the existing pickup scheduler.'}
+        </Text>
       </View>
-      <Text style={styles.alertHours}>{alert.hoursUntilFull} Hours</Text>
-      <Text style={styles.alertMessage}>{alert.message}</Text>
-      <Pressable
-        style={({ pressed }) => [styles.scheduleButton, pressed && { opacity: 0.85 }]}
-        onPress={() => navigation.navigate('SchedulePickup')}
-      >
-        <Ionicons name="calendar-outline" size={15} color={REST_COLORS.white} />
-        <Text style={styles.scheduleButtonText}>Schedule Pickup</Text>
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.pickupActionButton, pressed && styles.pressed]}>
+        <Text style={styles.pickupActionButtonText}>{hasOpenPickup ? 'View pickup' : 'Schedule'}</Text>
       </Pressable>
     </View>
   );
 }
 
-function QualityLogs({ logs }) {
+function DeviceDetailsGrid({ details }) {
   return (
-    <View style={styles.card}>
-      <View style={styles.logsHeaderRow}>
-        <View style={styles.logsTitleRow}>
-          <Ionicons name="document-text-outline" size={16} color={REST_COLORS.ink} />
-          <Text style={styles.logsTitle}>Historical Quality Logs</Text>
-        </View>
-      </View>
-
-      <View style={styles.tableHeaderRow}>
-        <Text style={[styles.tableHeaderCell, styles.colTimestamp]}>Timestamp</Text>
-        <Text style={[styles.tableHeaderCell, styles.colAnalyzed]}>Analyzed{'\n'}by</Text>
-        <Text style={[styles.tableHeaderCell, styles.colOil]}>Oil{'\n'}level</Text>
-      </View>
-
-      {logs.map((log) => (
-        <View key={log.id} style={styles.tableRow}>
-          <Text style={[styles.tableCell, styles.colTimestamp]}>{log.timestamp}</Text>
-          <Text style={[styles.tableCell, styles.colAnalyzed]}>{log.analyzedBy}</Text>
-          <Text style={[styles.tableCell, styles.colOil]}>{log.oilLevel}</Text>
+    <View style={styles.detailsGrid}>
+      {details.map((detail, index) => (
+        <View key={detail.label} style={[styles.detailCell, index % 2 === 1 && styles.detailCellRight, index >= 2 && styles.detailCellBottom]}>
+          <Ionicons name={detail.icon} size={16} color={REST_COLORS.muted} />
+          <Text style={styles.detailCellLabel}>{detail.label}</Text>
+          <Text style={styles.detailCellValue}>{detail.value}</Text>
         </View>
       ))}
     </View>
   );
 }
 
-function DeviceStatsGrid({ stats }) {
-  const STAT_ICONS = [
-    { name: 'thermometer-outline', library: 'Ionicons' },
-    { name: 'wifi-outline',        library: 'Ionicons' },
-    { name: 'time-outline',        library: 'Ionicons' },
-    { name: 'beaker-outline',      library: 'Ionicons' },
-  ];
-
-  return (
-    <View style={styles.statsGrid}>
-      {stats.map((stat, index) => {
-        const isRightCol = index % 2 === 1;
-        const isBottomRow = index >= 2;
-        const iconConf = STAT_ICONS[index];
-        const valueColor = remapStatColor(stat.valueColor);
-        return (
-          <View
-            key={stat.label}
-            style={[
-              styles.statCell,
-              isRightCol && styles.statCellRight,
-              isBottomRow && styles.statCellBottom,
-            ]}
-          >
-            <Icon
-              library={iconConf.library}
-              name={iconConf.name}
-              size={16}
-              color={valueColor ?? REST_COLORS.muted}
-            />
-            <Text style={styles.statCellLabel}>{stat.label}</Text>
-            <Text
-              style={[
-                styles.statCellValue,
-                valueColor ? { color: valueColor } : null,
-              ]}
-            >
-              {stat.value}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-// ─── STYLES ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: REST_COLORS.page },
-
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: REST_SPACING.screenPadding, paddingTop: 8 },
-
-  tankHeaderBlock: { marginBottom: 12 },
-  tankName: { fontFamily: REST_FONTS.bold, fontSize: 20, color: REST_COLORS.ink, marginBottom: 6 },
-  tankBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  activeBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: REST_COLORS.paleGreen,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, gap: 5,
-  },
-  activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: REST_COLORS.primary },
-  activeBadgeText: { fontFamily: REST_FONTS.semiBold, fontSize: 11, color: REST_COLORS.primary },
-  lastPingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  lastPingText: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted },
-
-  capacityBlock: { marginBottom: 16 },
-  capacityLabel: {
-    fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.body, marginBottom: 2,
-  },
-  capacityRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  capacityNumber: { fontFamily: REST_FONTS.extraBold, fontSize: 72, color: REST_COLORS.primary, lineHeight: 80 },
-  capacityUnit: { fontFamily: REST_FONTS.extraBold, fontSize: 28, color: REST_COLORS.primary, marginBottom: 10, marginLeft: 4 },
-
-  card: {
-    backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card,
-    padding: 16, marginBottom: REST_SPACING.gap,
-    borderWidth: 1, borderColor: REST_COLORS.border,
-    ...REST_SHADOWS.card,
-  },
-
-  chartHeaderRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 12,
-  },
-  chartTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  chartTitle: { fontFamily: REST_FONTS.bold, fontSize: 14, color: REST_COLORS.ink },
-  chartSubtitle: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted },
-  chartArea: { flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 6 },
+  sectionLabel: { fontFamily: REST_FONTS.bold, fontSize: 14, color: REST_COLORS.ink, marginBottom: 8, marginTop: 4 },
+  summaryCard: { backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: REST_COLORS.border, ...REST_SHADOWS.card },
+  tankNameRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 22 },
+  tankNameText: { flex: 1 },
+  tankEyebrow: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted, marginBottom: 2 },
+  tankName: { fontFamily: REST_FONTS.bold, fontSize: 19, color: REST_COLORS.ink },
+  connectionBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: REST_COLORS.paleGreen, borderRadius: REST_RADII.pill, paddingHorizontal: 8, paddingVertical: 5 },
+  connectionBadgeInactive: { backgroundColor: REST_COLORS.page },
+  connectionDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: REST_COLORS.primary },
+  connectionDotInactive: { backgroundColor: REST_COLORS.muted },
+  connectionText: { fontFamily: REST_FONTS.semiBold, fontSize: 9, color: REST_COLORS.primary },
+  connectionTextInactive: { color: REST_COLORS.muted },
+  capacityLabel: { fontFamily: REST_FONTS.semiBold, fontSize: 12, color: REST_COLORS.body },
+  capacityValue: { fontFamily: REST_FONTS.extraBold, fontSize: 58, lineHeight: 68, color: REST_COLORS.primary, marginBottom: 18 },
+  sensorRow: { flexDirection: 'row', gap: 10 },
+  sensorDetail: { flex: 1, backgroundColor: REST_COLORS.page, borderRadius: REST_RADII.chip, padding: 12, minHeight: 112 },
+  sensorLabel: { fontFamily: REST_FONTS.medium, fontSize: 10, color: REST_COLORS.muted, marginTop: 7, marginBottom: 3 },
+  sensorValue: { fontFamily: REST_FONTS.bold, fontSize: 14, lineHeight: 19, color: REST_COLORS.ink },
+  sensorNote: { fontFamily: REST_FONTS.medium, fontSize: 9, lineHeight: 13, color: REST_COLORS.muted, marginTop: 4 },
+  card: { backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card, padding: 16, marginBottom: REST_SPACING.gap, borderWidth: 1, borderColor: REST_COLORS.border, ...REST_SHADOWS.card },
+  cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  cardTitle: { fontFamily: REST_FONTS.bold, fontSize: 14, color: REST_COLORS.ink },
+  cardSubtitle: { fontFamily: REST_FONTS.medium, fontSize: 10, color: REST_COLORS.muted },
+  chartArea: { flexDirection: 'row', alignItems: 'flex-end', height: 132, gap: 6 },
   barColumn: { flex: 1, height: '100%', alignItems: 'center' },
+  barValue: { fontFamily: REST_FONTS.medium, fontSize: 8, color: REST_COLORS.muted, marginBottom: 3 },
   bar: { width: '100%', borderRadius: 4, marginBottom: 4 },
-  barLabel: { fontFamily: REST_FONTS.medium, fontSize: 9, color: REST_COLORS.muted },
-
-  alertCard: {
-    backgroundColor: REST_COLORS.alertBg, borderRadius: REST_RADII.card,
-    borderWidth: 1, borderColor: REST_COLORS.alertBorder,
-    padding: 16, marginBottom: REST_SPACING.gap,
-  },
-  alertTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  alertTitle: { fontFamily: REST_FONTS.bold, fontSize: 13, color: REST_COLORS.alertText },
-  alertHours: { fontFamily: REST_FONTS.extraBold, fontSize: 42, color: REST_COLORS.alertText, lineHeight: 48, marginBottom: 6 },
-  alertMessage: { fontFamily: REST_FONTS.medium, fontSize: 13, color: REST_COLORS.ink, lineHeight: 19, marginBottom: 14 },
-  scheduleButton: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
-    backgroundColor: REST_COLORS.negative, paddingVertical: 13, borderRadius: REST_RADII.pill,
-  },
-  scheduleButtonText: { fontFamily: REST_FONTS.bold, color: REST_COLORS.white, fontSize: 13 },
-
-  logsHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  logsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  logsTitle: { fontFamily: REST_FONTS.bold, fontSize: 14, color: REST_COLORS.ink },
-  tableHeaderRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1, borderBottomColor: REST_COLORS.border,
-    paddingBottom: 6, marginBottom: 2,
-  },
-  tableHeaderCell: { fontFamily: REST_FONTS.semiBold, fontSize: 11, color: REST_COLORS.muted },
-  tableRow: { flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: REST_COLORS.divider, alignItems: 'flex-start' },
-  tableCell: { fontFamily: REST_FONTS.medium, fontSize: 12, color: REST_COLORS.ink, lineHeight: 17 },
-  colTimestamp: { flex: 2.2 },
-  colAnalyzed:  { flex: 2 },
-  colOil:       { flex: 1, textAlign: 'right' },
-
-  statsGrid: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    backgroundColor: REST_COLORS.card,
-    borderRadius: REST_RADII.card, borderWidth: 1, borderColor: REST_COLORS.border,
-    marginBottom: REST_SPACING.gap, overflow: 'hidden',
-  },
-  statCell: { width: '50%', padding: 16, borderBottomWidth: 1, borderBottomColor: REST_COLORS.border },
-  statCellRight: { borderLeftWidth: 1, borderLeftColor: REST_COLORS.border },
-  statCellBottom: { borderBottomWidth: 0 },
-  statCellLabel: {
-    fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.muted,
-    marginTop: 6, marginBottom: 2,
-  },
-  statCellValue: { fontFamily: REST_FONTS.bold, fontSize: 18, color: REST_COLORS.ink },
+  barLabel: { fontFamily: REST_FONTS.medium, fontSize: 8, color: REST_COLORS.muted },
+  pickupActionCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: REST_COLORS.paleGreen, borderRadius: REST_RADII.card, padding: 14, marginBottom: 20 },
+  pickupActionText: { flex: 1 },
+  pickupActionTitle: { fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.ink },
+  pickupActionDetail: { fontFamily: REST_FONTS.medium, fontSize: 10, lineHeight: 15, color: REST_COLORS.body, marginTop: 2 },
+  pickupActionButton: { backgroundColor: REST_COLORS.primary, borderRadius: REST_RADII.pill, paddingHorizontal: 13, paddingVertical: 8 },
+  pickupActionButtonText: { fontFamily: REST_FONTS.bold, fontSize: 11, color: REST_COLORS.white },
+  detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card, borderWidth: 1, borderColor: REST_COLORS.border, marginBottom: REST_SPACING.gap, overflow: 'hidden' },
+  detailCell: { width: '50%', padding: 16, borderBottomWidth: 1, borderBottomColor: REST_COLORS.border },
+  detailCellRight: { borderLeftWidth: 1, borderLeftColor: REST_COLORS.border },
+  detailCellBottom: { borderBottomWidth: 0 },
+  detailCellLabel: { fontFamily: REST_FONTS.medium, fontSize: 10, color: REST_COLORS.muted, marginTop: 6, marginBottom: 3 },
+  detailCellValue: { fontFamily: REST_FONTS.bold, fontSize: 15, color: REST_COLORS.ink },
+  pressed: { opacity: 0.85 },
 });
