@@ -6,7 +6,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "android:dev": "expo start --dev-client",
-    "ios": "expo start --ios"
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
