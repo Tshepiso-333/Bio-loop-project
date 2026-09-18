@@ -18,7 +18,6 @@ import {
   RestaurantRefreshScrollView,
 } from '../../src/components/RestaurantScreenStates';
 import {
-  formatDateTimeMultiline,
   formatRelativeTime,
   getInitials,
 } from '../../src/utils/restaurantViewModels';
@@ -78,29 +77,6 @@ function mapOilHistory(tankReadings = []) {
     .reverse();
 }
 
-function mapForecast(tank) {
-  const days = getFiniteNumber(tank?.estimated_days_until_full);
-  const hasPrediction = days !== null && days > 0;
-  return {
-    value: hasPrediction ? `${days} day${days === 1 ? '' : 's'}` : 'Prediction unavailable',
-    detail: hasPrediction
-      ? 'Based on the forecast currently recorded for this tank.'
-      : 'There is not enough recorded data for a trustworthy forecast.',
-  };
-}
-
-function mapQualityRows(qualityLogs = []) {
-  return qualityLogs.slice(0, 6).map((log) => {
-    const impurity = getFiniteNumber(log.impurity_pct);
-    return {
-      id: String(log.id),
-      timestamp: formatDateTimeMultiline(log.created_at),
-      analyzedBy: log.analyzed_by ?? 'Not analyzed',
-      impurity: impurity === null ? 'Unavailable' : `${impurity}%`,
-    };
-  });
-}
-
 function mapDeviceDetails(tank, pickups = []) {
   const fahrenheit = getFiniteNumber(tank?.temperature_f);
   const lastCompletedPickup = pickups.find((pickup) => pickup.status === 'completed');
@@ -136,13 +112,11 @@ function mapDeviceDetails(tank, pickups = []) {
 export default function MonitoringScreen() {
   const navigation = useNavigation();
   const { profile } = useProfile();
-  const { tank, tankReadings, qualityLogs, pickups, loading, refreshing, refreshRestaurant } = useRestaurant();
+  const { tank, tankReadings, pickups, loading, refreshing, refreshRestaurant } = useRestaurant();
 
   const profileInitials = useMemo(() => getInitials(profile?.full_name, 'RS'), [profile?.full_name]);
   const tankSummary = useMemo(() => mapTankSummary(tank), [tank]);
   const oilHistory = useMemo(() => mapOilHistory(tankReadings), [tankReadings]);
-  const forecast = useMemo(() => mapForecast(tank), [tank]);
-  const qualityRows = useMemo(() => mapQualityRows(qualityLogs), [qualityLogs]);
   const deviceDetails = useMemo(() => mapDeviceDetails(tank, pickups), [tank, pickups]);
   const hasOpenPickup = useMemo(
     () => pickups.some((pickup) => OPEN_PICKUP_STATUSES.includes(pickup.status)),
@@ -177,7 +151,6 @@ export default function MonitoringScreen() {
           <RestaurantEmptyBanner message="No valid tank history readings yet." />
         )}
 
-        <ForecastCard forecast={forecast} />
         <PickupActionCard
           hasOpenPickup={hasOpenPickup}
           onPress={() => {
@@ -185,11 +158,6 @@ export default function MonitoringScreen() {
             else navigation.navigate('SchedulePickup');
           }}
         />
-
-        <SectionLabel>Quality history</SectionLabel>
-        {qualityRows.length > 0 ? <QualityLogs logs={qualityRows} /> : (
-          <RestaurantEmptyBanner message="No quality logs yet." />
-        )}
 
         <SectionLabel>Device information</SectionLabel>
         <DeviceDetailsGrid details={deviceDetails} />
@@ -278,19 +246,6 @@ function OilTrendChart({ data }) {
   );
 }
 
-function ForecastCard({ forecast }) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.forecastTitleRow}>
-        <Ionicons name="analytics-outline" size={18} color={REST_COLORS.primary} />
-        <Text style={styles.cardTitle}>Tank forecast</Text>
-      </View>
-      <Text style={styles.forecastValue}>{forecast.value}</Text>
-      <Text style={styles.forecastDetail}>{forecast.detail}</Text>
-    </View>
-  );
-}
-
 function PickupActionCard({ hasOpenPickup, onPress }) {
   return (
     <View style={styles.pickupActionCard}>
@@ -305,25 +260,6 @@ function PickupActionCard({ hasOpenPickup, onPress }) {
       <Pressable onPress={onPress} style={({ pressed }) => [styles.pickupActionButton, pressed && styles.pressed]}>
         <Text style={styles.pickupActionButtonText}>{hasOpenPickup ? 'View pickup' : 'Schedule'}</Text>
       </Pressable>
-    </View>
-  );
-}
-
-function QualityLogs({ logs }) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.tableHeaderRow}>
-        <Text style={[styles.tableHeaderCell, styles.colTimestamp]}>Recorded</Text>
-        <Text style={[styles.tableHeaderCell, styles.colAnalyzed]}>Analyzed by</Text>
-        <Text style={[styles.tableHeaderCell, styles.colImpurity]}>Impurity</Text>
-      </View>
-      {logs.map((log) => (
-        <View key={log.id} style={styles.tableRow}>
-          <Text style={[styles.tableCell, styles.colTimestamp]}>{log.timestamp}</Text>
-          <Text style={[styles.tableCell, styles.colAnalyzed]}>{log.analyzedBy}</Text>
-          <Text style={[styles.tableCell, styles.colImpurity]}>{log.impurity}</Text>
-        </View>
-      ))}
     </View>
   );
 }
@@ -374,22 +310,12 @@ const styles = StyleSheet.create({
   barValue: { fontFamily: REST_FONTS.medium, fontSize: 8, color: REST_COLORS.muted, marginBottom: 3 },
   bar: { width: '100%', borderRadius: 4, marginBottom: 4 },
   barLabel: { fontFamily: REST_FONTS.medium, fontSize: 8, color: REST_COLORS.muted },
-  forecastTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
-  forecastValue: { fontFamily: REST_FONTS.extraBold, fontSize: 25, color: REST_COLORS.ink, marginBottom: 4 },
-  forecastDetail: { fontFamily: REST_FONTS.medium, fontSize: 12, lineHeight: 18, color: REST_COLORS.body },
   pickupActionCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: REST_COLORS.paleGreen, borderRadius: REST_RADII.card, padding: 14, marginBottom: 20 },
   pickupActionText: { flex: 1 },
   pickupActionTitle: { fontFamily: REST_FONTS.semiBold, fontSize: 13, color: REST_COLORS.ink },
   pickupActionDetail: { fontFamily: REST_FONTS.medium, fontSize: 10, lineHeight: 15, color: REST_COLORS.body, marginTop: 2 },
   pickupActionButton: { backgroundColor: REST_COLORS.primary, borderRadius: REST_RADII.pill, paddingHorizontal: 13, paddingVertical: 8 },
   pickupActionButtonText: { fontFamily: REST_FONTS.bold, fontSize: 11, color: REST_COLORS.white },
-  tableHeaderRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: REST_COLORS.border, paddingBottom: 7 },
-  tableHeaderCell: { fontFamily: REST_FONTS.semiBold, fontSize: 10, color: REST_COLORS.muted },
-  tableRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: REST_COLORS.divider },
-  tableCell: { fontFamily: REST_FONTS.medium, fontSize: 11, lineHeight: 16, color: REST_COLORS.ink },
-  colTimestamp: { flex: 2.1 },
-  colAnalyzed: { flex: 1.8 },
-  colImpurity: { flex: 1.2, textAlign: 'right' },
   detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', backgroundColor: REST_COLORS.card, borderRadius: REST_RADII.card, borderWidth: 1, borderColor: REST_COLORS.border, marginBottom: REST_SPACING.gap, overflow: 'hidden' },
   detailCell: { width: '50%', padding: 16, borderBottomWidth: 1, borderBottomColor: REST_COLORS.border },
   detailCellRight: { borderLeftWidth: 1, borderLeftColor: REST_COLORS.border },

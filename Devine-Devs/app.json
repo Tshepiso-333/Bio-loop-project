@@ -45,8 +45,7 @@
         {
           "photosPermission": "Allow Devine-Devs to access your photos to upload a profile picture."
         }
-      ],
-      "expo-status-bar"
+      ]
     ],
 
     "extra": {
