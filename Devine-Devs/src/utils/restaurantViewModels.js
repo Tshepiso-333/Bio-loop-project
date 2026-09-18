@@ -430,11 +430,11 @@ export const mapWithdrawalHistory = (withdrawals = []) =>
 
 export const mapScheduleStatus = ({ tank, qualityLogs = [] }) => {
   const fillPercent = toNumber(tank?.fill_percent, 0);
-  const grade = qualityLogs[0]?.grade ?? 'A';
+  const grade = qualityLogs[0]?.grade ?? tank?.quality_grade ?? null;
 
   return {
     title: 'Scheduled Pickup',
-    subtitle: `Tank at ${fillPercent}% • ${formatGradeLabel(grade)} oil detected`,
+    subtitle: grade ? `Tank at ${fillPercent}% • ${formatGradeLabel(grade)} oil detected` : `Tank at ${fillPercent}% • grade not set yet`,
   };
 };
 

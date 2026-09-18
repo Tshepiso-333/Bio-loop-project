@@ -45,10 +45,27 @@ export default function RestaurantProfileScreen() {
     ]);
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate('RestaurantTabs', { screen: 'Home' });
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={REST_COLORS.page} />
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={[styles.backBtn, { top: insets.top + 16 }]}
+          onPress={handleBack}
+        >
+          <Ionicons name="chevron-back" size={20} color={REST_COLORS.ink} />
+        </TouchableOpacity>
         <ProfileAvatar name={displayName} imageUrl={imageUrl} size={84} />
         <Text style={styles.name}>{displayName}</Text>
         {restaurant?.owner_name ? (
@@ -109,6 +126,18 @@ const styles = StyleSheet.create({
     backgroundColor: REST_COLORS.page,
     borderBottomWidth: 1,
     borderBottomColor: REST_COLORS.border,
+  },
+  backBtn: {
+    position: 'absolute',
+    left: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: REST_COLORS.card,
+    borderWidth: 1,
+    borderColor: REST_COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   name: {
     marginTop: 12,
