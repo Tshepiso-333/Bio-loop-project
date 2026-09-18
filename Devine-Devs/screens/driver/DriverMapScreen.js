@@ -7,16 +7,21 @@ import {
   StatusBar,
   ActivityIndicator,
   TouchableOpacity,
-  Linking,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+// MapLibre v11 (Google-free). Map tiles: OpenFreeMap (no key). Route line:
+// the optimize-route Edge Function (openrouteservice, key server-side).
+import { Map as MapLibreMap, Camera, GeoJSONSource, Layer, Marker } from '@maplibre/maplibre-react-native';
+import { supabase } from '../../supabase';
 import * as Location from 'expo-location';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import { updateCollectorLocation } from '../../src/services/collectorService';
 import { ACTIVE_TRIP_STATUSES, legForStatus } from '../../src/lib/pickupStatus';
+
+// Free OpenStreetMap-based tiles, no API key (see docs/DEV_BUILD.md).
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
 // One driver-facing checkpoint action per pickup_status — advancing to the
 // next status is what fires the restaurant/manufacturer/admin notification
@@ -46,7 +51,11 @@ const THEME = {
 };
 
 export default function DriverMapScreen({ route }) {
-  const mapRef = useRef(null);
+  const cameraRef = useRef(null);
+  const [routeGeoJson, setRouteGeoJson] = useState(null);
+  const [routeSummary, setRouteSummary] = useState(null);
+  const [routing, setRouting] = useState(false);
+  const routeShowingRef = useRef(false);
   const { pickups = [], collector, updatePickupStatus } = useCollectorContext();
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -81,6 +90,13 @@ export default function DriverMapScreen({ route }) {
     destinationCoords && Number.isFinite(destinationCoords.latitude) && Number.isFinite(destinationCoords.longitude);
   const tripAction = activePickup ? TRIP_ACTIONS[activePickup.status] : null;
 
+  // A new leg means a new destination — drop the old route line.
+  useEffect(() => {
+    setRouteGeoJson(null);
+    setRouteSummary(null);
+    routeShowingRef.current = false;
+  }, [leg, activePickup?.id]);
+
   const handleAdvanceStatus = async () => {
     if (!activePickup || !tripAction) return;
     setAdvancing(true);
@@ -93,26 +109,47 @@ export default function DriverMapScreen({ route }) {
     }
   };
 
+  // Navigate = draw the road route on our own map (driver -> current leg's
+  // destination) via the optimize-route Edge Function. Nothing leaves the
+  // app and no Google. Distance/time come back from the same call.
   const handleNavigate = async () => {
-    let url = null;
-    if (hasDestinationCoords) {
-      url = `https://www.google.com/maps/dir/?api=1&destination=${destinationCoords.latitude},${destinationCoords.longitude}&travelmode=driving`;
-    } else if (destination?.address) {
-      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination.address)}`;
-    }
-
-    if (!url) {
+    if (!hasDestinationCoords) {
       Alert.alert(
         'No location on file',
         `${leg === 'manufacturer' ? 'This manufacturer' : 'This restaurant'} doesn't have a location set yet — ask admin to add one.`
       );
       return;
     }
+    if (!location) return;
 
+    setRouting(true);
     try {
-      await Linking.openURL(url);
+      // ORS wants [longitude, latitude]
+      const coordinates = [
+        [location.longitude, location.latitude],
+        [destinationCoords.longitude, destinationCoords.latitude],
+      ];
+      const { data, error } = await supabase.functions.invoke('optimize-route', {
+        body: { coordinates, profile: 'driving-car' },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Route could not be calculated.');
+
+      setRouteGeoJson(data.route);
+      setRouteSummary(data.summary ?? null);
+      routeShowingRef.current = true;
+
+      const bbox = data.route?.bbox;
+      if (bbox && cameraRef.current) {
+        cameraRef.current.fitBounds(
+          [[bbox[0], bbox[1]], [bbox[2], bbox[3]]],
+          { padding: { top: 120, bottom: 260, left: 40, right: 40 }, duration: 800 }
+        );
+      }
     } catch (err) {
-      Alert.alert('Could not open navigation', err.message ?? 'Please try again.');
+      Alert.alert('Could not get a route', err.message ?? 'Please try again.');
+    } finally {
+      setRouting(false);
     }
   };
 
@@ -200,17 +237,14 @@ export default function DriverMapScreen({ route }) {
           setSpeed(coords.speed > 0 ? coords.speed * 3.6 : 0);
           persistLocation(coords);
 
-          // Keep map centered on the driver as they move
-          if (mapRef.current) {
-            mapRef.current.animateToRegion(
-              {
-                latitude: coords.latitude,
-                longitude: coords.longitude,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-              },
-              500
-            );
+          // Keep map centered on the driver as they move (unless a route is
+          // showing — then the fitted route view is more useful than chasing)
+          if (cameraRef.current && !routeShowingRef.current) {
+            cameraRef.current.easeTo({
+              center: [coords.longitude, coords.latitude],
+              zoom: 15,
+              duration: 500,
+            });
           }
         }
       );
@@ -259,32 +293,28 @@ export default function DriverMapScreen({ route }) {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={THEME.white} />
 
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        provider={PROVIDER_GOOGLE}
-        initialRegion={{
-          latitude: location.latitude,
-          longitude: location.longitude,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
-        }}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        showsCompass={true}
-        showsScale={true}
-        showsTraffic={false}
-      >
+      <MapLibreMap style={styles.map} mapStyle={MAP_STYLE} logo={false} attributionPosition={{ bottom: 8, left: 8 }}>
+        <Camera
+          ref={cameraRef}
+          initialViewState={{ center: [location.longitude, location.latitude], zoom: 15 }}
+        />
+
+        {/* Road route for the current leg (after Navigate) */}
+        {routeGeoJson ? (
+          <GeoJSONSource id="trip-route" data={routeGeoJson}>
+            <Layer id="trip-route-casing" type="line" paint={{ 'line-color': '#FFFFFF', 'line-width': 8, 'line-opacity': 0.9 }} />
+            <Layer
+              id="trip-route-line"
+              type="line"
+              paint={{ 'line-color': THEME.primary, 'line-width': 5 }}
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+            />
+          </GeoJSONSource>
+        ) : null}
+
         {/* Driver marker — moves with GPS */}
         {location && (
-          <Marker
-            coordinate={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }}
-            title="Your location"
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
+          <Marker lngLat={[location.longitude, location.latitude]} anchor="center">
             <View style={styles.markerWrap}>
               <View style={styles.markerPulse} />
               <View style={styles.markerOuter}>
@@ -295,31 +325,31 @@ export default function DriverMapScreen({ route }) {
         )}
 
         {pickupMarkers.map((pickup) => (
-          <Marker
-            key={pickup.id}
-            coordinate={{
-              latitude: pickup.latitude,
-              longitude: pickup.longitude,
-            }}
-            title={pickup.title}
-            description={pickup.description}
-            pinColor={THEME.primaryDark}
-          />
+          <Marker key={pickup.id} lngLat={[pickup.longitude, pickup.latitude]} anchor="bottom">
+            <View style={styles.stopMarkerWrap}>
+              <Ionicons name="location" size={26} color={THEME.primaryDark} />
+            </View>
+          </Marker>
         ))}
 
         {/* Current-leg destination — restaurant until oil is collected, then manufacturer */}
         {hasDestinationCoords && (
-          <Marker
-            coordinate={destinationCoords}
-            title={destination?.name ?? (leg === 'manufacturer' ? 'Manufacturer' : 'Restaurant')}
-            description={destination?.address ?? ''}
-          >
+          <Marker lngLat={[destinationCoords.longitude, destinationCoords.latitude]} anchor="center">
             <View style={styles.destinationMarkerWrap}>
               <Ionicons name={leg === 'manufacturer' ? 'business' : 'storefront'} size={16} color={THEME.white} />
             </View>
           </Marker>
         )}
-      </MapView>
+      </MapLibreMap>
+
+      {routeSummary ? (
+        <View style={styles.routeBadge}>
+          <Ionicons name="navigate" size={14} color={THEME.white} />
+          <Text style={styles.routeBadgeText}>
+            {(Number(routeSummary.distance ?? 0) / 1000).toFixed(1)} km · {Math.round(Number(routeSummary.duration ?? 0) / 60)} min
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.pickupBadge}>
         <Text style={styles.pickupBadgeValue}>{pickupMarkers.length}</Text>
@@ -354,9 +384,9 @@ export default function DriverMapScreen({ route }) {
           </Text>
 
           <View style={styles.tripActionsRow}>
-            <TouchableOpacity style={styles.navigateBtn} onPress={handleNavigate} activeOpacity={0.75}>
-              <Ionicons name="navigate" size={16} color={THEME.primaryDark} />
-              <Text style={styles.navigateBtnText}>Navigate</Text>
+            <TouchableOpacity style={styles.navigateBtn} onPress={handleNavigate} activeOpacity={0.75} disabled={routing}>
+              {routing ? <ActivityIndicator size="small" color={THEME.primaryDark} /> : <Ionicons name="navigate" size={16} color={THEME.primaryDark} />}
+              <Text style={styles.navigateBtnText}>{routing ? "Routing…" : routeGeoJson ? "Re-route" : "Navigate"}</Text>
             </TouchableOpacity>
 
             {tripAction && (
@@ -506,6 +536,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: THEME.white,
   },
+  stopMarkerWrap: { alignItems: 'center', justifyContent: 'center' },
+  routeBadge: {
+    position: 'absolute', top: 60, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: THEME.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+  },
+  routeBadgeText: { color: THEME.white, fontWeight: '700', fontSize: 13 },
   destinationMarkerWrap: {
     width: 32,
     height: 32,
