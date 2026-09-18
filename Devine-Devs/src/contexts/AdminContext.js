@@ -41,6 +41,7 @@ const EMPTY_STATE = {
   platformSettings: [],
   paymentTransactions: [],
   payoutSplits: [],
+  platformLedger: [],
   tableOverview: [],
   errors: [],
 };

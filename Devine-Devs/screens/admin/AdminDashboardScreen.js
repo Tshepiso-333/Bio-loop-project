@@ -503,46 +503,55 @@ export default function AdminDashboardScreen({ navigation }) {
         </View>
       </View>
 
-      <Text style={styles.sectionMiniTitle}>Manufacturer payments</Text>
-      {(admin.paymentTransactions ?? []).map((txn) => (
-        <View key={txn.id} style={styles.card}>
+      <Text style={styles.sectionMiniTitle}>Statement</Text>
+      {(admin.platformLedger ?? []).map((line) => (
+        <View key={line.pickup_id} style={styles.card}>
           <View style={styles.cardTop}>
             <View style={styles.avatar}>
-              <Ionicons name="card-outline" size={18} color={COLORS.primary} />
+              <Ionicons name="receipt-outline" size={18} color={COLORS.primary} />
             </View>
             <View style={styles.cardMain}>
-              <Text style={styles.cardTitle}>{currency(txn.amount)} · {txn.manufacturers?.name ?? 'Unknown manufacturer'}</Text>
+              <Text style={styles.cardTitle}>Received {currency(line.received)} · {line.manufacturer_name ?? 'Manufacturer'}</Text>
               <Text style={styles.cardSub}>
-                {txn.pickups?.restaurants?.name ?? 'Unknown restaurant'} · Driver: {txn.pickups?.collectors?.full_name ?? '—'}
+                {line.restaurant_name ?? 'Restaurant'} · {line.driver_name ?? 'No driver'} · Grade {line.quality_grade ?? '—'} · {Number(line.liters ?? 0)} L
               </Text>
-              <Text style={styles.cardMeta}>{formatDateTime(txn.created_at)}</Text>
+              <Text style={styles.cardMeta}>{formatDateTime(line.occurred_at)}{line.source === 'no_gateway' ? ' · completed without PayFast' : ''}</Text>
             </View>
-            <View style={[styles.badge, { backgroundColor: `${getStatusColor(txn.status)}22` }]}>
-              <Text style={[styles.badgeText, { color: getStatusColor(txn.status) }]}>{txn.status}</Text>
+          </View>
+          <View style={styles.ledgerRow}>
+            <View style={styles.ledgerCell}>
+              <Text style={styles.ledgerLabel}>Restaurant</Text>
+              <Text style={styles.ledgerOut}>− {currency(line.to_restaurant)}</Text>
+            </View>
+            <View style={styles.ledgerCell}>
+              <Text style={styles.ledgerLabel}>Driver{line.driver_unwithdrawn ? ' (in wallet)' : ''}</Text>
+              <Text style={styles.ledgerOut}>− {currency(line.to_driver)}</Text>
+            </View>
+            <View style={styles.ledgerCell}>
+              <Text style={styles.ledgerLabel}>Kept</Text>
+              <Text style={styles.ledgerKept}>{currency(line.platform_kept)}</Text>
+            </View>
+            <View style={styles.ledgerCell}>
+              <Text style={styles.ledgerLabel}>Balance</Text>
+              <Text style={styles.ledgerBalance}>{currency(line.platform_running_balance)}</Text>
             </View>
           </View>
         </View>
       ))}
-      {(admin.paymentTransactions ?? []).length === 0 ? <EmptyState label="No manufacturer payments yet." /> : null}
+      {(admin.platformLedger ?? []).length === 0 ? <EmptyState label="No payments received yet. Lines appear the moment a manufacturer pays." /> : null}
 
-      <Text style={styles.sectionMiniTitle}>Payouts</Text>
-      {admin.withdrawals.map((withdrawal) => {
-        const isCollector = !!withdrawal.collector_id;
-        const owner = isCollector
-          ? admin.collectors.find((c) => c.id === withdrawal.collector_id)
-          : admin.restaurants.find((r) => r.id === withdrawal.restaurant_id);
-        const ownerName = owner?.full_name ?? owner?.name ?? (isCollector ? 'Unknown driver' : 'Unknown restaurant');
-
+      <Text style={styles.sectionMiniTitle}>Driver withdrawals</Text>
+      {admin.withdrawals.filter((w) => w.collector_id).map((withdrawal) => {
+        const owner = admin.collectors.find((c) => c.id === withdrawal.collector_id);
         return (
           <View key={withdrawal.id} style={styles.card}>
             <View style={styles.cardTop}>
               <View style={styles.avatar}>
-                <Ionicons name={isCollector ? 'car-outline' : 'restaurant-outline'} size={18} color={COLORS.primary} />
+                <Ionicons name="car-outline" size={18} color={COLORS.primary} />
               </View>
               <View style={styles.cardMain}>
-                <Text style={styles.cardTitle}>{currency(withdrawal.amount)} · {ownerName}</Text>
-                <Text style={styles.cardSub}>{isCollector ? 'Driver payout' : 'Restaurant payout'} · {withdrawal.method ?? 'manual'}</Text>
-                <Text style={styles.cardMeta}>{formatDateTime(withdrawal.created_at)}</Text>
+                <Text style={styles.cardTitle}>{currency(withdrawal.amount)} · {owner?.full_name ?? 'Unknown driver'}</Text>
+                <Text style={styles.cardMeta}>{formatDateTime(withdrawal.created_at)} · paid instantly</Text>
               </View>
               <View style={[styles.badge, { backgroundColor: `${getStatusColor(withdrawal.status)}22` }]}>
                 <Text style={[styles.badgeText, { color: getStatusColor(withdrawal.status) }]}>{withdrawal.status === 'approved' ? 'paid' : withdrawal.status}</Text>
@@ -551,7 +560,7 @@ export default function AdminDashboardScreen({ navigation }) {
           </View>
         );
       })}
-      {admin.withdrawals.length === 0 ? <EmptyState label="No payouts yet." /> : null}
+      {admin.withdrawals.filter((w) => w.collector_id).length === 0 ? <EmptyState label="No driver withdrawals yet." /> : null}
     </View>
   );
 
@@ -1325,4 +1334,11 @@ const styles = StyleSheet.create({
   splitSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: COLORS.border },
   splitSummaryGrade: { fontFamily: ADMIN_FONTS.extraBold, fontSize: 14, color: COLORS.ink, width: 60 },
   splitSummaryText: { fontFamily: ADMIN_FONTS.medium, fontSize: 12, color: COLORS.body },
+
+  ledgerRow: { flexDirection: 'row', marginTop: 12, backgroundColor: COLORS.surfaceSoft, borderRadius: 12, padding: 10, gap: 6 },
+  ledgerCell: { flex: 1 },
+  ledgerLabel: { fontFamily: ADMIN_FONTS.semiBold, fontSize: 10, color: COLORS.muted, textTransform: 'uppercase' },
+  ledgerOut: { fontFamily: ADMIN_FONTS.bold, fontSize: 12, color: COLORS.negative, marginTop: 2 },
+  ledgerKept: { fontFamily: ADMIN_FONTS.bold, fontSize: 12, color: COLORS.positive, marginTop: 2 },
+  ledgerBalance: { fontFamily: ADMIN_FONTS.extraBold, fontSize: 12, color: COLORS.ink, marginTop: 2 },
 });
