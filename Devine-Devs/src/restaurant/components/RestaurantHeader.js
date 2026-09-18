@@ -99,7 +99,9 @@ export default function RestaurantHeader({
               onAvatarPress={onAvatarPress}
             />
           ) : null}
-          {showBack ? <View style={styles.backSpacer} /> : null}
+          {showBack && !(avatarInitials || avatarUrl) ? (
+            <View style={styles.backSpacer} />
+          ) : null}
         </View>
       </View>
     </View>
