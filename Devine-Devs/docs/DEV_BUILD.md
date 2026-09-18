@@ -47,3 +47,18 @@ npx expo start --dev-client
   lives only in the Supabase secret `ORS_API_KEY`, never in the app.
 - A minimal working reference (map + route line) lives outside the repo at
   `Desktop/thobile-test/map-route-test/App.js` for diffing against `DriverMapScreen.js`.
+
+## Low-RAM machines (8 GB): trim the native build
+
+`android/` is generated and gitignored, so after `npx expo prebuild` (or the first
+`npx expo run:android`) edit `android/gradle.properties`:
+
+```
+org.gradle.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=512m
+reactNativeArchitectures=x86_64,arm64-v8a
+```
+
+Two ABIs (emulator + real phones) instead of four halves the MapLibre/Reanimated
+native compile and keeps it from being killed for memory. If a build was
+interrupted and Reanimated complains `build.ninja still dirty`, delete
+`node_modules/react-native-reanimated/android/.cxx` and rebuild.
