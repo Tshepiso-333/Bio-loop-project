@@ -76,7 +76,9 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
         Accept: "application/json, application/geo+json",
       },
-      body: JSON.stringify({ coordinates }),
+      // radiuses: let ORS snap each point to the nearest road within 2 km —
+      // restaurant/manufacturer pins are typed-in addresses, not GPS fixes.
+      body: JSON.stringify({ coordinates, radiuses: coordinates.map(() => 2000) }),
     });
 
     const orsBody = await orsResponse.json().catch(() => null);

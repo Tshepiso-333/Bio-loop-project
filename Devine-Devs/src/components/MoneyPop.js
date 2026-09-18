@@ -28,7 +28,9 @@ const C = {
 // Pull "R508.75" / "R 1 221" / "508.75" out of an alert message.
 export function parseAmountFromAlert(alert) {
   const text = `${alert?.title ?? ''} ${alert?.message ?? ''}`;
-  const match = text.match(/R\s?([\d\s,]+(?:\.\d{1,2})?)/i) ?? text.match(/(\d[\d\s,]*(?:\.\d{1,2})?)/);
+  // Capital R directly followed by a digit (optional space): "R88.55", "R 1 221".
+  // Case-sensitive on purpose — the "r " in "your wallet" must not match.
+  const match = text.match(/R\s?(\d[\d\s,]*(?:\.\d{1,2})?)/) ?? text.match(/(\d[\d\s,]*(?:\.\d{1,2})?)/);
   if (!match) return null;
   const n = Number(String(match[1]).replace(/[\s,]/g, ''));
   return Number.isFinite(n) ? n : null;
