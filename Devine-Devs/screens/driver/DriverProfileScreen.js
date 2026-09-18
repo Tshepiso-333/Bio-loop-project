@@ -111,7 +111,7 @@ export default function DriverProfileScreen() {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="water-outline" size={20} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{(stats?.litersTotal ?? stats?.total_liters ?? 0).toLocaleString()}</Text>
+              <Text style={styles.statValue}>{Number(stats?.total_liters ?? collector?.total_liters ?? 0).toLocaleString()}</Text>
               <Text style={styles.statLabel}>Litres Total</Text>
             </View>
             <View style={styles.statDivider} />
@@ -119,7 +119,7 @@ export default function DriverProfileScreen() {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="cube-outline" size={20} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{stats?.total_collections ?? stats?.collections ?? 0}</Text>
+              <Text style={styles.statValue}>{stats?.total_collections ?? collector?.total_collections ?? 0}</Text>
               <Text style={styles.statLabel}>Collections</Text>
             </View>
             <View style={styles.statDivider} />
@@ -127,7 +127,7 @@ export default function DriverProfileScreen() {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="leaf-outline" size={20} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{(stats?.co2Saved || stats?.co2_saved_kg || 0)}t</Text>
+              <Text style={styles.statValue}>{Math.round(Number(collector?.co2_saved_kg ?? 0))} kg</Text>
               <Text style={styles.statLabel}>CO₂ Saved</Text>
             </View>
           </LinearGradient>

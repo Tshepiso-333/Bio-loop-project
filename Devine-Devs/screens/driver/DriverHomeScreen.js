@@ -1,5 +1,5 @@
 // Devine-Devs/screens/driver/DriverHomeScreen.js
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -94,7 +94,23 @@ export default function DriverHomeScreen({ navigation }) {
   const avatarImageUrl = collector?.profile_image_url ?? profile?.profile_image_url;
   const completedStops = (pickups || []).filter((pickup) => pickup.status === 'completed').length;
   const totalStops = (pickups || []).length;
-  const totalLiters = stats?.total_liters ?? collector?.total_liters ?? 0;
+  // "Weekly Total" = litres from trips completed in the last 7 days, and the
+  // change vs the 7 days before that — computed from real pickup rows, not a
+  // stored figure. All-time totals live on the Profile screen.
+  const weekly = useMemo(() => {
+    const now = Date.now();
+    const week = 7 * 24 * 60 * 60 * 1000;
+    const litresOf = (p) => Number(p.actual_volume_liters ?? p.estimated_volume_liters ?? 0);
+    const completedAt = (p) => new Date(p.completed_at ?? p.updated_at ?? p.pickup_date ?? 0).getTime();
+    const done = (pickups || []).filter((p) => p.status === 'completed');
+    const thisWeek = done.filter((p) => now - completedAt(p) < week);
+    const lastWeek = done.filter((p) => { const age = now - completedAt(p); return age >= week && age < 2 * week; });
+    const thisL = thisWeek.reduce((s, p) => s + litresOf(p), 0);
+    const lastL = lastWeek.reduce((s, p) => s + litresOf(p), 0);
+    const change = lastL > 0 ? Math.round(((thisL - lastL) / lastL) * 100) : thisL > 0 ? 100 : 0;
+    return { liters: thisL, stops: thisWeek.length, change };
+  }, [pickups]);
+  const totalLiters = weekly.liters;
   const [togglingDuty, setTogglingDuty] = useState(false);
   const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
   const unpaidEarnings = earnings
@@ -263,10 +279,10 @@ export default function DriverHomeScreen({ navigation }) {
               </View>
               <View>
                 <Text style={styles.weeklyTitle}>Weekly Total</Text>
-                <Text style={styles.weeklySub}>{totalLiters}L · {totalStops} stops</Text>
+                <Text style={styles.weeklySub}>{totalLiters}L · {weekly.stops} {weekly.stops === 1 ? 'trip' : 'trips'}</Text>
               </View>
             </View>
-            <Text style={styles.weeklyChange}>+{stats?.weeklyChange ?? '—'}%</Text>
+            <Text style={styles.weeklyChange}>{weekly.change >= 0 ? '+' : ''}{weekly.change}%</Text>
           </LinearGradient>
         </View>
 
