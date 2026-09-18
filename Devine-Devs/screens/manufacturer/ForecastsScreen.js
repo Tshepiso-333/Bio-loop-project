@@ -59,7 +59,7 @@ const SH = {
 // (biodiesel_conversion_pct etc., migration 048); these are only the fallback ──
 
 const ASSUMPTIONS = {
-  oilPrice: 3.5,         // R / L paid to restaurant
+  oilPrice: 0,           // no longer used — real price comes from pickups.price_per_liter
   conversion: 90,        // % oil → biodiesel
   biodieselPrice: 20,    // R / L selling price
   processingCost: 4.44,  // R / L processing
@@ -94,6 +94,9 @@ const FinanceScreen = ({ navigation, onBack }) => {
   const insets = useSafeAreaInsets();
 
   // ── Aggregate oil purchased from pickups ──
+  // Only completed (paid) pickups count as "purchased". amount_paid /
+  // price_per_liter are stamped on the pickup by the DB when the PayFast
+  // payment completes (migration 048) — no invented per-litre price here.
   const oilData = useMemo(() => {
     const byGrade = {
       A: { litres: 0, avgPrice: 0, totalPaid: 0 },
@@ -104,15 +107,12 @@ const FinanceScreen = ({ navigation, onBack }) => {
     let totalPaid = 0;
 
     (pickups || []).forEach((p) => {
-      if (p.status !== 'completed' && p.status !== 'arrived_manufacturer') return;
-      const litres = p.actual_volume_liters ?? p.estimated_volume_liters ?? 0;
-      const grade = (p.quality_grade || 'A').toUpperCase();
+      if (p.status !== 'completed') return;
+      const litres = Number(p.actual_volume_liters ?? p.estimated_volume_liters ?? 0);
+      const grade = (p.quality_grade || '').toUpperCase();
       if (!byGrade[grade]) return;
 
-      const paid =
-        p.amount_paid ??
-        p.total_paid ??
-        litres * (p.price_per_liter ?? ASSUMPTIONS.oilPrice);
+      const paid = Number(p.amount_paid ?? 0);
 
       byGrade[grade].litres += litres;
       byGrade[grade].totalPaid += paid;
@@ -122,36 +122,10 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
     Object.keys(byGrade).forEach((g) => {
       byGrade[g].avgPrice =
-        byGrade[g].litres > 0
-          ? byGrade[g].totalPaid / byGrade[g].litres
-          : ASSUMPTIONS.oilPrice;
+        byGrade[g].litres > 0 ? byGrade[g].totalPaid / byGrade[g].litres : 0;
     });
 
-    // Demo fallback when there is no real data yet
-    if (totalLitres === 0) {
-      const demo = {
-        A: { litres: 2800, avgPrice: 3.8 },
-        B: { litres: 1700, avgPrice: 3.2 },
-        C: { litres: 500, avgPrice: 2.5 },
-      };
-      const demoTotals = {
-        A: demo.A.litres * demo.A.avgPrice,
-        B: demo.B.litres * demo.B.avgPrice,
-        C: demo.C.litres * demo.C.avgPrice,
-      };
-      return {
-        byGrade: {
-          A: { ...demo.A, totalPaid: demoTotals.A },
-          B: { ...demo.B, totalPaid: demoTotals.B },
-          C: { ...demo.C, totalPaid: demoTotals.C },
-        },
-        totalLitres: 5000,
-        totalPaid: demoTotals.A + demoTotals.B + demoTotals.C,
-        isDemo: true,
-      };
-    }
-
-    return { byGrade, totalLitres, totalPaid, isDemo: false };
+    return { byGrade, totalLitres, totalPaid, isEmpty: totalLitres === 0 };
   }, [pickups]);
 
   // ── Calculated economics (using fixed constants) ──
@@ -419,7 +393,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
                     {row.litres.toLocaleString()} L
                   </Text>
                   <Text style={styles.gradePrice}>
-                    {formatZARDecimal(row.avgPrice)}/L
+                    {row.litres > 0 ? `${formatZARDecimal(row.avgPrice)}/L` : '—'}
                   </Text>
                 </View>
               );
@@ -438,10 +412,9 @@ const FinanceScreen = ({ navigation, onBack }) => {
               </Text>
             </View>
 
-            {oilData.isDemo && (
+            {oilData.isEmpty && (
               <Text style={styles.demoHint}>
-                Showing sample data — real figures populate once pickups are
-                confirmed.
+                No oil purchased yet — figures appear once a pickup is delivered and paid.
               </Text>
             )}
           </View>
