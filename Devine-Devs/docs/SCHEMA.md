@@ -483,3 +483,4 @@ Added 054. Admin's bank statement: one line per completed pickup — `received` 
 | `collectors.total_collections`, `total_liters`, `co2_saved_kg` (litres × 2.5) | `refresh_collector_stats()` on pickup status/collector/volume change | 053 |
 | `activity_logs` | pickup + earnings triggers | 051 |
 | `collectors.is_on_duty` → false after 30 min without GPS | `sweep_stale_drivers()` via pg_cron every 5 min | 055 |
+| `quality_logs` | tank grade change (`analyzed_by = 'restaurant'`) and pickup completion (`'pickup'`) triggers; the old "Sensor AI v2.4" seed row was removed | 056 |
