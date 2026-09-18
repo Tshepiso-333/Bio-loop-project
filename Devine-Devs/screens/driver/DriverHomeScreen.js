@@ -106,7 +106,7 @@ export default function DriverHomeScreen({ navigation }) {
 
   const avatarImageUrl = collector?.profile_image_url ?? profile?.profile_image_url;
   const completedStops = (pickups || []).filter((pickup) => pickup.status === 'completed').length;
-  const totalStops = (pickups || []).length;
+  const totalStops = (pickups || []).filter((pickup) => pickup.status !== 'cancelled').length;
   // "Weekly Total" = litres from trips completed in the last 7 days, and the
   // change vs the 7 days before that — computed from real pickup rows, not a
   // stored figure. All-time totals live on the Profile screen.
@@ -153,7 +153,9 @@ export default function DriverHomeScreen({ navigation }) {
     }
   };
 
-  const todayPickups = (pickups || []).slice(0, 3).map(p => ({
+  // Today's list = trips still to do (cancelled/completed live in Collections' history)
+  const openPickups = (pickups || []).filter((p) => p.status !== 'cancelled' && p.status !== 'completed');
+  const todayPickups = openPickups.slice(0, 3).map(p => ({
     id: p.id,
     name: p.restaurants?.name ?? 'Unknown',
     address: p.restaurants?.address ?? '',
@@ -302,7 +304,7 @@ export default function DriverHomeScreen({ navigation }) {
         {/* Section Header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Today's Pickups</Text>
-          <Text style={styles.sectionCount}>{(pickups || []).length} scheduled</Text>
+          <Text style={styles.sectionCount}>{openPickups.length} to do</Text>
         </View>
 
         {/* Pickup Cards */}
