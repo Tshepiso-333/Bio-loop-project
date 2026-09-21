@@ -38,7 +38,7 @@ Candidates: on-duty, `status = 'active'` drivers (minus one being excluded, e.g.
 
 ## Knobs (all in SQL, one place each)
 
-- Stale threshold: `30 minutes` in `sweep_stale_drivers()`; cron `*/5 * * * *`.
+- Stale threshold: `2 hours` (061; was 30 min) in `sweep_stale_drivers()`; cron `*/5 * * * *`.
 - GPS freshness for distance: `2 hours` in the resolver.
 - Restaurant/driver coordinates: `restaurants.latitude/longitude`, `collectors.current_*` (written by the driver map every ~20 s).
 
