@@ -136,27 +136,18 @@ export async function toggleDutyStatus(collectorId, isOnDuty) {
   return data;
 }
 
+// Decline goes through a SECURITY DEFINER RPC (migration 060): Postgres also
+// checks the SELECT policy on the new row of an UPDATE, and a released
+// pickup is no longer visible to the driver who released it — so a plain
+// client-side update was rejected by RLS. The RPC verifies ownership,
+// releases the pickup, alerts admins, and the DB re-dispatches it.
 export async function declinePickup(pickupId, reason) {
-  const { data, error } = await supabase
-    .from(pickupsSchema.table)
-    .update({
-      collector_id: null,
-      status: 'pending',
-      decline_reason: reason ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', pickupId)
-    .select(assignedPickupSelect)
-    .single();
-
-  if (error) throw error;
-
-  await notifyAllAdmins({
-    title: 'Pickup declined',
-    message: `A driver declined a pickup at ${data.restaurants?.name ?? 'a restaurant'}. It's back on the Dispatch board.`,
-    category: 'delivery',
+  const { data, error } = await supabase.rpc('decline_pickup', {
+    p_pickup_id: pickupId,
+    p_reason: reason ?? null,
   });
 
+  if (error) throw error;
   return data;
 }
 
