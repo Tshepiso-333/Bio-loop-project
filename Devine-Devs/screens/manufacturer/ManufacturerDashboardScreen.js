@@ -22,7 +22,7 @@ import { getInitials } from '../../src/utils/restaurantViewModels';
 import QualityScreen from './QualityScreen';
 // NOTE: File is still ForecastsScreen.js but now exports the Finance screen.
 import FinanceScreen from './ForecastsScreen';
-import AIChatScreen from './AIChatScreen';
+import AIAssistantScreen from './AIAssistant/AIAssistantScreen';
 import SuppliersScreen from './SuppliersScreen';
 import AlertsScreen from './AlertsScreen';
 import ProfileScreen from './ProfileScreen';
@@ -638,20 +638,23 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
       case 'finance':
         return <FinanceScreen navigation={navigation} />;
       case 'ai-chat':
-        return <AIChatScreen navigation={navigation} />;
+        return <AIAssistantScreen navigation={navigation} />;
       case 'suppliers':
         return <SuppliersScreen navigation={navigation} />;
-case 'alerts':
-  return (
-    <AlertsScreen
-      navigation={navigation}
-      onBack={() => setSelectedTab('home')}
-    />
-  );
+      case 'alerts':
+        return (
+          <AlertsScreen
+            navigation={navigation}
+            onBack={() => setSelectedTab('home')}
+          />
+        );
       case 'profile':
-        return <ProfileScreen 
-        navigation={navigation}
-        onBack={() => setSelectedTab('home')} />;
+        return (
+          <ProfileScreen
+            navigation={navigation}
+            onBack={() => setSelectedTab('home')}
+          />
+        );
       default:
         return null;
     }
@@ -659,20 +662,29 @@ case 'alerts':
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
+  // AI Chat has its own FlatList(s) — it must NOT be wrapped in the outer
+  // ScrollView, or React Native warns about nesting VirtualizedLists inside
+  // plain ScrollViews with the same orientation.
+  const isAIChat = selectedTab === 'ai-chat';
+
   return (
     <View style={styles.root}>
       <MainHeader />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.content}>{renderContent()}</View>
-      </ScrollView>
+      {isAIChat ? (
+        <View style={styles.scroll}>{renderContent()}</View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={styles.content}>{renderContent()}</View>
+        </ScrollView>
+      )}
 
       <View
         style={[styles.bottomNav, { paddingBottom: Math.max(8, insets.bottom) }]}

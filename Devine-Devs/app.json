@@ -7,17 +7,14 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-
     "ios": {
       "supportsTablet": true
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -28,16 +25,13 @@
         "android.permission.RECORD_AUDIO"
       ],
       "package": "com.thobile1504.DevineDevs",
-
       "googleMaps": {
         "apiKey": "AIzaSyB6Sj_L0Eoz867X54mywdZSNA8okbtp6XY"
       }
     },
-
     "web": {
       "favicon": "./assets/favicon.png"
     },
-
     "plugins": [
       "expo-font",
       [
@@ -45,15 +39,14 @@
         {
           "photosPermission": "Allow Devine-Devs to access your photos to upload a profile picture."
         }
-      ]
+      ],
+      "expo-asset"
     ],
-
     "extra": {
       "eas": {
         "projectId": "e413c2a6-9dab-499e-89bd-3c95e7f53c05"
       }
     },
-
     "owner": "thobile1504"
   }
 }
