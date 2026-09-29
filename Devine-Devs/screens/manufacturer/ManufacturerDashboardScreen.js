@@ -9,8 +9,10 @@ import {
   RefreshControl,
   Image,
   StatusBar,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 import { useAuth } from '../../AuthContext';
@@ -20,32 +22,35 @@ import { getInitials } from '../../src/utils/restaurantViewModels';
 
 // Import all screens
 import QualityScreen from './QualityScreen';
-// NOTE: File is still ForecastsScreen.js but now exports the Finance screen.
 import FinanceScreen from './ForecastsScreen';
 import AIAssistantScreen from './AIAssistant/AIAssistantScreen';
 import SuppliersScreen from './SuppliersScreen';
 import AlertsScreen from './AlertsScreen';
 import ProfileScreen from './ProfileScreen';
 
-// ─── THEME (mirrors restaurantTheme structure for uniformity) ────────────────
+const { width: screenWidth } = Dimensions.get('window');
+
+// ─── THEME (matches AI Assistant + CropMate warmth) ──────────────────────────
 
 const MANU_THEME = {
   colors: {
     primary: '#15643E',
     primaryDark: '#0F4D30',
     primaryDarker: '#0B3A24',
+    primaryMid: '#2E8B5A',
+    primaryAccent: '#47C14B',
     primaryLight: '#E7F1EB',
     paleGreen: '#E7F1EB',
     selectedBg: '#F2F8F4',
 
-    page: '#F6F8F7',
+    page: '#f4faed',
     card: '#FFFFFF',
 
-    ink: '#122A1F',
-    body: '#6B7F75',
-    muted: '#A9B5AD',
-    border: '#E4EDE7',
-    divider: '#EEF3F0',
+    ink: '#2E2E2E',
+    body: '#6B6B6B',
+    muted: '#9B9B9B',
+    border: '#E8E8E8',
+    divider: '#F3F4F6',
 
     white: '#FFFFFF',
 
@@ -69,7 +74,7 @@ const MANU_THEME = {
     extraBold: 'System',
   },
   radii: { card: 16, pill: 999, chip: 10 },
-  spacing: { screenPadding: 16, cardPadding: 16, gap: 16 },
+  spacing: { screenPadding: 18, cardPadding: 16, gap: 16 },
   shadows: {
     card: {
       shadowColor: '#000',
@@ -142,14 +147,6 @@ const HomeIcon = ({ color = C.body, size = 24 }) => (
   </Svg>
 );
 
-const AIChatIcon = ({ size = 28 }) => (
-  <Image
-    source={require('../../assets/BioLoop_Logo.png')}
-    style={{ width: size, height: size, borderRadius: size / 2 }}
-    resizeMode="cover"
-  />
-);
-
 const SuppliersIcon = ({ color = C.body, size = 24 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Circle cx="8" cy="7" r="3" stroke={color} strokeWidth={1.6} />
@@ -178,6 +175,49 @@ const ChartIcon = ({ color = C.body, size = 24 }) => (
     <Line x1="21" y1="21" x2="21" y2="16" stroke={color} strokeWidth={1.6} />
     <Line x1="3" y1="21" x2="3" y2="16" stroke={color} strokeWidth={1.6} />
   </Svg>
+);
+
+// ─── AI CHAT TAB BUTTON ──────────────────────────────────────────────────────
+//
+// Reworked: the FAB sits centred in the tab, floating ABOVE the label with
+// enough clearance that it never overlaps the "AI Chat" text underneath.
+
+const AIChatTabButton = ({ active, onPress }) => (
+  <TouchableOpacity
+    style={styles.aiChatTabWrapper}
+    onPress={onPress}
+    activeOpacity={0.85}
+    accessibilityRole="button"
+    accessibilityLabel="Open AI Assistant"
+  >
+    <View style={styles.aiChatStack}>
+      {/* Soft halo behind the circle */}
+      <View
+        style={[
+          styles.aiChatHalo,
+          active && styles.aiChatHaloActive,
+        ]}
+      />
+
+      {/* The floating circle with the logo */}
+      <View
+        style={[
+          styles.aiChatCircle,
+          active && styles.aiChatCircleActive,
+        ]}
+      >
+        <Image
+          source={require('../../assets/BioLoop_Logo.png')}
+          style={styles.aiChatLogo}
+          resizeMode="cover"
+        />
+      </View>
+    </View>
+
+    <Text style={[styles.navLabel, active && styles.activeNavLabel, styles.aiChatLabel]}>
+      AI Chat
+    </Text>
+  </TouchableOpacity>
 );
 
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
@@ -298,7 +338,12 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
   const getQualityBgColor = (q) =>
     q === 'B' ? `${C.gradeB}20` : q === 'C' ? `${C.gradeC}20` : `${C.gradeA}20`;
 
-  // ─── HEADER (WHITE — clean, professional, easy to tap) ───────────────────
+  // ─── HEADER (CropMate-inspired) ──────────────────────────────────────────
+  //
+  // Matches the AI Assistant screen's header:
+  //   • Soft green gradient wash behind the header
+  //   • Brand row: logo tile + split-color "BioLoop" + tagline pill
+  //   • Right side: notification + profile icons in floating white circles
 
   const MainHeader = () => {
     if (selectedTab !== 'home') return null;
@@ -306,50 +351,70 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
     return (
       <>
-        <StatusBar barStyle="dark-content" backgroundColor={C.card} />
-        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-          <View style={styles.headerContent}>
-            {/* Left — logo + name */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logoCircle}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="transparent"
+          translucent
+        />
+
+        {/* Soft gradient wash across the top — same as AI Assistant */}
+        <LinearGradient
+          colors={['rgba(71, 193, 75, 0.22)', 'transparent']}
+          style={[styles.gradientOverlay, { height: insets.top + 120 }]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
+
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          {/* Left — brand row */}
+          <View style={styles.headerLeft}>
+            <View style={styles.brandRow}>
+              <View style={styles.logoIcon}>
                 <Image
                   source={require('../../assets/BioLoop_Logo.png')}
-                  style={styles.logoImage}
+                  style={styles.logo}
                   resizeMode="cover"
                 />
               </View>
-              <View>
-                <Text style={styles.appName}>BioLoop</Text>
-                <Text style={styles.companyName}>Manufacturer Portal</Text>
+
+              <View style={styles.appNameContainer}>
+                <Text style={styles.appName}>
+                  <Text style={styles.bioText}>Bio</Text>
+                  <Text style={styles.loopText}>Loop</Text>
+                </Text>
+                <View style={styles.tagline}>
+                  <Text style={styles.taglineText}>Manufacturer Portal</Text>
+                </View>
               </View>
             </View>
+          </View>
 
-            {/* Right — notifications + profile */}
-            <View style={styles.headerRight}>
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => setSelectedTab('alerts')}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="notifications-outline" size={22} color={C.ink} />
-                {unreadCount > 0 && (
-                  <View style={styles.notificationDot}>
-                    <Text style={styles.notificationBadgeText}>
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.profileCircle}
-                onPress={() => setSelectedTab('profile')}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.profileInitial}>{profileInitials}</Text>
-              </TouchableOpacity>
-            </View>
+          {/* Right — floating circular buttons */}
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={() => setSelectedTab('alerts')}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="notifications-outline" size={22} color={C.ink} />
+              {unreadCount > 0 && (
+                <View style={styles.notificationDot}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.profileCircle}
+              onPress={() => setSelectedTab('profile')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.profileInitial}>{profileInitials}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </>
@@ -452,7 +517,6 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
       case 'home':
         return (
           <>
-            {/* Unread alert banner */}
             {latestUnreadAlert && (
               <TouchableOpacity
                 style={styles.alertBanner}
@@ -480,7 +544,6 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
               </TouchableOpacity>
             )}
 
-            {/* Stat row */}
             <View style={styles.statRow}>
               <StatCard
                 iconName="water-outline"
@@ -496,7 +559,6 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
               />
             </View>
 
-            {/* 1. INCOMING DELIVERIES */}
             <View style={styles.section}>
               <SectionHeader
                 title="Incoming Deliveries"
@@ -584,7 +646,6 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
               </View>
             </View>
 
-            {/* 2. QUALITY DISTRIBUTION */}
             <View style={styles.section}>
               <SectionHeader
                 title="Quality Distribution"
@@ -624,7 +685,6 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            {/* 3. WEEKLY COLLECTION */}
             <View style={styles.section}>
               <SectionHeader title="Weekly Collection" action="Last 7 days" />
               <View style={styles.card}>
@@ -634,13 +694,28 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
           </>
         );
       case 'quality':
-        return <QualityScreen navigation={navigation} />;
+        return (
+          <QualityScreen
+            navigation={navigation}
+            onBack={() => setSelectedTab('home')}
+          />
+        );
       case 'finance':
-        return <FinanceScreen navigation={navigation} />;
+        return (
+          <FinanceScreen
+            navigation={navigation}
+            onBack={() => setSelectedTab('home')}
+          />
+        );
       case 'ai-chat':
         return <AIAssistantScreen navigation={navigation} />;
       case 'suppliers':
-        return <SuppliersScreen navigation={navigation} />;
+        return (
+          <SuppliersScreen
+            navigation={navigation}
+            onBack={() => setSelectedTab('home')}
+          />
+        );
       case 'alerts':
         return (
           <AlertsScreen
@@ -662,9 +737,6 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
-  // AI Chat has its own FlatList(s) — it must NOT be wrapped in the outer
-  // ScrollView, or React Native warns about nesting VirtualizedLists inside
-  // plain ScrollViews with the same orientation.
   const isAIChat = selectedTab === 'ai-chat';
 
   return (
@@ -701,13 +773,12 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
           onPress={() => setSelectedTab('quality')}
           renderIcon={(c) => <ChartIcon color={c} size={24} />}
         />
-        <NavItem
-          label="AI Chat"
-          center
+
+        <AIChatTabButton
           active={selectedTab === 'ai-chat'}
           onPress={() => setSelectedTab('ai-chat')}
-          renderIcon={() => <AIChatIcon size={28} />}
         />
+
         <NavItem
           label="Finance"
           active={selectedTab === 'finance'}
@@ -727,20 +798,11 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
 // ─── NAV ITEM ────────────────────────────────────────────────────────────────
 
-function NavItem({ label, active, onPress, renderIcon, center }) {
+function NavItem({ label, active, onPress, renderIcon }) {
   const color = active ? C.primary : C.body;
   return (
-    <TouchableOpacity
-      style={[styles.navItem, center && styles.navItemCenter]}
-      onPress={onPress}
-    >
-      <View
-        style={[
-          styles.navIconContainer,
-          active && styles.activeNavIcon,
-          center && styles.aiChatIconContainer,
-        ]}
-      >
+    <TouchableOpacity style={styles.navItem} onPress={onPress}>
+      <View style={[styles.navIconContainer, active && styles.activeNavIcon]}>
         {renderIcon(color)}
       </View>
       <Text style={[styles.navLabel, active && styles.activeNavLabel]}>{label}</Text>
@@ -756,55 +818,89 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 24 },
   content: { flex: 1 },
 
-  // ─── Header (WHITE) ──────────────────────────────────────────────────────
-  header: {
-    backgroundColor: C.card,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-    ...SH.header,
+  // ── Gradient wash ────────────────────────────────────────────────────────
+  gradientOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 0,
   },
-  headerContent: {
-    paddingHorizontal: S.screenPadding,
-    paddingVertical: 8,
+
+  // ── Header (CropMate-inspired) ───────────────────────────────────────────
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 52,
+    paddingHorizontal: S.screenPadding,
+    paddingBottom: 20,
+    zIndex: 1,
   },
-  logoContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  logoCircle: {
+  headerLeft: { flex: 1 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+
+  // Brand row
+  brandRow: { flexDirection: 'row', alignItems: 'center' },
+  logoIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: C.paleGreen,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginBottom: 4,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: C.border,
   },
-  logoImage: { width: 40, height: 40, borderRadius: 20 },
+  logo: { width: '100%', height: '100%' },
+
+  appNameContainer: { flexDirection: 'column', paddingLeft: 2 },
   appName: {
-    fontFamily: F.bold,
-    fontSize: 18,
-    color: C.ink,
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    lineHeight: 30,
+    textShadowColor: 'rgba(0,0,0,0.10)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  bioText: { color: C.ink, fontWeight: '800' },
+  loopText: { color: C.primaryAccent, fontWeight: '800' },
+
+  tagline: {
+    backgroundColor: 'rgba(71, 193, 75, 0.14)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  taglineText: {
+    fontSize: 9,
+    color: C.primaryMid,
     fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-  companyName: {
-    fontFamily: F.medium,
-    fontSize: 10,
-    color: C.body,
-    marginTop: 1,
-  },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconBtn: {
-    padding: 8,
-    position: 'relative',
-    minWidth: 40,
-    minHeight: 40,
+
+  // Right-side floating icons
+  headerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    position: 'relative',
   },
   notificationDot: {
     position: 'absolute',
@@ -821,24 +917,30 @@ const styles = StyleSheet.create({
     borderColor: C.white,
   },
   notificationBadgeText: { fontSize: 9, fontWeight: '700', color: C.white },
+
   profileCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: C.paleGreen,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: C.border,
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: C.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   profileInitial: {
     fontFamily: F.bold,
-    fontSize: 16,
-    color: C.ink,
+    fontSize: 15,
+    color: C.primary,
     fontWeight: '700',
   },
 
-  // Alert banner
+  // ── Alert banner ─────────────────────────────────────────────────────────
   alertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -874,7 +976,7 @@ const styles = StyleSheet.create({
   },
   alertBannerClose: { padding: 4 },
 
-  // Stat row
+  // ── Stat row ─────────────────────────────────────────────────────────────
   statRow: {
     flexDirection: 'row',
     gap: 10,
@@ -918,7 +1020,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Section
+  // ── Section ──────────────────────────────────────────────────────────────
   section: { paddingHorizontal: S.screenPadding, marginTop: S.gap + 4 },
   sectionHeader: {
     flexDirection: 'row',
@@ -939,7 +1041,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Generic card
+  // ── Card ─────────────────────────────────────────────────────────────────
   card: {
     backgroundColor: C.card,
     borderRadius: R.card,
@@ -949,7 +1051,7 @@ const styles = StyleSheet.create({
     ...SH.card,
   },
 
-  // Quality
+  // ── Quality ──────────────────────────────────────────────────────────────
   qualityStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -973,7 +1075,7 @@ const styles = StyleSheet.create({
   },
   qualityLabel: { fontFamily: F.medium, fontSize: 12, color: C.body },
 
-  // Pie
+  // ── Pie ──────────────────────────────────────────────────────────────────
   pieContainer: { alignItems: 'center', marginTop: 4 },
   pieWrapper: {
     width: 160,
@@ -1015,7 +1117,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Weekly chart
+  // ── Weekly chart ─────────────────────────────────────────────────────────
   areaChart: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1027,7 +1129,7 @@ const styles = StyleSheet.create({
   areaBar: { width: 32, borderTopLeftRadius: 8, borderTopRightRadius: 8 },
   areaBarLabel: { fontFamily: F.medium, fontSize: 12, color: C.body },
 
-  // Deliveries
+  // ── Deliveries ───────────────────────────────────────────────────────────
   deliveriesList: { gap: 12 },
   deliveryCard: {
     backgroundColor: C.card,
@@ -1092,19 +1194,19 @@ const styles = StyleSheet.create({
     color: C.white,
   },
 
-  // Bottom nav
+  // ── Bottom nav ───────────────────────────────────────────────────────────
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     backgroundColor: C.card,
-    paddingTop: 8,
+    paddingTop: 12,
     paddingHorizontal: 8,
     borderTopWidth: 1,
     borderTopColor: C.border,
+    minHeight: 70,
   },
-  navItem: { alignItems: 'center', gap: 2, flex: 1 },
-  navItemCenter: { alignItems: 'center', gap: 2, flex: 1, marginTop: -20 },
+  navItem: { alignItems: 'center', gap: 3, flex: 1 },
   navIconContainer: {
     width: 44,
     height: 44,
@@ -1112,14 +1214,72 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  aiChatIconContainer: {
-    backgroundColor: C.selectedBg,
-    borderWidth: 2,
-    borderColor: C.primary,
-  },
   activeNavIcon: { backgroundColor: `${C.primary}20` },
-  navLabel: { fontFamily: F.medium, fontSize: 10, color: C.body, marginTop: 1 },
-  activeNavLabel: { color: C.primary, fontWeight: '600' },
+  navLabel: {
+    fontFamily: F.medium,
+    fontSize: 10,
+    color: C.body,
+    marginTop: 1,
+  },
+  activeNavLabel: { color: C.primary, fontWeight: '700' },
+
+  // ── AI Chat floating FAB (reworked, no more overlap) ─────────────────────
+  aiChatTabWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 4,
+  },
+  // Reserve a fixed-height slot for the FAB + label so nothing collides
+  aiChatStack: {
+    width: 64,
+    height: 56,                  // room for the halo
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,             // gap between FAB and the "AI Chat" label
+  },
+  aiChatHalo: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: C.primaryAccent,
+    opacity: 0.16,
+  },
+  aiChatHaloActive: {
+    opacity: 0.28,
+  },
+  aiChatCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: C.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: C.card,
+    shadowColor: C.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.32,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  aiChatCircleActive: {
+    backgroundColor: C.primaryDark,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  aiChatLogo: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
+  aiChatLabel: {
+    // Same visual weight as the other tab labels — no more fighting the FAB
+    marginTop: 0,
+    textAlign: 'center',
+  },
 });
 
 export default ManufacturerDashboardScreen;

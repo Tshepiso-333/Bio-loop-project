@@ -74,7 +74,7 @@ const SH = {
 
 // ─── MAIN SCREEN ─────────────────────────────────────────────────────────────
 
-const SuppliersScreen = ({ navigation }) => {
+const SuppliersScreen = ({ navigation, onBack }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -148,23 +148,42 @@ const SuppliersScreen = ({ navigation }) => {
   const getQualityBgColor = (q) =>
     q === 'B' ? `${T.gradeB}20` : q === 'C' ? `${T.gradeC}20` : `${T.gradeA}20`;
 
-  // ─── HEADER (no back button — this is a tab) ─────────────────────────────
+  // ─── BACK HANDLER ────────────────────────────────────────────────────────
+
+  const handleBack = () => {
+    if (typeof onBack === 'function') return onBack();
+    if (navigation?.canGoBack?.()) return navigation.goBack();
+    navigation?.navigate?.('ManufacturerDashboardScreen');
+  };
+
+  // ─── HEADER (with back button) ────────────────────────────────────────────
 
   const Header = () => (
     <>
       <StatusBar barStyle="dark-content" backgroundColor={T.card} />
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={22} color={T.ink} />
+          </TouchableOpacity>
+
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>Suppliers</Text>
             <Text style={styles.headerSubtitle}>Active partners</Text>
           </View>
+
+          <View style={styles.headerSpacer} />
         </View>
       </View>
     </>
   );
 
-  // ─── SUMMARY CARD (now at the top) ───────────────────────────────────────
+  // ─── SUMMARY CARD ────────────────────────────────────────────────────────
 
   const SupplierSummary = () => (
     <View style={styles.summaryCard}>
@@ -441,10 +460,8 @@ const SuppliersScreen = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* 1. Supplier Summary (moved to top) */}
         <SupplierSummary />
 
-        {/* 2. Search */}
         <View style={styles.searchContainer}>
           <View style={styles.searchInputWrap}>
             <Ionicons name="search-outline" size={16} color={T.muted} />
@@ -466,7 +483,6 @@ const SuppliersScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* 3. Supplier list */}
         <View style={styles.suppliersList}>
           {filteredSuppliers.length === 0 ? (
             <EmptyState />
@@ -492,7 +508,7 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 24 },
 
-  // Header (white, centered title, no back button)
+  // Header (with back button)
   header: {
     backgroundColor: T.card,
     paddingBottom: 12,
@@ -502,15 +518,27 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     paddingHorizontal: S.screenPadding,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     minHeight: 48,
   },
-  headerTextContainer: { alignItems: 'center' },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: T.paleGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  headerTextContainer: { alignItems: 'center', flex: 1 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
   headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerSpacer: { width: 40, height: 40 },
 
-  // Summary card (top of the screen)
+  // Summary card
   summaryCard: {
     backgroundColor: T.card,
     borderRadius: R.card,
