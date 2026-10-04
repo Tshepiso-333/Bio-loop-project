@@ -19,12 +19,17 @@ import ChatInput from './ChatInput';
 import { generateUniqueId } from '../utils/helpers';
 import { STARTER_PROMPTS } from '../utils/constants';
 
-// ─── RESPONSE GENERATOR ───────────────────────────────────────────────────
-// Reads from ManufacturerContext and returns a plain-text reply.
-// Replace this function with an API call when you wire up a real backend.
+// ─── CONFIG ───────────────────────────────────────────────────────────────
+
+const AI_CHAT_URL =
+  'https://dhgveofhbvxqhpywapel.supabase.co/functions/v1/ai-chat';
+
+const AI_TIMEOUT_MS = 7000;
+
+// ─── LOCAL FALLBACK RESPONDER ─────────────────────────────────────────────
 
 const buildResponder = (ctx) => (question) => {
-  const q = question.toLowerCase();
+  const q = (question || '').toLowerCase();
 
   if (
     q.includes('inventory') ||
@@ -99,8 +104,38 @@ const buildResponder = (ctx) => (question) => {
     );
   }
 
-  return `Try asking "How much oil do I have?" or "What is my quality forecast?"`;
+  return `I'm having a little trouble reaching my knowledge base right now. In the meantime, try asking about your inventory, quality, deliveries, or finances.`;
 };
+
+// ─── AI CALL WITH TIMEOUT + FALLBACK ─────────────────────────────────────
+
+async function askAiOrNull({ question, context, history }) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(AI_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, context, history }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      console.warn('[AI chat] non-OK response:', res.status);
+      return null;
+    }
+
+    const data = await res.json();
+    const answer = (data?.answer ?? '').toString().trim();
+    return answer || null;
+  } catch (err) {
+    console.warn('[AI chat] falling back to local:', err?.message ?? err);
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 // ─── CHAT INTERFACE ───────────────────────────────────────────────────────
 
@@ -111,53 +146,53 @@ const ChatInterface = ({
   insets,
 }) => {
   const manufacturerCtx = useManufacturerContext();
-  const [messages, setMessages] = useState(conversation?.messages || []);
+  const [messages, setMessages] = useState(
+    Array.isArray(conversation?.messages) ? conversation.messages : []
+  );
   const [isTyping, setIsTyping] = useState(false);
   const flatListRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
-  const timeoutRef = useRef(null);
 
-  // Build a stable responder from the current context
-  const responder = useCallback(
-    buildResponder({
-      currentStock: manufacturerCtx.inventory?.current_stock_liters ?? 0,
-      stockChange: manufacturerCtx.inventory?.stock_change_pct ?? 0,
-      thisWeekVolume: manufacturerCtx.forecasts?.[0]?.total_volume_liters ?? 0,
-      tanks: manufacturerCtx.tanks ?? [],
-      gradeA:
-        manufacturerCtx.forecasts?.find((f) => f.period_days === 7)
-          ?.grade_a_pct ?? 0,
-      gradeB:
-        manufacturerCtx.forecasts?.find((f) => f.period_days === 7)
-          ?.grade_b_pct ?? 0,
-      gradeC:
-        manufacturerCtx.forecasts?.find((f) => f.period_days === 7)
-          ?.grade_c_pct ?? 0,
-      activeDeliveries: (manufacturerCtx.pickups ?? []).filter((p) =>
-        [
-          'in_transit',
-          'arrival',
-          'in_progress',
-          'collected',
-          'arrived_manufacturer',
-        ].includes(p.status)
-      ).length,
-      activeSuppliers: (manufacturerCtx.assignedRestaurants ?? []).length,
-      estBiodiesel: Math.round(
-        (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 0.9
-      ),
-      estRevenue: Math.round(
-        (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 0.9 * 20
-      ),
-      estMargin: Math.round(
-        (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 0.9 * 20 -
-          (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 3.5 -
-          (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 0.9 * 4.44
-      ),
-    }),
-    [manufacturerCtx]
-  );
+  // Live context object sent to Gemini
+  const aiContext = {
+    currentStock: manufacturerCtx.inventory?.current_stock_liters ?? 0,
+    stockChange: manufacturerCtx.inventory?.stock_change_pct ?? 0,
+    thisWeekVolume: manufacturerCtx.forecasts?.[0]?.total_volume_liters ?? 0,
+    tanksCount: (manufacturerCtx.tanks ?? []).length,
+    gradeA:
+      manufacturerCtx.forecasts?.find((f) => f.period_days === 7)?.grade_a_pct ??
+      0,
+    gradeB:
+      manufacturerCtx.forecasts?.find((f) => f.period_days === 7)?.grade_b_pct ??
+      0,
+    gradeC:
+      manufacturerCtx.forecasts?.find((f) => f.period_days === 7)?.grade_c_pct ??
+      0,
+    activeDeliveries: (manufacturerCtx.pickups ?? []).filter((p) =>
+      [
+        'in_transit',
+        'arrival',
+        'in_progress',
+        'collected',
+        'arrived_manufacturer',
+      ].includes(p.status)
+    ).length,
+    activeSuppliers: (manufacturerCtx.assignedRestaurants ?? []).length,
+    estBiodiesel: Math.round(
+      (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 0.9
+    ),
+    estRevenue: Math.round(
+      (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 0.9 * 20
+    ),
+    estMargin: Math.round(
+      (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 0.9 * 20 -
+        (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 3.5 -
+        (manufacturerCtx.inventory?.current_stock_liters ?? 0) * 0.9 * 4.44
+    ),
+  };
+
+  const responder = useCallback(buildResponder(aiContext), [manufacturerCtx]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -165,10 +200,6 @@ const ChatInterface = ({
       duration: 280,
       useNativeDriver: true,
     }).start();
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
   }, []);
 
   const scrollToEnd = () => {
@@ -177,65 +208,86 @@ const ChatInterface = ({
     }, 80);
   };
 
-  const sendMessage = (text) => {
-    if (!text?.trim() || isTyping) return;
+  const sendMessage = async (text) => {
+    const cleanText = (text ?? '').trim();
+    if (!cleanText || isTyping) return;
+
+    // Defensive: always operate on a safe array
+    const safeMessages = Array.isArray(messages) ? messages : [];
 
     const userMessage = {
       id: generateUniqueId(),
-      text: text.trim(),
+      text: cleanText,
       sender: 'user',
       timestamp: new Date().toISOString(),
     };
 
-    const nextMessages = [...messages, userMessage];
+    const nextMessages = [...safeMessages, userMessage];
     setMessages(nextMessages);
     setIsTyping(true);
     scrollToEnd();
 
-    // Persist
+    // Persist user message
     onUpdateConversation?.({
-      ...conversation,
+      ...(conversation || {}),
+      id: conversation?.id,
       title:
-        messages.length === 0
-          ? text.slice(0, 40)
-          : conversation.title,
+        safeMessages.length === 0
+          ? cleanText.slice(0, 40)
+          : conversation?.title || cleanText.slice(0, 40),
       messages: nextMessages,
       lastModified: new Date().toISOString(),
     });
 
-    // Simulate AI thinking
-    timeoutRef.current = setTimeout(() => {
-      bounceAnim.setValue(0);
-      const aiMessage = {
-        id: generateUniqueId(),
-        text: responder(text),
-        sender: 'ai',
-        timestamp: new Date().toISOString(),
-      };
+    // Build history safely
+    const history = safeMessages
+      .slice(-6)
+      .map((m) => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text ?? '',
+      }));
 
-      const finalMessages = [...nextMessages, aiMessage];
-      setMessages(finalMessages);
-      setIsTyping(false);
+    // Ask Gemini; fall back to local responder
+    const aiReply = await askAiOrNull({
+      question: cleanText,
+      context: aiContext,
+      history,
+    });
 
-      Animated.spring(bounceAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 60,
-        friction: 6,
-      }).start();
+    const replyText = aiReply || responder(cleanText);
 
-      onUpdateConversation?.({
-        ...conversation,
-        title:
-          messages.length === 0
-            ? text.slice(0, 40)
-            : conversation.title,
-        messages: finalMessages,
-        lastModified: new Date().toISOString(),
-      });
+    bounceAnim.setValue(0);
+    const aiMessage = {
+      id: generateUniqueId(),
+      text: replyText,
+      sender: 'ai',
+      timestamp: new Date().toISOString(),
+    };
 
-      scrollToEnd();
-    }, 1100);
+    const finalMessages = [...nextMessages, aiMessage];
+    setMessages(finalMessages);
+    setIsTyping(false);
+
+    Animated.spring(bounceAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 6,
+    }).start();
+
+    // Persist AI reply
+    onUpdateConversation?.({
+      ...(conversation || {}),
+      id: conversation?.id,
+      title:
+        safeMessages.length === 0
+          ? cleanText.slice(0, 40)
+          : conversation?.title || cleanText.slice(0, 40),
+      messages: finalMessages,
+      lastModified: new Date().toISOString(),
+    });
+
+    scrollToEnd();
   };
 
   const handleBack = () => {
@@ -312,7 +364,6 @@ const ChatInterface = ({
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      {/* Header */}
       <LinearGradient
         colors={['#10b981', '#059669']}
         start={{ x: 0, y: 0 }}
@@ -349,7 +400,6 @@ const ChatInterface = ({
         </View>
       </LinearGradient>
 
-      {/* Chat body */}
       <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
