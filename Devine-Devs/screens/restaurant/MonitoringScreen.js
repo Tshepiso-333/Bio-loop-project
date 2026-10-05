@@ -33,14 +33,18 @@ function getFiniteNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-function mapTankSummary(tank) {
+// latestReading = tank_readings[0] (newest). The sensor always writes a
+// reading row but only updates the tank columns once calibrated, so the
+// reading is the honest "what the sensor just said" source.
+function mapTankSummary(tank, latestReading = null) {
   if (!tank) return null;
-  const capacity = getFiniteNumber(tank.fill_percent);
-  const distance = getFiniteNumber(tank.last_distance_cm);
-  const lastUpdated = tank.last_updated ? new Date(tank.last_updated) : null;
+  const capacity = getFiniteNumber(latestReading?.fill_percent ?? tank.fill_percent);
+  const distance = getFiniteNumber(latestReading?.distance_cm ?? tank.last_distance_cm);
+  const readingAt = latestReading?.recorded_at ?? tank.last_updated;
+  const lastUpdated = readingAt ? new Date(readingAt) : null;
   const hasValidUpdate = lastUpdated && !Number.isNaN(lastUpdated.getTime());
   const ageHours = hasValidUpdate ? (Date.now() - lastUpdated.getTime()) / 3600000 : null;
-  const relativeUpdate = hasValidUpdate ? formatRelativeTime(tank.last_updated) : null;
+  const relativeUpdate = hasValidUpdate ? formatRelativeTime(readingAt) : null;
 
   return {
     name: tank.name ?? 'Tank monitoring',
@@ -115,7 +119,8 @@ export default function MonitoringScreen() {
   const { tank, tankReadings, pickups, loading, refreshing, refreshRestaurant } = useRestaurant();
 
   const profileInitials = useMemo(() => getInitials(profile?.full_name, 'RS'), [profile?.full_name]);
-  const tankSummary = useMemo(() => mapTankSummary(tank), [tank]);
+  const latestReading = (tankReadings || [])[0] ?? null;
+  const tankSummary = useMemo(() => mapTankSummary(tank, latestReading), [tank, latestReading]);
   const oilHistory = useMemo(() => mapOilHistory(tankReadings), [tankReadings]);
   const deviceDetails = useMemo(() => mapDeviceDetails(tank, pickups), [tank, pickups]);
   const hasOpenPickup = useMemo(

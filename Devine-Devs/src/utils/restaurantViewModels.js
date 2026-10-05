@@ -123,19 +123,32 @@ const STATUS_STEP_INDEX = {
   completed: 4,
 };
 
-export const mapTankCardData = (tank) => {
+/**
+ * `latestReading` is tank_readings[0] (the bundle sorts newest-first). The
+ * sensor RPC always writes a tank_readings row, but only updates
+ * tanks.fill_percent / last_distance_cm once the tank is calibrated — so the
+ * newest reading is the honest source for what the sensor just said, and the
+ * stored tank columns are the fallback.
+ */
+export const mapTankCardData = (tank, latestReading = null) => {
   if (!tank) return null;
 
-  const fillPercent = toNumber(tank.fill_percent, 0);
+  const readingPercent = latestReading?.fill_percent;
+  const readingDistance = latestReading?.distance_cm;
+  const fillPercent = toNumber(readingPercent ?? tank.fill_percent, 0);
   const estimatedDays = toNumber(
     tank.estimated_days_until_full,
     fillPercent >= 80 ? 2 : fillPercent >= 60 ? 5 : 10
   );
 
+  const distanceSource = readingDistance ?? tank.last_distance_cm;
+
   return {
     label: tank.name ?? 'Main Storage Tank',
     fillPercent,
-    lastDistanceCm: tank.last_distance_cm != null ? toNumber(tank.last_distance_cm, null) : null,
+    hasFillPercent: (readingPercent ?? tank.fill_percent) != null,
+    lastDistanceCm: distanceSource != null ? toNumber(distanceSource, null) : null,
+    lastReadingAt: latestReading?.recorded_at ?? tank.last_updated ?? null,
     statusText:
       tank.status_text ??
       (fillPercent >= 80 ? 'Full' : fillPercent >= 50 ? 'Moderate' : 'Normal'),
