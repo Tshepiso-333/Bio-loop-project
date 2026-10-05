@@ -189,6 +189,18 @@ export const CollectorProvider = ({ children }) => {
         { event: '*', schema: 'public', table: 'alerts', filter: `user_id=eq.${user.id}` },
         debouncedRefresh
       )
+      // Wallet: credited on trip completion, zeroed on withdraw — both must
+      // move the balance card live (published by migration 062).
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'earnings', filter: `collector_id=eq.${collectorId}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'withdrawals', filter: `collector_id=eq.${collectorId}` },
+        debouncedRefresh
+      )
       .subscribe();
 
     return () => {
