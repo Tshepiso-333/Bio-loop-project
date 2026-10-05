@@ -136,16 +136,13 @@ function mapCollectionStatus(pickups = []) {
   }
 }
 
-function mapHomeTankData(tank) {
-  const mapped = mapTankCardData(tank);
+function mapHomeTankData(tank, latestReading) {
+  const mapped = mapTankCardData(tank, latestReading);
   if (!mapped) return null;
 
-  const rawFillPercent = Number(tank?.fill_percent);
-  const hasFillPercent =
-    tank?.fill_percent !== null &&
-    tank?.fill_percent !== undefined &&
-    Number.isFinite(rawFillPercent);
-  const fillPercent = hasFillPercent ? mapped.fillPercent : null;
+  // Prefer the newest sensor reading; fall back to the stored tank columns.
+  const fillPercent =
+    mapped.hasFillPercent && Number.isFinite(mapped.fillPercent) ? mapped.fillPercent : null;
 
   let statusText = tank?.status_text ?? null;
   if (!statusText && fillPercent != null) {
@@ -156,7 +153,7 @@ function mapHomeTankData(tank) {
     ...mapped,
     fillPercent,
     statusText: statusText ?? 'Tank status unavailable',
-    lastUpdatedLabel: tank?.last_updated ? formatRelativeTime(tank.last_updated) : null,
+    lastUpdatedLabel: mapped.lastReadingAt ? formatRelativeTime(mapped.lastReadingAt) : null,
   };
 }
 
@@ -193,6 +190,7 @@ export default function RestaurantHomeScreen() {
     refreshing,
     refreshRestaurant,
     restaurant,
+    tankReadings = [],
     alerts = [],
     markAlertRead,
   } = useRestaurant();
@@ -204,7 +202,8 @@ export default function RestaurantHomeScreen() {
 
   const profileImageUrl = restaurant?.profile_image_url ?? profile?.profile_image_url;
 
-  const tankData = useMemo(() => mapHomeTankData(tank), [tank]);
+  const latestReading = (tankReadings || [])[0] ?? null;
+  const tankData = useMemo(() => mapHomeTankData(tank, latestReading), [tank, latestReading]);
   const collectionStatus = useMemo(() => mapCollectionStatus(pickups), [pickups]);
   const earningsSummary = useMemo(() => mapEarningsSummary(earnings), [earnings]);
   // "You've been paid" moment: newest unread payout alert written by the DB
