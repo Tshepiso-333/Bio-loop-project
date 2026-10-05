@@ -40,7 +40,8 @@
           "photosPermission": "Allow Devine-Devs to access your photos to upload a profile picture."
         }
       ],
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "expo-asset"
     ],
     "extra": {
       "eas": {

@@ -59,12 +59,12 @@ const SH = {
 // (biodiesel_conversion_pct etc., migration 048); these are only the fallback ──
 
 const ASSUMPTIONS = {
-  oilPrice: 0,           // no longer used — real price comes from pickups.price_per_liter
-  conversion: 90,        // % oil → biodiesel
-  biodieselPrice: 20,    // R / L selling price
-  processingCost: 4.44,  // R / L processing
-  logistics: 10000,      // R (total)
-  other: 5000,           // R (total)
+  oilPrice: 0,
+  conversion: 90,
+  biodieselPrice: 20,
+  processingCost: 4.44,
+  logistics: 10000,
+  other: 5000,
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -78,8 +78,6 @@ const formatZARDecimal = (n) => `R${Number(n).toFixed(2)}`;
 const FinanceScreen = ({ navigation, onBack }) => {
   const { pickups = [], manufacturer } = useManufacturerContext();
 
-  // Live from the manufacturers row (migration 048) — falls back to the
-  // constants above only if the row hasn't loaded yet.
   const assumptions = useMemo(
     () => ({
       oilPrice: ASSUMPTIONS.oilPrice,
@@ -94,9 +92,6 @@ const FinanceScreen = ({ navigation, onBack }) => {
   const insets = useSafeAreaInsets();
 
   // ── Aggregate oil purchased from pickups ──
-  // Only completed (paid) pickups count as "purchased". amount_paid /
-  // price_per_liter are stamped on the pickup by the DB when the PayFast
-  // payment completes (migration 048) — no invented per-litre price here.
   const oilData = useMemo(() => {
     const byGrade = {
       A: { litres: 0, avgPrice: 0, totalPaid: 0 },
@@ -128,7 +123,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
     return { byGrade, totalLitres, totalPaid, isEmpty: totalLitres === 0 };
   }, [pickups]);
 
-  // ── Calculated economics (using fixed constants) ──
+  // ── Calculated economics ──
   const calculations = useMemo(() => {
     const oilPurchased = oilData.totalPaid;
     const biodiesel = oilData.totalLitres * (assumptions.conversion / 100);
@@ -153,6 +148,14 @@ const FinanceScreen = ({ navigation, onBack }) => {
   }, [oilData, assumptions]);
 
   const totalLitres = oilData.totalLitres;
+
+  // ─── BACK HANDLER ────────────────────────────────────────────────────────
+
+  const handleBack = () => {
+    if (typeof onBack === 'function') return onBack();
+    if (navigation?.canGoBack?.()) return navigation.goBack();
+    navigation?.navigate?.('ManufacturerDashboardScreen');
+  };
 
   // ─── SMALL REUSABLES ─────────────────────────────────────────────────────
 
@@ -220,17 +223,28 @@ const FinanceScreen = ({ navigation, onBack }) => {
     );
   };
 
-  // ─── HEADER ──────────────────────────────────────────────────────────────
+  // ─── HEADER (with back button) ────────────────────────────────────────────
 
   const Header = () => (
     <>
       <StatusBar barStyle="dark-content" backgroundColor={T.card} />
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={22} color={T.ink} />
+          </TouchableOpacity>
+
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>Finance</Text>
             <Text style={styles.headerSubtitle}>Cost · Value · Margin</Text>
           </View>
+
+          <View style={styles.headerSpacer} />
         </View>
       </View>
     </>
@@ -474,13 +488,25 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     paddingHorizontal: S.screenPadding,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     minHeight: 48,
   },
-  headerTextContainer: { alignItems: 'center' },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: T.paleGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  headerTextContainer: { alignItems: 'center', flex: 1 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
   headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerSpacer: { width: 40, height: 40 },
 
   // Summary grid
   summaryGrid: {
@@ -525,7 +551,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Section wrapper
   section: {
     paddingHorizontal: S.screenPadding,
     marginTop: S.gap + 4,
@@ -545,7 +570,6 @@ const styles = StyleSheet.create({
     ...SH.card,
   },
 
-  // Production chain
   chainRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -575,7 +599,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
 
-  // Cost breakdown
   costRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -606,7 +629,6 @@ const styles = StyleSheet.create({
   },
   chartSpacer: { height: 8 },
 
-  // Bar chart
   barChartContainer: { marginTop: 6, gap: 10 },
   barRow: {
     flexDirection: 'row',
@@ -634,7 +656,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 
-  // Grade inventory
   gradeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -654,7 +675,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Impact
   impactCard: { gap: 14 },
   impactRow: {
     flexDirection: 'row',

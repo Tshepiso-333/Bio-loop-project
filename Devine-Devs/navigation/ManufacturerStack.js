@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ManufacturerDashboardScreen from '../screens/manufacturer/ManufacturerDashboardScreen';
 import QualityScreen from '../screens/manufacturer/QualityScreen';
 import ForecastsScreen from '../screens/manufacturer/ForecastsScreen';
-import AIChatScreen from '../screens/manufacturer/AIChatScreen';
+import AIAssistantScreen from '../screens/manufacturer/AIAssistant/AIAssistantScreen';
 import SuppliersScreen from '../screens/manufacturer/SuppliersScreen';
 import AlertsScreen from '../screens/manufacturer/AlertsScreen';
 import ProfileScreen from '../screens/manufacturer/ProfileScreen';
@@ -31,7 +31,7 @@ function ManufacturerStack() {
       {/* Feature screens navigable from the dashboard */}
       <Stack.Screen name="Quality" component={QualityScreen} />
       <Stack.Screen name="Forecasts" component={ForecastsScreen} />
-      <Stack.Screen name="AIChat" component={AIChatScreen} />
+      <Stack.Screen name="AIChat" component={AIAssistantScreen} />
       <Stack.Screen name="Suppliers" component={SuppliersScreen} />
       <Stack.Screen name="Alerts" component={AlertsScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />

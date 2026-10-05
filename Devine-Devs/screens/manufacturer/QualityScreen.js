@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import Svg, {
   Path,
   Circle,
@@ -125,6 +126,14 @@ const QualityScreen = ({ navigation, onBack }) => {
   const toggleExpand = (key) =>
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  // ─── BACK HANDLER ─────────────────────────────────────────────────────────
+
+  const handleBack = () => {
+    if (typeof onBack === 'function') return onBack();
+    if (navigation?.canGoBack?.()) return navigation.goBack();
+    navigation?.navigate?.('ManufacturerDashboardScreen');
+  };
+
   // ─── ICONS ────────────────────────────────────────────────────────────────
 
   const CheckCircleIcon = ({ color = '#fff', size = 20 }) => (
@@ -159,21 +168,9 @@ const QualityScreen = ({ navigation, onBack }) => {
     </Svg>
   );
 
-  // ─── DONUT CHART (bulletproof, View-based) ────────────────────────────────
-  //
-  // Technique: render a stack of colored "half-disc" segments using two
-  // rotated 50%-width mask layers per segment. This works on every platform
-  // (iOS / Android / web) regardless of SVG stroke-dash rendering quirks.
-  //
-  // For 40% / 20% / 40% it produces green → orange → red clockwise from 12.
+  // ─── DONUT CHART ──────────────────────────────────────────────────────────
 
   const DonutChart = () => {
-    const size = 180;
-    const stroke = 28;
-    const half = size / 2;
-
-    // Normalize values so they always total 100 (in case forecast pcts
-    // don't add to exactly 100).
     const total = qualityDistribution.reduce((sum, s) => sum + (s.value || 0), 0);
     const segments =
       total > 0
@@ -182,336 +179,6 @@ const QualityScreen = ({ navigation, onBack }) => {
             pct: (s.value / total) * 100,
           }))
         : [];
-
-    // Build an array of { color, startDeg, endDeg } by walking cumulative %.
-    let cursor = 0;
-    const arcs = segments.map((s) => {
-      const start = cursor;
-      const end = cursor + s.pct;
-      cursor = end;
-      return { color: s.color, start, end, key: s.key };
-    });
-
-    // For each arc, render a "wedge" made of up to 4 quarter circles.
-    // A wedge <= 180° is 1 outer semicircle + optional inner cut.
-    // Simpler: use overlapping rotating half-discs clipped by a wrapper.
-    //
-    // Implementation: for each arc we render:
-    //   - a base half-disc (rotated so the visible half covers [0,180])
-    //   - if the arc exceeds 180°, we also render the opposite half
-    //   - we stack arcs in order and mask the inner circle at the end
-    //
-    // To keep the code readable, we use the "rotate a 50%-wide colored rect
-    // behind a circular clip" approach for each arc.
-
-    const renderArc = (arc) => {
-      const { color, start, end } = arc;
-      const sweep = end - start;
-      if (sweep <= 0) return null;
-
-      // We render two half-disc pieces per arc to allow sweeps > 180°.
-      const pieces = [];
-      const remainder = Math.min(sweep, 180);
-      // First half: rotate to `start`
-      pieces.push(
-        <View
-          key={`${arc.key}-1`}
-          style={{
-            position: 'absolute',
-            width: size,
-            height: size,
-            transform: [{ rotate: `${start - 90}deg` }],
-          }}
-        >
-          <View
-            style={{
-              position: 'absolute',
-              left: half,
-              top: 0,
-              width: half,
-              height: size,
-              overflow: 'hidden',
-            }}
-          >
-            <View
-              style={{
-                position: 'absolute',
-                left: -half,
-                top: 0,
-                width: size,
-                height: size,
-                borderRadius: half,
-                backgroundColor: color,
-                // Clip to just the visible half
-                ...(remainder <= 180 ? {} : {}),
-              }}
-            />
-          </View>
-        </View>
-      );
-
-      // If sweep > 180°, render second half opposite side
-      if (sweep > 180) {
-        pieces.push(
-          <View
-            key={`${arc.key}-2`}
-            style={{
-              position: 'absolute',
-              width: size,
-              height: size,
-              transform: [{ rotate: `${start + 90}deg` }],
-            }}
-          >
-            <View
-              style={{
-                position: 'absolute',
-                left: half,
-                top: 0,
-                width: half,
-                height: size,
-                overflow: 'hidden',
-              }}
-            >
-              <View
-                style={{
-                  position: 'absolute',
-                  left: -half,
-                  top: 0,
-                  width: size,
-                  height: size,
-                  borderRadius: half,
-                  backgroundColor: color,
-                }}
-              />
-            </View>
-          </View>
-        );
-      }
-
-      // For arcs that don't span exactly 180°, use a rotate of a plain
-      // full-disc behind a masking rect. This is the classic "conic"
-      // approximation: the arc color rotates in from `start`, and we
-      // overlay the next arc's color on top.
-
-      return pieces;
-    };
-
-    // Simpler, reliable approach: stack full-rotation slices.
-    // Each slice is a full circle painted the arc color, but we clip it
-    // using a rotated "reveal" wrapper so only `sweep` degrees show.
-
-    const renderSlice = (arc) => {
-      const { color, start, end } = arc;
-      const sweep = Math.min(end - start, 360);
-      if (sweep <= 0) return null;
-
-      // Two half-circles max needed
-      const firstSweep = Math.min(sweep, 180);
-      const secondSweep = Math.max(sweep - 180, 0);
-
-      const sliceStyle = (rotateDeg, revealDeg) => ({
-        position: 'absolute',
-        width: size,
-        height: size,
-        transform: [{ rotate: `${rotateDeg}deg` }],
-      });
-
-      return (
-        <View key={arc.key} style={StyleSheet.absoluteFill}>
-          {/* First 180° max */}
-          <View style={sliceStyle(start)}>
-            <View
-              style={{
-                position: 'absolute',
-                left: half,
-                top: 0,
-                width: half,
-                height: size,
-                overflow: 'hidden',
-              }}
-            >
-              <View
-                style={{
-                  position: 'absolute',
-                  left: -half,
-                  top: 0,
-                  width: size,
-                  height: size,
-                  borderRadius: half,
-                  backgroundColor: color,
-                }}
-              />
-            </View>
-          </View>
-
-          {/* Second 180° max */}
-          {secondSweep > 0 && (
-            <View style={sliceStyle(start + 180)}>
-              <View
-                style={{
-                  position: 'absolute',
-                  left: half,
-                  top: 0,
-                  width: half,
-                  height: size,
-                  overflow: 'hidden',
-                }}
-              >
-                <View
-                  style={{
-                    position: 'absolute',
-                    left: -half,
-                    top: 0,
-                    width: size,
-                    height: size,
-                    borderRadius: half,
-                    backgroundColor: color,
-                  }}
-                />
-              </View>
-            </View>
-          )}
-        </View>
-      );
-    };
-
-    // We can't cleanly do partial wedges with pure views without a lot of
-    // math. So we use the "rotating full-disc + mask circle" approach:
-    //
-    //   for each arc:  render a full rotated disc of that color, then
-    //                  overlay the NEXT arc's disc rotated to its start.
-    //
-    // This is the classic conic-gradient approximation and works reliably.
-
-    const ConicDonut = () => {
-      // Draw colors in reverse so the first slice ends up on top.
-      const reversed = [...arcs].reverse();
-      return (
-        <View style={{ width: size, height: size }}>
-          {/* Base neutral ring */}
-          <View
-            style={{
-              position: 'absolute',
-              width: size,
-              height: size,
-              borderRadius: half,
-              backgroundColor: T.divider,
-            }}
-          />
-          {reversed.map((arc) => {
-            const sweep = Math.min(arc.end - arc.start, 360);
-            if (sweep <= 0) return null;
-
-            // For sweeps >= 180 we need two half-turns.
-            // For sweeps < 180 we use a single rotating half disc.
-            const firstSweep = Math.min(sweep, 180);
-            const secondSweep = Math.max(sweep - 180, 0);
-
-            return (
-              <React.Fragment key={arc.key}>
-                {/* First half (0° → up to 180°) */}
-                <View
-                  style={{
-                    position: 'absolute',
-                    width: size,
-                    height: size,
-                    transform: [{ rotate: `${arc.start}deg` }],
-                  }}
-                >
-                  <View
-                    style={{
-                      position: 'absolute',
-                      left: half,
-                      top: 0,
-                      width: half,
-                      height: size,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <View
-                      style={{
-                        position: 'absolute',
-                        left: -half,
-                        top: 0,
-                        width: size,
-                        height: size,
-                        borderRadius: half,
-                        backgroundColor: arc.color,
-                        transform: [{ rotate: `${firstSweep}deg` }],
-                      }}
-                    />
-                    {/* Mask the unused portion of the first half */}
-                    <View
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: 0,
-                        width: half,
-                        height: size,
-                        backgroundColor: 'transparent',
-                      }}
-                    />
-                  </View>
-                </View>
-
-                {/* Second half if sweep > 180 */}
-                {secondSweep > 0 && (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      width: size,
-                      height: size,
-                      transform: [{ rotate: `${arc.start + 180}deg` }],
-                    }}
-                  >
-                    <View
-                      style={{
-                        position: 'absolute',
-                        left: half,
-                        top: 0,
-                        width: half,
-                        height: size,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <View
-                        style={{
-                          position: 'absolute',
-                          left: -half,
-                          top: 0,
-                          width: size,
-                          height: size,
-                          borderRadius: half,
-                          backgroundColor: arc.color,
-                        }}
-                      />
-                    </View>
-                  </View>
-                )}
-              </React.Fragment>
-            );
-          })}
-
-          {/* Inner cutout — turns the disc into a donut */}
-          <View
-            style={{
-              position: 'absolute',
-              width: size - stroke * 2,
-              height: size - stroke * 2,
-              borderRadius: (size - stroke * 2) / 2,
-              backgroundColor: T.card,
-              top: stroke,
-              left: stroke,
-            }}
-          />
-        </View>
-      );
-    };
-
-    // ─── Actually just use SVG (it DOES work — the earlier issue was
-    // strokeDashoffset sign and using `strokeLinecap="butt"` with a
-    // fractional dash that Android rounds). Let's use a clean,
-    // well-tested implementation: ────────────────────────────────────────
 
     const sizeSvg = 180;
     const strokeSvg = 26;
@@ -691,17 +358,28 @@ const QualityScreen = ({ navigation, onBack }) => {
     );
   };
 
-  // ─── HEADER (no back button — this screen is a tab) ──────────────────────
+  // ─── HEADER (with back button) ────────────────────────────────────────────
 
   const Header = () => (
     <>
       <StatusBar barStyle="dark-content" backgroundColor={T.card} />
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="chevron-back" size={22} color={T.ink} />
+          </TouchableOpacity>
+
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>Quality Distribution</Text>
             <Text style={styles.headerSubtitle}>Oil Grade Analysis</Text>
           </View>
+
+          <View style={styles.headerSpacer} />
         </View>
       </View>
     </>
@@ -842,7 +520,7 @@ const QualityScreen = ({ navigation, onBack }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: T.page },
 
-  // Header (no back button, centered title)
+  // Header (back button + centered title)
   header: {
     backgroundColor: T.card,
     paddingBottom: 12,
@@ -852,13 +530,25 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     paddingHorizontal: S.screenPadding,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     minHeight: 48,
   },
-  headerTextContainer: { alignItems: 'center' },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: T.paleGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  headerTextContainer: { alignItems: 'center', flex: 1 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
   headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerSpacer: { width: 40, height: 40 },
 
   scrollView: { flex: 1, paddingBottom: 30 },
 
