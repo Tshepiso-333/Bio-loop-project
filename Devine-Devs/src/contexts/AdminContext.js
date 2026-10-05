@@ -103,6 +103,12 @@ export function AdminProvider({ children }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups' }, debouncedRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, debouncedRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'manual_pickup_requests' }, debouncedRefresh)
+      // Finance tab: the statement, the money tiles and driver wallets are all
+      // derived from these three tables (published by migration 062), so admin
+      // sees a payment and its split land without touching refresh.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_transactions' }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'earnings' }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals' }, debouncedRefresh)
       .subscribe();
 
     return () => {

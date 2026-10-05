@@ -257,6 +257,27 @@ export const RestaurantProvider = ({ children }) => {
         { event: '*', schema: 'public', table: 'alerts', filter: `user_id=eq.${user.id}` },
         debouncedRefresh
       )
+      // Sensor: a new tank_readings row (and the tank row the RPC updates once
+      // calibrated) must move the fill percentage on screen without a manual
+      // refresh. Published by migration 062; RLS still scopes rows per user.
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tanks', filter: `restaurant_id=eq.${restaurantId}` },
+        debouncedRefresh
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tank_readings' }, debouncedRefresh)
+      // Money: balance + earnings history update from the rows themselves,
+      // not only from the alert that accompanies them.
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'earnings', filter: `restaurant_id=eq.${restaurantId}` },
+        debouncedRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'withdrawals', filter: `restaurant_id=eq.${restaurantId}` },
+        debouncedRefresh
+      )
       .subscribe();
 
     return () => {

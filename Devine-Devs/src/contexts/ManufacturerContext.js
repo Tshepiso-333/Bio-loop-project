@@ -152,6 +152,14 @@ export const ManufacturerProvider = ({ children }) => {
         { event: '*', schema: 'public', table: 'alerts', filter: `user_id=eq.${user.id}` },
         debouncedRefresh
       )
+      // Finance tab: a completed payment stamps the pickup and re-derives
+      // stock/forecast, so the screen must refresh off the payment row too
+      // (published by migration 062).
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payment_transactions', filter: `manufacturer_id=eq.${manufacturerId}` },
+        debouncedRefresh
+      )
       .subscribe();
 
     return () => {
