@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../supabase'; // Un-commented your client import
 
 import { AUTH_COLORS, AUTH_FONTS, AUTH_BUTTON_SHADOW } from '../../src/auth/authTheme';
+import { sendSignInCode } from '../../src/services/authService';
 import RolePickerModal from '../../src/auth/components/RolePickerModal';
 
 // Role keys ('restaurant' | 'driver' | 'manufacturer') are sent to Supabase via
@@ -57,6 +58,7 @@ export default function SignUpScreen({ navigation }) {
   const [surnameFocused, setSurnameFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
 
   // Role pop-up: opens automatically on arrival (from "Create an account") when
   // no role is selected yet. Selecting a card drives the existing setRole.
@@ -74,6 +76,39 @@ export default function SignUpScreen({ navigation }) {
   const selectedRole = ROLES.find((r) => r.key === role);
 
   const insets = useSafeAreaInsets();
+
+  // Passwordless sign-up: same required fields (name, surname, role) but no
+  // password — the role still has to ride along as user metadata because
+  // handle_new_user() reads it to create the profiles + role row.
+  const handleSignUpWithCode = async () => {
+    if (!name.trim() || !surname.trim() || !email.trim()) {
+      setError('Fill in your name, surname and email first.');
+      return;
+    }
+    if (!role) {
+      setError('Please select a role to continue.');
+      return;
+    }
+
+    setError('');
+    setSendingCode(true);
+    try {
+      const databaseRole = role === 'driver' ? 'collector' : role;
+      await sendSignInCode(email, {
+        allowSignUp: true,
+        profile: { name: name.trim(), surname: surname.trim(), role: databaseRole },
+      });
+      navigation.navigate('VerifyCode', {
+        email: email.trim().toLowerCase(),
+        purpose: 'signin',
+        profile: { name: name.trim(), surname: surname.trim(), role: databaseRole },
+      });
+    } catch (err) {
+      setError(err.message ?? 'Could not send the code.');
+    } finally {
+      setSendingCode(false);
+    }
+  };
 
   const handleSignUp = async () => {
     if (!name || !surname || !email || !password) {
@@ -302,6 +337,18 @@ export default function SignUpScreen({ navigation }) {
             />
           </Pressable>
 
+          {/* Passwordless alternative — no password field needed */}
+          <Pressable
+            style={styles.codeButton}
+            onPress={handleSignUpWithCode}
+            disabled={sendingCode || loading}
+          >
+            <Ionicons name='keypad-outline' size={18} color={AUTH_COLORS.primary} />
+            <Text style={styles.codeButtonText}>
+              {sendingCode ? 'Sending code...' : 'Sign up with an email code instead'}
+            </Text>
+          </Pressable>
+
           {/* Back to sign in */}
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>Already have an account? </Text>
@@ -489,6 +536,19 @@ const styles = StyleSheet.create({
     color: AUTH_COLORS.white,
     fontSize: 17,
   },
+  codeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1.5,
+    borderColor: AUTH_COLORS.inputBorder,
+    backgroundColor: AUTH_COLORS.inputBg,
+    marginTop: 14,
+  },
+  codeButtonText: { fontFamily: AUTH_FONTS.bold, fontSize: 15, color: AUTH_COLORS.primary },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',

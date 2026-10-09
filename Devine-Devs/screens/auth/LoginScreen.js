@@ -11,12 +11,14 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../supabase';
 
 import { AUTH_COLORS, AUTH_FONTS, AUTH_BUTTON_SHADOW } from '../../src/auth/authTheme';
+import { sendSignInCode } from '../../src/services/authService';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -26,8 +28,27 @@ export default function LoginScreen({ navigation }) {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
 
   const insets = useSafeAreaInsets();
+
+  // Passwordless sign-in: send a code to an EXISTING account only.
+  const handleSendCode = async () => {
+    if (!email.trim()) {
+      setError('Enter your email address first, then tap this.');
+      return;
+    }
+    setError('');
+    setSendingCode(true);
+    try {
+      await sendSignInCode(email, { allowSignUp: false });
+      navigation.navigate('VerifyCode', { email: email.trim().toLowerCase(), purpose: 'signin' });
+    } catch (err) {
+      setError(err.message ?? 'Could not send the code.');
+    } finally {
+      setSendingCode(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -159,6 +180,24 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
+
+          {/* Passwordless: email a 6-digit code instead of typing a password.
+              allowSignUp stays false here so a typo can't create an account —
+              new users go through Create an account, which collects a role. */}
+          <Pressable
+            style={styles.codeBtn}
+            onPress={handleSendCode}
+            disabled={sendingCode}
+          >
+            {sendingCode ? (
+              <ActivityIndicator color={AUTH_COLORS.primary} />
+            ) : (
+              <>
+                <Ionicons name="keypad-outline" size={18} color={AUTH_COLORS.primary} />
+                <Text style={styles.codeBtnText}>Email me a sign-in code</Text>
+              </>
+            )}
+          </Pressable>
 
           {/* Register link */}
           <View style={styles.registerRow}>
@@ -305,6 +344,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#9AA89F',
   },
+  codeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1.5,
+    borderColor: AUTH_COLORS.inputBorder,
+    backgroundColor: AUTH_COLORS.inputBg,
+    marginBottom: 18,
+  },
+  codeBtnText: { fontFamily: AUTH_FONTS.bold, fontSize: 15, color: AUTH_COLORS.primary },
   registerRow: {
     flexDirection: 'row',
     justifyContent: 'center',

@@ -116,6 +116,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { sendPasswordResetCode } from '../../src/services/authService';
 // import { supabase } from '../../supabase'; // 1. Import your real client
 
 const COLORS = {
@@ -155,37 +156,26 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   const insets = useSafeAreaInsets();
 
+  // Sends a 6-digit recovery code (not a reset link — a link would need a
+  // deep link back into the app, which is unreliable across Expo Go, dev
+  // builds and store builds). VerifyCodeScreen takes it from here.
   const handleResetPassword = async () => {
-    if (!email) {
+    if (!email.trim()) {
       setError('Please enter your email address.');
       return;
     }
 
     setError('');
     setLoading(true);
-
-    /*
-    // 2. Call real Supabase Auth
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-      email.trim(),
-      {
-        redirectTo: 'bioloop://reset-password', // your deep link / app scheme
-      }
-    );
-
-    if (resetError) {
-      setError(resetError.message);
+    try {
+      await sendPasswordResetCode(email);
+      setSent(true);
+      navigation.navigate('VerifyCode', { email: email.trim().toLowerCase(), purpose: 'recovery' });
+    } catch (err) {
+      setError(err.message ?? 'Could not send the reset code.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setLoading(false);
-    setSent(true);
-    */
-
-    setLoading(false);
-    Alert.alert('Design mode', 'Password reset email is disabled while Supabase is switched off.');
-    setSent(true);
   };
 
   return (
