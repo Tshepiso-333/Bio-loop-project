@@ -345,12 +345,16 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
       ]
     : [];
 
-  // "Incoming" means still on its way here. manufacturerService returns every
-  // pickup ever routed to this manufacturer, so without this filter the list
-  // kept showing deliveries that had already been received and paid for, which
-  // read as the dashboard not updating.
+  // "Incoming" means a driver is actually bringing it here. Two things had to
+  // be excluded:
+  //   - finished work (completed/cancelled), which otherwise sat in the list
+  //     forever and made the dashboard look like it wasn't updating;
+  //   - requests with no driver on them yet. A tank crossing 85% auto-creates
+  //     a pending pickup (tanks_auto_pickup_request), but until dispatch finds
+  //     an on-duty driver nothing is moving, so showing it to the manufacturer
+  //     as an incoming delivery promises oil that isn't on its way.
   const incomingPickups = (pickups || [])
-    .filter((p) => !FINISHED_STATUSES.includes(p.status))
+    .filter((p) => !FINISHED_STATUSES.includes(p.status) && p.collector_id)
     .sort((a, b) => {
       const aWaiting = a.status === 'arrived_manufacturer' ? 0 : 1;
       const bWaiting = b.status === 'arrived_manufacturer' ? 0 : 1;
@@ -371,6 +375,13 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
   });
 
   const hiddenIncomingCount = Math.max(0, incomingPickups.length - upcomingDeliveries.length);
+
+  // Requests that exist but have no driver yet. Not incoming deliveries, but
+  // the manufacturer should know oil is queued rather than see a bare
+  // "nothing on its way".
+  const awaitingDriverCount = (pickups || []).filter(
+    (p) => !FINISHED_STATUSES.includes(p.status) && !p.collector_id
+  ).length;
 
   const onRefresh = () => {
     if (refreshManufacturer) refreshManufacturer();
@@ -616,8 +627,11 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                     <Ionicons name="checkmark-done-outline" size={26} color={C.muted} />
                     <Text style={styles.deliveriesEmptyTitle}>Nothing on its way</Text>
                     <Text style={styles.deliveriesEmptyText}>
-                      Every delivery routed to you has been received. New pickups appear here as
-                      soon as a restaurant schedules one.
+                      {awaitingDriverCount > 0
+                        ? `${awaitingDriverCount} pickup ${
+                            awaitingDriverCount === 1 ? 'request is' : 'requests are'
+                          } waiting for a driver. They appear here once one is on the way.`
+                        : 'Every delivery routed to you has been received. New pickups appear here as soon as one is dispatched.'}
                     </Text>
                   </View>
                 ) : null}
