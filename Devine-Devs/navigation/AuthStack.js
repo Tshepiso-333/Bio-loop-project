@@ -3,7 +3,6 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import VerifyCodeScreen from '../screens/auth/VerifyCodeScreen';
-import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,7 +15,6 @@ export default function AuthStack() {
       {/* Shared by both passwordless flows: sign in with a code, and the
           forgot-password recovery code. route.params.purpose picks which. */}
       <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} />
-      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </Stack.Navigator>
   );
 }
