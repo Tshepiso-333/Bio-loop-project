@@ -56,6 +56,8 @@ export default function SignUpScreen({ navigation }) {
   const [showPassword, setShowPassword] = useState(false);
   const [nameFocused, setNameFocused] = useState(false);
   const [surnameFocused, setSurnameFocused] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [phoneFocused, setPhoneFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
@@ -96,12 +98,12 @@ export default function SignUpScreen({ navigation }) {
       const databaseRole = role === 'driver' ? 'collector' : role;
       await sendSignInCode(email, {
         allowSignUp: true,
-        profile: { name: name.trim(), surname: surname.trim(), role: databaseRole },
+        profile: { name: name.trim(), surname: surname.trim(), phone: phone.trim(), role: databaseRole },
       });
       navigation.navigate('VerifyCode', {
         email: email.trim().toLowerCase(),
         purpose: 'signin',
-        profile: { name: name.trim(), surname: surname.trim(), role: databaseRole },
+        profile: { name: name.trim(), surname: surname.trim(), phone: phone.trim(), role: databaseRole },
       });
     } catch (err) {
       setError(err.message ?? 'Could not send the code.');
@@ -143,6 +145,7 @@ export default function SignUpScreen({ navigation }) {
           data: {
             name: name.trim(),
             surname: surname.trim(),
+            phone: phone.trim(),
             role: databaseRole, // Passed safely inside meta-data payload
           },
         },
@@ -280,6 +283,27 @@ export default function SignUpScreen({ navigation }) {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              returnKeyType="next"
+              editable={!loading}
+            />
+          </View>
+
+          {/* Phone — used so a restaurant can call the driver on its way,
+              and vice versa. Stored on profiles.phone, which a trigger
+              mirrors onto the role record (migration 063). */}
+          <Text style={styles.label}>Phone number</Text>
+          <View style={[styles.inputWrap, phoneFocused && styles.inputWrapFocused]}>
+            <Ionicons name="call-outline" size={19} color={AUTH_COLORS.primary} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="072 123 4567"
+              placeholderTextColor={AUTH_COLORS.placeholder}
+              value={phone}
+              onChangeText={setPhone}
+              onFocus={() => setPhoneFocused(true)}
+              onBlur={() => setPhoneFocused(false)}
+              keyboardType="phone-pad"
+              autoComplete="tel"
               returnKeyType="next"
               editable={!loading}
             />

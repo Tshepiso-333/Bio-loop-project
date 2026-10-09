@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, Linking } from 'react-native';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
 import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
@@ -98,10 +98,26 @@ function formatTimeWindow(pickup) {
   return start;
 }
 
+// Opens the dialler with the assigned driver's number.
+async function callDriver(phone) {
+  const number = String(phone ?? '').replace(/[^d+]/g, '');
+  if (!number) return;
+  const url = `tel:${number}`;
+  const canOpen = await Linking.canOpenURL(url).catch(() => false);
+  if (!canOpen) {
+    Alert.alert('Cannot place the call', `Dial ${phone} from your phone app.`);
+    return;
+  }
+  Linking.openURL(url).catch(() =>
+    Alert.alert('Cannot place the call', `Dial ${phone} from your phone app.`)
+  );
+}
+
 function mapCurrentPickup(pickup) {
   if (!pickup) return null;
   const dateHasPassed = PRE_TRIP_STATUSES.includes(pickup.status) && isDateBeforeToday(pickup.pickup_date);
   const driverName = pickup.collectors?.full_name ?? null;
+  const driverPhone = pickup.collectors?.phone ?? null;
   let statusCopy = STATUS_COPY[pickup.status] ?? {
     title: 'Collection update available.',
     detail: 'The latest recorded details are shown below.',
@@ -126,6 +142,7 @@ function mapCurrentPickup(pickup) {
     dateLabel: dateHasPassed ? 'Previous date' : pickup.status === 'scheduled' ? 'Confirmed date' : 'Recorded date',
     timeWindow: dateHasPassed ? null : formatTimeWindow(pickup),
     driverName,
+    driverPhone,
     driverInitials: driverName ? getInitials(driverName, 'D') : null,
     currentStep: STATUS_STEP_INDEX[pickup.status] ?? null,
     dateHasPassed,
@@ -262,6 +279,17 @@ function CurrentCollectionCard({ pickup, canCancel, cancelling, onCancel }) {
           <View style={styles.driverRow}>
             <View style={styles.driverAvatar}><Text style={styles.driverAvatarText}>{pickup.driverInitials}</Text></View>
             <Text style={styles.driverName}>{pickup.driverName}</Text>
+            {/* Collectors are readable here via collectors_select_restaurant_gap,
+                which exposes only the drivers assigned to this restaurant. */}
+            {pickup.driverPhone ? (
+              <Pressable
+                onPress={() => callDriver(pickup.driverPhone)}
+                style={({ pressed }) => [styles.callButton, pressed && styles.pressed]}
+              >
+                <Ionicons name="call-outline" size={15} color="#fff" />
+                <Text style={styles.callButtonText}>Call</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
       ) : null}
@@ -406,6 +434,17 @@ const styles = StyleSheet.create({
   detailValue: { fontFamily: REST_FONTS.bold, fontSize: 14, color: REST_COLORS.ink },
   driverBlock: { marginTop: 14 },
   driverRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 5 },
+  callButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginLeft: 'auto',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: REST_COLORS.primary,
+  },
+  callButtonText: { fontFamily: REST_FONTS.semiBold, fontSize: 12.5, color: '#fff' },
   driverAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: REST_COLORS.paleGreen, alignItems: 'center', justifyContent: 'center' },
   driverAvatarText: { fontFamily: REST_FONTS.bold, fontSize: 12, color: REST_COLORS.primary },
   driverName: { fontFamily: REST_FONTS.semiBold, fontSize: 14, color: REST_COLORS.ink },

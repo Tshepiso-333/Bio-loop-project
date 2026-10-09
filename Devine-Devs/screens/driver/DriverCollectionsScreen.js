@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, StatusBar, Alert, Image,
+  TouchableOpacity, StatusBar, Alert, Image, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -155,6 +155,28 @@ export default function DriverCollectionsScreen({ navigation }) {
   // to the map, which owns every checkpoint from there — driving to the
   // restaurant, arrival, collection, driving to the manufacturer, delivery.
   // Pickups already mid-trip just jump back into the map where they left off.
+  // Opens the dialler with the restaurant's number. It used to show an
+  // "Calling…" alert and never dial, which looked like it worked.
+  const handleCall = async (item) => {
+    const number = String(item.phone ?? '').replace(/[^\d+]/g, '');
+    if (!number) {
+      Alert.alert(
+        'No number on file',
+        `${item.name} has not added a contact number yet. Message them in the app instead.`
+      );
+      return;
+    }
+    const url = `tel:${number}`;
+    const canOpen = await Linking.canOpenURL(url).catch(() => false);
+    if (!canOpen) {
+      Alert.alert('Cannot place the call', `Dial ${item.phone} from your phone app.`);
+      return;
+    }
+    Linking.openURL(url).catch(() =>
+      Alert.alert('Cannot place the call', `Dial ${item.phone} from your phone app.`)
+    );
+  };
+
   const handleAction = async (item) => {
     if (PRE_TRIP_STATUSES.includes(item.status)) {
       try {
@@ -240,7 +262,7 @@ export default function DriverCollectionsScreen({ navigation }) {
           <CollectionCard
             key={item.id}
             item={item}
-            onCall={() => Alert.alert('Call', item.phone ? `Calling ${item.phone}...` : `Calling ${item.name}...`)}
+            onCall={() => handleCall(item)}
             onAction={() => handleAction(item)}
             onDecline={() => handleDecline(item)}
           />
