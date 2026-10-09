@@ -82,7 +82,7 @@ const StatusBadge = ({ status }) => {
     STATUS_BADGE_COLORS.pending;
 
   const label =
-    PICKUP_STATUS_LABELS[status] ?? 'Pending';
+    PICKUP_STATUS_LABELS[status] ?? 'Status unknown';
 
   return (
     <View
@@ -127,7 +127,8 @@ const PickupCard = ({ item, onPress }) => (
       </Text>
 
       <Text style={styles.pickupTime}>
-        {item.time} · {item.estimatedLiters}L est.
+        {item.time || 'Time TBC'} ·{' '}
+        {item.estimatedLiters != null ? `${item.estimatedLiters}L est.` : 'volume TBC'}
       </Text>
     </View>
 
@@ -262,14 +263,19 @@ export default function DriverHomeScreen({
       time:
         pickup.pickup_time_start || '',
 
+      // null means unmeasured, not empty — see DriverCollectionsScreen.
       estimatedLiters:
-        pickup.estimated_volume_liters ??
         pickup.actual_volume_liters ??
-        0,
+        pickup.estimated_volume_liters ??
+        null,
 
       status:
-        pickup.status ?? 'pending',
+        pickup.status ?? null,
     }));
+
+  // The list above previews the first few jobs; without this the rest of a
+  // driver's day was simply invisible.
+  const hiddenPickupCount = Math.max(0, openPickups.length - todayPickups.length);
 
   // -------------------------------------------------------
   // Header
@@ -564,6 +570,18 @@ export default function DriverHomeScreen({
           </Text>
         </View>
 
+        {todayPickups.length === 0 ? (
+          <View style={styles.noPickupsCard}>
+            <Ionicons name="cafe-outline" size={26} color={THEME.gray} />
+            <Text style={styles.noPickupsTitle}>No pickups assigned</Text>
+            <Text style={styles.noPickupsText}>
+              {collector?.is_on_duty
+                ? 'You are on duty. New collections are dispatched to you automatically.'
+                : 'Go on duty to start receiving collections.'}
+            </Text>
+          </View>
+        ) : null}
+
         {todayPickups.map((item) => (
           <PickupCard
             key={item.id}
@@ -575,6 +593,12 @@ export default function DriverHomeScreen({
             }
           />
         ))}
+
+        {hiddenPickupCount > 0 ? (
+          <Text style={styles.morePickupsHint}>
+            {`+${hiddenPickupCount} more waiting in All pickups`}
+          </Text>
+        ) : null}
 
         {/* View all pickups */}
 
@@ -923,6 +947,35 @@ const styles = StyleSheet.create({
   sectionCount: {
     fontSize: 13,
     color: THEME.gray,
+  },
+
+  noPickupsCard: {
+    alignItems: 'center',
+    backgroundColor: THEME.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: THEME.grayLight,
+    paddingVertical: 26,
+    paddingHorizontal: 22,
+    gap: 6,
+    marginBottom: 12,
+  },
+  noPickupsTitle: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    color: THEME.text,
+  },
+  noPickupsText: {
+    fontSize: 12.5,
+    color: THEME.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  morePickupsHint: {
+    fontSize: 12.5,
+    color: THEME.gray,
+    textAlign: 'center',
+    paddingBottom: 4,
   },
 
   pickupCard: {

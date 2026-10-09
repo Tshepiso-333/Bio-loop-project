@@ -45,7 +45,7 @@ const STATUS_BADGE_COLORS = {
 
 const StatusBadge = ({ status }) => {
   const { bg, color } = STATUS_BADGE_COLORS[status] || STATUS_BADGE_COLORS.pending;
-  const label = PICKUP_STATUS_LABELS[status] ?? 'Pending';
+  const label = PICKUP_STATUS_LABELS[status] ?? 'Status unknown';
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
@@ -77,7 +77,11 @@ const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
             </View>
             <View style={styles.cardMeta}>
               <Ionicons name="time-outline" size={12} color={THEME.gray} />
-              <Text style={styles.cardTime}> {item.time} · {item.estimatedLiters}L est.</Text>
+              <Text style={styles.cardTime}>
+                {' '}
+                {item.time || 'Time TBC'} ·{' '}
+                {item.estimatedLiters != null ? `${item.estimatedLiters}L est.` : 'volume TBC'}
+              </Text>
             </View>
           </View>
         </View>
@@ -137,8 +141,10 @@ export default function DriverCollectionsScreen({ navigation }) {
       address: p.restaurants?.address ?? '',
       phone: p.restaurants?.phone ?? '',
       time: p.pickup_time_start ?? '',
-      estimatedLiters: p.estimated_volume_liters ?? p.actual_volume_liters ?? 0,
-      status: p.status ?? 'pending',
+      // null means nobody has measured it yet. Defaulting to 0 told the
+      // driver there was no oil to collect.
+      estimatedLiters: p.actual_volume_liters ?? p.estimated_volume_liters ?? null,
+      status: p.status ?? null,
     })),
     [assignedPickups]
   );
