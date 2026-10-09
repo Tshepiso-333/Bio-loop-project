@@ -132,7 +132,7 @@ export const tanks = {
 export const pickups = {
   table: 'pickups',
   collectorJoin:
-    '*, collectors(full_name, rating, total_collections, reviews_count, profile_image_url)',
+    '*, collectors(full_name, phone, rating, total_collections, reviews_count, profile_image_url)',
 
   columns: {
     pickupDate: 'pickup_date',

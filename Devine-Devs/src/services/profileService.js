@@ -155,6 +155,9 @@ export async function ensureRoleBusinessRecord(userId, role, baseProfile = {}) {
 export async function updateCollectorProfile(recordId, payload) {
   const updates = pick(payload, [
     'full_name',
+    // Mirrored from profiles.phone by a trigger (migration 063), but a
+    // direct write is still allowed — the admin uses it.
+    'phone',
     'district',
     'route_name',
     'vehicle_info',
