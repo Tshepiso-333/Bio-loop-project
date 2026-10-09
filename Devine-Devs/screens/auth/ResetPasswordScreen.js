@@ -25,6 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { updatePassword } from '../../src/services/authService';
+import { useAuth } from '../../AuthContext';
 
 const COLORS = {
   formBg:           '#FFFFFF',
@@ -57,7 +58,8 @@ const MIN_LENGTH = 8;
 
 export default function ResetPasswordScreen({ route }) {
   const insets = useSafeAreaInsets();
-  const email = route?.params?.email;
+  const { endPasswordRecovery, recoveryEmail } = useAuth();
+  const email = route?.params?.email ?? recoveryEmail;
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -83,6 +85,9 @@ export default function ResetPasswordScreen({ route }) {
     setError(null);
     try {
       await updatePassword(password);
+      // Recovery is done; the session becomes an ordinary one and
+      // RootNavigator moves on to this user's role stack.
+      endPasswordRecovery();
       // The recovery session is now a normal session, so RootNavigator
       // swaps straight to this user's role stack — nothing to navigate.
     } catch (err) {

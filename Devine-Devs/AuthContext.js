@@ -9,6 +9,24 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Verifying a password-reset code signs the user in with a recovery
+  // session — that session is what authorises updateUser({ password }).
+  // RootNavigator only renders AuthStack while signed out, so without this
+  // flag the reset screen was torn down the instant the code was accepted
+  // and the password was never changed. While it is true, the reset screen
+  // owns the whole app regardless of auth state.
+  const [recoveringPassword, setRecoveringPassword] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState(null);
+
+  const beginPasswordRecovery = (email = null) => {
+    setRecoveryEmail(email);
+    setRecoveringPassword(true);
+  };
+  const endPasswordRecovery = () => {
+    setRecoveringPassword(false);
+    setRecoveryEmail(null);
+  };
+
   const signOut = async () => {
     const userId = user?.id;
     if (userId) {
@@ -16,6 +34,7 @@ export const AuthProvider = ({ children }) => {
     }
     setUser(null);
     setSession(null);
+    setRecoveringPassword(false);
     await supabase.auth.signOut();
   };
 
@@ -44,8 +63,12 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated: !!user,
       loading,
       signOut,
+      recoveringPassword,
+      recoveryEmail,
+      beginPasswordRecovery,
+      endPasswordRecovery,
     }),
-    [user, session, loading]
+    [user, session, loading, recoveringPassword, recoveryEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -9,6 +9,7 @@ import { useOnboarding } from '../src/hooks/useOnboarding';
 import AuthStack from './AuthStack';
 import RoleProviderGate, { ROLE_STACKS } from '../src/providers/RoleProviderGate';
 import UnknownRoleScreen from '../screens/auth/UnknownRoleScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 
 const Stack = createNativeStackNavigator();
@@ -20,11 +21,12 @@ const LoadingScreen = () => (
 );
 
 export default function RootNavigator() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, recoveringPassword } = useAuth();
   const { role, loading: profileLoading } = useProfile();
   const { seen: onboardingSeen, loading: onboardingLoading, markSeen } = useOnboarding();
 
-  if (authLoading || onboardingLoading || (isAuthenticated && profileLoading)) {
+  // Don't let the profile fetch hold a spinner over the reset screen.
+  if (authLoading || onboardingLoading || (isAuthenticated && profileLoading && !recoveringPassword)) {
     return <LoadingScreen />;
   }
 
@@ -36,7 +38,12 @@ export default function RootNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!isAuthenticated ? (
+        {recoveringPassword ? (
+          /* Mid password reset. The recovery session already counts as
+             signed in, so this has to outrank the role stacks or the reset
+             screen never gets shown. */
+          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        ) : !isAuthenticated ? (
           <Stack.Screen name="Auth" component={AuthStack} />
         ) : ROLE_STACKS[role] ? (
           <Stack.Screen name="TeamArea" component={RoleProviderGate} />
