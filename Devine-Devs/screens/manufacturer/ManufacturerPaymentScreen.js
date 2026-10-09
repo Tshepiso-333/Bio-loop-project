@@ -48,6 +48,11 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
 
   const pickup = useMemo(() => pickups.find((p) => p.id === pickupId) ?? null, [pickups, pickupId]);
 
+  // A pickup only gets paid once. Re-entering this screen afterwards (via
+  // the dashboard, an alert, or the back button) used to land on the summary
+  // with a live Pay button, which ran the whole confirm a second time.
+  const alreadyPaid = pickup?.status === 'completed';
+
   // summary -> checkout -> confirming -> success | cancelled | error
   const [stage, setStage] = useState('summary');
   const [checkout, setCheckout] = useState(null); // { html, transactionId, amount, breakdown }
@@ -56,7 +61,7 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
   const webviewHandledRef = React.useRef(false);
 
   const handleStartCheckout = async () => {
-    if (!pickup) return;
+    if (!pickup || alreadyPaid) return;
     setLoadingCheckout(true);
     setErrorMessage(null);
     try {
@@ -161,7 +166,6 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
             <Text style={styles.successTitle}>Payment successful</Text>
             <Text style={styles.successText}>
               You paid {currency(checkout?.amount)} for the delivery from {pickup.restaurants?.name ?? 'the restaurant'}.
-              The trip is now marked complete.
             </Text>
             <TouchableOpacity
               style={styles.doneButton}
@@ -198,6 +202,24 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
             <Text style={styles.successText}>{errorMessage}</Text>
             <TouchableOpacity style={styles.doneButton} onPress={() => setStage('summary')}>
               <Text style={styles.doneButtonText}>Back to summary</Text>
+            </TouchableOpacity>
+          </View>
+        ) : alreadyPaid ? (
+          /* Settled already — show the receipt, never another Pay button. */
+          <View style={styles.successWrap}>
+            <View style={styles.successIconCircle}>
+              <Ionicons name="checkmark" size={40} color="#fff" />
+            </View>
+            <Text style={styles.successTitle}>Already paid</Text>
+            <Text style={styles.successText}>
+              This delivery from {pickup.restaurants?.name ?? 'the restaurant'} has been paid for
+              {pickup.amount_paid ? ` (${currency(pickup.amount_paid)})` : ''}. Nothing further is due.
+            </Text>
+            <TouchableOpacity
+              style={styles.doneButton}
+              onPress={() => navigation.navigate('ManufacturerDashboardScreen')}
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
             </TouchableOpacity>
           </View>
         ) : (
