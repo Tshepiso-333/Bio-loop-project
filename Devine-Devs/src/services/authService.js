@@ -20,7 +20,13 @@ function describeAuthError(error, fallback) {
   if (/rate limit|too many requests|after \d+ seconds/i.test(message)) {
     return 'Too many code requests. Wait a minute and try again.';
   }
-  if (/token has expired|expired/i.test(message)) {
+  // Supabase answers a wrong code AND a stale one with the same string,
+  // "Token has expired or is invalid", so don't claim it expired — that
+  // sends people off to request a new code when they just mistyped.
+  if (/expired or is invalid/i.test(message)) {
+    return 'That code is wrong or has expired. Check the digits, or send yourself a new one.';
+  }
+  if (/expired/i.test(message)) {
     return 'That code has expired. Send yourself a new one.';
   }
   if (/invalid|incorrect/i.test(message)) {
