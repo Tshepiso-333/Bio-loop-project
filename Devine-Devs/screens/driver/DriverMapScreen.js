@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -738,7 +739,12 @@ export default function DriverMapScreen({ route }) {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
+        // iOS: leave the provider undefined so react-native-maps uses Apple
+        // Maps — it needs no API key and works in Expo Go. Forcing
+        // PROVIDER_GOOGLE here renders a blank map on iPhone unless
+        // ios.config.googleMapsApiKey is set, which we deliberately don't do.
+        // Android keeps Google (Expo Go supplies the key there).
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={{
           latitude: location.latitude,
           longitude: location.longitude,
