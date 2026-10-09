@@ -104,16 +104,32 @@ const { colors: C, fonts: F, radii: R, spacing: S, shadows: SH } = MANU_THEME;
 
 // ─── LABELS ──────────────────────────────────────────────────────────────────
 
+// Manufacturer-facing wording for every value of the pickup_status enum.
+// It must stay exhaustive: the renderer used to fall back to 'Scheduled' for
+// anything missing, so a cancelled or newly-added status displayed as though
+// oil were on its way. Anything genuinely absent now reads "Status unknown".
+// Shared checkpoint names live in src/lib/pickupStatus.js — this map is the
+// manufacturer's phrasing of the same enum, not a second source of truth.
 const DELIVERY_STATUS_LABELS = {
-  scheduled: 'Scheduled',
-  pending: 'Scheduled',
+  pending: 'Awaiting a driver',
+  scheduled: 'Awaiting a driver',
+  assigned: 'Awaiting a driver',
   in_transit: 'Driver en route to restaurant',
   arrival: 'Driver at restaurant',
   in_progress: 'Collecting',
   collected: 'On the way to you',
   arrived_manufacturer: 'Driver arrived',
   completed: 'Delivered',
+  cancelled: 'Cancelled',
 };
+
+// Terminal states — these are not "incoming" and must not appear in the
+// Incoming Deliveries list.
+const FINISHED_STATUSES = ['completed', 'cancelled'];
+
+// How many of the incoming deliveries the dashboard previews before the
+// "View All" link takes over.
+const INCOMING_PREVIEW_COUNT = 4;
 
 const DELIVERY_STATUS_COLORS = {
   collected: C.gradeA,
@@ -284,9 +300,26 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
   );
 
   const currentStock = inventory?.current_stock_liters ?? 0;
-  const stockIncrease = inventory?.stock_change_pct ?? 0;
-  const thisWeekVolume = forecasts?.[0]?.total_volume_liters ?? 0;
-  const weeklyDeliveries = (pickups || []).length;
+  const stockChangePct = Number(inventory?.stock_change_pct ?? 0);
+  // The arrow used to be a hardcoded ↑, so a drop in stock rendered as
+  // "↑ -8%". Show the direction the number actually went, and nothing at all
+  // when it hasn't moved.
+  const stockChangeLabel =
+    stockChangePct === 0
+      ? 'No change'
+      : `${stockChangePct > 0 ? '↑' : '↓'} ${Math.abs(stockChangePct)}%`;
+
+  // forecasts is not ordered, so [0] was an arbitrary row — ask for the
+  // 7-day one by name, the same way sevenDayForecast below does.
+  const weekForecast = forecasts?.find((f) => f.period_days === 7) ?? null;
+  const thisWeekVolume = weekForecast?.total_volume_liters ?? 0;
+
+  // This card says "This Week"; it was counting every pickup ever routed to
+  // this manufacturer.
+  const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const weeklyDeliveries = (pickups || []).filter(
+    (p) => p.status === 'completed' && (p.pickup_date ?? '') >= weekAgoIso
+  ).length;
 
   const weeklyData = (() => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -312,20 +345,32 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
       ]
     : [];
 
-  const sortedPickups = [...(pickups || [])].sort((a, b) => {
-    const aWaiting = a.status === 'arrived_manufacturer' ? 0 : 1;
-    const bWaiting = b.status === 'arrived_manufacturer' ? 0 : 1;
-    return aWaiting - bWaiting;
+  // "Incoming" means still on its way here. manufacturerService returns every
+  // pickup ever routed to this manufacturer, so without this filter the list
+  // kept showing deliveries that had already been received and paid for, which
+  // read as the dashboard not updating.
+  const incomingPickups = (pickups || [])
+    .filter((p) => !FINISHED_STATUSES.includes(p.status))
+    .sort((a, b) => {
+      const aWaiting = a.status === 'arrived_manufacturer' ? 0 : 1;
+      const bWaiting = b.status === 'arrived_manufacturer' ? 0 : 1;
+      return aWaiting - bWaiting;
+    });
+
+  const upcomingDeliveries = incomingPickups.slice(0, INCOMING_PREVIEW_COUNT).map((p) => {
+    // A volume of null means nobody has measured it yet — not zero litres.
+    const liters = p.actual_volume_liters ?? p.estimated_volume_liters ?? null;
+    return {
+      id: p.id,
+      restaurant: p.restaurants?.name ?? 'Unknown restaurant',
+      volume: liters != null ? Number(liters) : null,
+      quality: p.quality_grade ?? null,
+      eta: p.pickup_time_start ? String(p.pickup_time_start).slice(0, 5) : null,
+      status: p.status ?? null,
+    };
   });
 
-  const upcomingDeliveries = sortedPickups.slice(0, 3).map((p) => ({
-    id: p.id,
-    restaurant: p.restaurants?.name ?? 'Unknown',
-    volume: p.estimated_volume_liters ?? p.actual_volume_liters ?? 0,
-    quality: p.quality_grade ?? '—',
-    eta: p.pickup_time_start ?? '—',
-    status: p.status ?? 'scheduled',
-  }));
+  const hiddenIncomingCount = Math.max(0, incomingPickups.length - upcomingDeliveries.length);
 
   const onRefresh = () => {
     if (refreshManufacturer) refreshManufacturer();
@@ -549,7 +594,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                 iconName="water-outline"
                 label="Current Stock"
                 value={`${currentStock.toLocaleString()} L`}
-                sub={`↑ ${stockIncrease}%`}
+                sub={stockChangeLabel}
               />
               <StatCard
                 iconName="cube-outline"
@@ -566,6 +611,16 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                 onPress={() => setSelectedTab('suppliers')}
               />
               <View style={styles.deliveriesList}>
+                {upcomingDeliveries.length === 0 ? (
+                  <View style={styles.deliveriesEmpty}>
+                    <Ionicons name="checkmark-done-outline" size={26} color={C.muted} />
+                    <Text style={styles.deliveriesEmptyTitle}>Nothing on its way</Text>
+                    <Text style={styles.deliveriesEmptyText}>
+                      Every delivery routed to you has been received. New pickups appear here as
+                      soon as a restaurant schedules one.
+                    </Text>
+                  </View>
+                ) : null}
                 {upcomingDeliveries.map((delivery) => (
                   <TouchableOpacity
                     key={delivery.id}
@@ -579,7 +634,9 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                         <View style={styles.deliveryMeta}>
                           <View style={styles.volumeContainer}>
                             <Ionicons name="water-outline" size={12} color={C.muted} />
-                            <Text style={styles.volumeText}>{delivery.volume}L</Text>
+                            <Text style={styles.volumeText}>
+                              {delivery.volume != null ? `${delivery.volume}L` : 'Volume TBC'}
+                            </Text>
                           </View>
                           <View
                             style={[
@@ -593,13 +650,13 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                                 { color: getQualityColor(delivery.quality) },
                               ]}
                             >
-                              Grade {delivery.quality}
+                              {delivery.quality ? `Grade ${delivery.quality}` : 'Grade TBC'}
                             </Text>
                           </View>
                         </View>
                       </View>
                       <View style={styles.deliveryTimeInfo}>
-                        <Text style={styles.etaText}>{delivery.eta}</Text>
+                        <Text style={styles.etaText}>{delivery.eta ?? 'Time TBC'}</Text>
                         <View style={styles.statusContainer}>
                           <View
                             style={[
@@ -619,7 +676,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                               },
                             ]}
                           >
-                            {DELIVERY_STATUS_LABELS[delivery.status] ?? 'Scheduled'}
+                            {DELIVERY_STATUS_LABELS[delivery.status] ?? 'Status unknown'}
                           </Text>
                         </View>
                       </View>
@@ -643,6 +700,11 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                     )}
                   </TouchableOpacity>
                 ))}
+                {hiddenIncomingCount > 0 ? (
+                  <Text style={styles.deliveriesMore}>
+                    {`+${hiddenIncomingCount} more incoming · tap View All`}
+                  </Text>
+                ) : null}
               </View>
             </View>
 
@@ -1131,6 +1193,31 @@ const styles = StyleSheet.create({
 
   // ── Deliveries ───────────────────────────────────────────────────────────
   deliveriesList: { gap: 12 },
+  deliveriesEmpty: {
+    alignItems: 'center',
+    backgroundColor: C.card,
+    borderRadius: R.card,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingVertical: 26,
+    paddingHorizontal: 22,
+    gap: 6,
+  },
+  deliveriesEmptyTitle: { fontFamily: F.semiBold, fontSize: 14.5, color: C.ink },
+  deliveriesEmptyText: {
+    fontFamily: F.regular,
+    fontSize: 12.5,
+    color: C.muted,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  deliveriesMore: {
+    fontFamily: F.regular,
+    fontSize: 12.5,
+    color: C.muted,
+    textAlign: 'center',
+    paddingTop: 2,
+  },
   deliveryCard: {
     backgroundColor: C.card,
     borderRadius: R.card,
