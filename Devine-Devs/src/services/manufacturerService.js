@@ -89,12 +89,14 @@ async function notifyDeliveryConfirmed(pickup) {
   const manufacturerName = pickup.manufacturers?.name ?? 'the manufacturer';
 
   const jobs = [];
+  const meta = { pickupId: pickup.id };
 
   if (restaurantOwnerId) {
     jobs.push(notifyUser(restaurantOwnerId, {
       title: 'Delivery confirmed',
       message: `${manufacturerName} confirmed receipt of your oil. Earnings recorded.`,
       category: 'delivery',
+      meta,
     }));
   }
 
@@ -103,6 +105,7 @@ async function notifyDeliveryConfirmed(pickup) {
       title: 'Trip complete',
       message: `${manufacturerName} confirmed receipt of the oil you delivered. Trip complete.`,
       category: 'delivery',
+      meta,
     }));
   }
 
@@ -110,6 +113,7 @@ async function notifyDeliveryConfirmed(pickup) {
     title: 'Trip complete',
     message: `${manufacturerName} confirmed receipt of oil from ${restaurantName}.`,
     category: 'delivery',
+    meta,
   }));
 
   if (jobs.length) await Promise.allSettled(jobs);
