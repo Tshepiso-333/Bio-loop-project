@@ -1,6 +1,10 @@
 import { supabase } from '../../supabase';
 
-export async function notifyAllAdmins({ title, message, category = 'info', type = 'info' }) {
+//  is the routing payload (migration 064): { pickupId, screen, ... }.
+// Tapping the alert in the bell — and later the push notification built from
+// it — uses this to open the thing the alert is about. Pass it whenever the
+// alert refers to a specific pickup, payment or tank.
+export async function notifyAllAdmins({ title, message, category = 'info', type = 'info', meta = {} }) {
   const { data: admins, error: adminsError } = await supabase
     .from('profiles')
     .select('id')
@@ -15,6 +19,7 @@ export async function notifyAllAdmins({ title, message, category = 'info', type 
     message,
     category,
     type,
+    meta,
     is_read: false,
     created_at: new Date().toISOString(),
   }));
@@ -24,7 +29,7 @@ export async function notifyAllAdmins({ title, message, category = 'info', type 
   return data;
 }
 
-export async function notifyUser(userId, { title, message, category = 'info', type = 'info' }) {
+export async function notifyUser(userId, { title, message, category = 'info', type = 'info', meta = {} }) {
   if (!userId) return null;
 
   const { data, error } = await supabase
@@ -35,6 +40,7 @@ export async function notifyUser(userId, { title, message, category = 'info', ty
       message,
       category,
       type,
+      meta,
       is_read: false,
       created_at: new Date().toISOString(),
     })
