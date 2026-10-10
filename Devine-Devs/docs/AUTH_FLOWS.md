@@ -59,3 +59,29 @@ and that shared sender only delivers to addresses on the Supabase org. For
 team-wide testing, add custom SMTP (Resend / Brevo / SendGrid free tier) under
 Authentication → Emails, then raise the rate limit. Until then these flows work
 reliably only for the project owner's own address.
+
+## The recovery-session trap (fixed 2026-10-09)
+
+Verifying a reset code signs the person in — that recovery session is what
+authorises `updateUser({ password })`. But `RootNavigator` renders `AuthStack`
+only while `!isAuthenticated`, so the moment the code was accepted the whole
+auth stack unmounted and **ResetPasswordScreen never rendered**. The person
+landed in the app with their old password still set, and no error anywhere.
+
+Fix: `AuthContext` carries a `recoveringPassword` flag (plus `recoveryEmail`).
+
+- `VerifyCodeScreen` calls `beginPasswordRecovery(email)` **before** verifying,
+  since the session arrives mid-call, and `endPasswordRecovery()` if the code
+  turns out to be wrong — otherwise a typo would strand the app on the reset
+  screen.
+- `RootNavigator` checks `recoveringPassword` **first**, ahead of both the
+  signed-out and role-stack branches, and skips the profile-loading spinner
+  while it is set.
+- `ResetPasswordScreen` calls `endPasswordRecovery()` once the password saves;
+  the session is then an ordinary one and the role stack takes over.
+- `signOut()` clears the flag.
+
+`ResetPassword` therefore lives in `RootNavigator`, not `AuthStack`.
+
+Known gap: the flag is in memory, so force-quitting mid-reset leaves the person
+signed in with the old password. They can simply run the flow again.
