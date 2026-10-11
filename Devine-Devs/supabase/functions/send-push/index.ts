@@ -64,6 +64,43 @@ function isPushWorthy(title: string | null): boolean {
   return PUSH_WORTHY_TITLES.has(title.trim());
 }
 
+/**
+ * Email fallback for a person with no reachable device. Best-effort: a
+ * failure here must not turn into an error on the alert write that caused it.
+ */
+async function sendByEmail(
+  userId: string,
+  title: string | null,
+  message: string | null,
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${TRIGGER_SECRET}`,
+      },
+      body: JSON.stringify({
+        userId,
+        subject: `BioLoop · ${title ?? "Update"}`,
+        html: `
+          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px 24px;color:#122A1F">
+            <div style="font-size:21px;font-weight:700;color:#15643E;letter-spacing:.5px">BioLoop</div>
+            <h2 style="font-size:17px;margin:22px 0 8px">${title ?? "Update"}</h2>
+            <p style="font-size:14px;line-height:1.6;color:#3C4F45;margin:0">${message ?? ""}</p>
+            <p style="font-size:12px;color:#6B7F75;margin-top:26px;padding-top:14px;border-top:1px solid #E4EDE7">
+              You are getting this by email because no device on your account can receive
+              notifications. Open BioLoop to see it in the app.
+            </p>
+          </div>`,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "POST only" }), {
@@ -126,10 +163,16 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
     });
   }
+  // Nobody's phone can be reached. Rather than drop a time-critical alert,
+  // fall back to email — which is the only channel that reaches an iPhone
+  // without a paid Apple Developer account, and also covers anyone who
+  // declined notification permission or is testing in Expo Go.
   if (!tokens?.length) {
-    return new Response(JSON.stringify({ sent: 0, skipped: "no devices registered" }), {
-      headers: { "Content-Type": "application/json" },
-    });
+    const emailed = await sendByEmail(userId, title, message);
+    return new Response(
+      JSON.stringify({ sent: 0, fallback: emailed ? "email" : "none", skipped: "no devices registered" }),
+      { headers: { "Content-Type": "application/json" } },
+    );
   }
 
   const messages = tokens.map((row: { token: string }) => ({
