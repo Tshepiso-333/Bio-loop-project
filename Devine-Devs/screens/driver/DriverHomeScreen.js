@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
+import StatementButton from '../../src/components/StatementButton';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import { PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
@@ -497,6 +498,15 @@ export default function DriverHomeScreen({
           </TouchableOpacity>
         </View>
 
+        {/* Earnings statement — every collection fee and withdrawal as a PDF */}
+        <StatementButton
+          role="collector"
+          ownerId={collector?.id}
+          accountName={collector?.full_name}
+          tint={THEME.primary}
+          style={styles.statementBlock}
+        />
+
         {/*
           "Collected today" and
           "Stops remaining" cards REMOVED
@@ -971,6 +981,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
+  statementBlock: { marginTop: 14, marginBottom: 4 },
   morePickupsHint: {
     fontSize: 12.5,
     color: THEME.gray,
