@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import StatementButton from '../../src/components/StatementButton';
 
 const { width } = Dimensions.get('window');
 
@@ -466,6 +467,15 @@ const FinanceScreen = ({ navigation, onBack }) => {
             </View>
           </View>
         </View>
+
+        {/* Payment statement — everything this manufacturer has paid, as a PDF */}
+        <StatementButton
+          role="manufacturer"
+          ownerId={manufacturer?.id}
+          accountName={manufacturer?.name}
+          tint={T.primary}
+          style={{ marginTop: 18 }}
+        />
 
         <View style={{ height: 30 }} />
       </ScrollView>

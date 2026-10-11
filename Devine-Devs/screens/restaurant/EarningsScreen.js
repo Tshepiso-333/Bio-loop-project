@@ -5,6 +5,7 @@ import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
 import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
+import StatementButton from '../../src/components/StatementButton';
 import {
   REST_COLORS,
   REST_FONTS,
@@ -184,6 +185,7 @@ export default function EarningsScreen() {
   const navigation = useNavigation();
   const { profile } = useProfile();
   const {
+    restaurant,
     wallet,
     marketRates,
     qualityLogs,
@@ -257,6 +259,18 @@ export default function EarningsScreen() {
         {withdrawalRows.length > 0 ? withdrawalRows.map((withdrawal) => (
           <WithdrawalRow key={withdrawal.id} withdrawal={withdrawal} />
         )) : <RestaurantEmptyBanner message="No withdrawal or payment history yet." />}
+
+        <SectionLabel
+          title="Statements"
+          subtitle="Download a PDF of your payouts to save or send on."
+        />
+        <StatementButton
+          role="restaurant"
+          ownerId={restaurant?.id}
+          accountName={restaurant?.name ?? profile?.full_name}
+          tint={REST_COLORS.primary}
+          style={{ marginBottom: 6 }}
+        />
 
         <SectionLabel title="Market rates" subtitle="Recorded reference rates, shown with their actual update dates." />
         {rates.length > 0 ? <MarketRatesCard rates={rates} /> : (
