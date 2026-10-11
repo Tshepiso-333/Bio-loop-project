@@ -83,3 +83,31 @@ registered a token yet, because that needs a rebuilt dev build.
 3. **An EAS `projectId`** in `app.json` (`extra.eas.projectId`), which
    `getExpoPushTokenAsync` needs.
 4. Email fallback for iPhone users (Brevo API key).
+
+## Email fallback (added 2026-10-12)
+
+`send-push` now calls `send-email` when a user has **no registered device**.
+That is the answer to iPhone: iOS push needs a paid Apple Developer account
+and Apple only accepts APNs, so there is no free substitute — but email
+reaches every device for nothing. It also covers anyone who declined
+notification permission, or who is testing in Expo Go where push cannot work.
+
+```
+alerts row -> trigger -> send-push
+                           |- devices registered? -> Expo push
+                           '- none?                -> send-email (Brevo)
+```
+
+`send-email` takes `{ to | userId, subject, html }` and looks the address up
+in `profiles` so callers never carry email around. It uses Brevo's REST API
+with `BREVO_API_KEY` in the `api-key` header — the SMTP credentials set up for
+auth emails cannot be used from a function. It shares `PUSH_TRIGGER_SECRET`
+with send-push and fails closed.
+
+Verified 2026-10-12: unauthorised call 401; a real send returned a Brevo
+messageId; an alert insert for a user with no devices produced
+`{"sent":0,"fallback":"email"}`.
+
+Sender is `BioLoop <ngubanemzobanzi4@gmail.com>` on Brevo single-sender
+verification — **no DKIM/DMARC**, so some recipients will see these in spam.
+A verified domain fixes it properly.
