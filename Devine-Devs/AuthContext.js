@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { supabase } from './supabase';
 import { clearUserCaches } from './src/lib/cache';
+import {
+  configureForegroundBehaviour,
+  registerForPush,
+  unregisterPush,
+} from './src/services/pushService';
 
 const AuthContext = createContext(null);
 
@@ -29,6 +34,10 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     const userId = user?.id;
+    // Drop this device's push token first, while the session can still
+    // authorise the RPC — otherwise the next person to sign in on a shared
+    // phone would receive the previous person's alerts.
+    await unregisterPush();
     if (userId) {
       await clearUserCaches(userId);
     }
@@ -55,6 +64,29 @@ export const AuthProvider = ({ children }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Silence OS banners while the app is open — the in-app bell is the
+  // surface then, and a banner for the screen you're looking at is noise.
+  useEffect(() => {
+    configureForegroundBehaviour();
+  }, []);
+
+  // Register this device whenever someone is signed in. Fails soft: it
+  // returns a reason rather than throwing, because push is unavailable in
+  // Expo Go and the person may simply have declined permission. Neither
+  // should interfere with using the app.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    registerForPush().then((result) => {
+      if (!cancelled && !result.ok) {
+        console.log('[push] not registered:', result.reason);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const value = useMemo(
     () => ({

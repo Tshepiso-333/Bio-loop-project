@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
+import { addNotificationTapListener } from '../src/services/pushService';
+import { markAlertRead } from '../src/services/notificationService';
 
 import { useAuth } from '../AuthContext';
 import { useProfile } from '../src/hooks/useProfile';
@@ -24,6 +26,26 @@ export default function RootNavigator() {
   const { isAuthenticated, loading: authLoading, recoveringPassword } = useAuth();
   const { role, loading: profileLoading } = useProfile();
   const { seen: onboardingSeen, loading: onboardingLoading, markSeen } = useOnboarding();
+  const navigationRef = useRef(null);
+
+  // Tapping a push notification should land on the thing it is about, and
+  // mark that alert read so the bell badge doesn't nag about something the
+  // person has just dealt with. Route names differ per role, so the role is
+  // passed in; an unresolvable route just opens the app rather than throwing.
+  useEffect(() => {
+    if (!isAuthenticated || !role) return undefined;
+
+    return addNotificationTapListener(({ screen, params, alertId }) => {
+      if (alertId) {
+        markAlertRead(alertId, true).catch(() => {});
+      }
+      try {
+        navigationRef.current?.navigate('TeamArea', { screen, params });
+      } catch {
+        // A route that no longer exists must not crash the app on a tap.
+      }
+    }, role);
+  }, [isAuthenticated, role]);
 
   // Don't let the profile fetch hold a spinner over the reset screen.
   if (authLoading || onboardingLoading || (isAuthenticated && profileLoading && !recoveringPassword)) {
@@ -36,7 +58,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {recoveringPassword ? (
           /* Mid password reset. The recovery session already counts as
