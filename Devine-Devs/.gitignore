@@ -24,3 +24,10 @@ supabase/.temp/
 android/
 ios/
 .expo/
+
+# Firebase / FCM credentials (added 2026-10-11)
+# google-services.json identifies the Firebase project; the service-account
+# JSON contains a private key that can send push as us. Neither belongs in
+# git. Both are regenerable from the Firebase console.
+google-services.json
+secrets/
