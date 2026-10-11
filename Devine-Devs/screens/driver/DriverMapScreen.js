@@ -139,6 +139,21 @@ export default function DriverMapScreen({ route }) {
       setRouteSummary(data.summary ?? null);
       routeShowingRef.current = true;
 
+      // Share the ETA we just got with whoever is waiting at the other end.
+      // Costs no extra API call — it's the same duration drawn on screen.
+      // Best-effort: a failure here must not break navigation.
+      const durationSeconds = Number(data.summary?.duration ?? 0);
+      if (activePickup?.id && durationSeconds > 0) {
+        supabase
+          .rpc('set_pickup_eta', {
+            p_pickup_id: activePickup.id,
+            p_eta_minutes: Math.round(durationSeconds / 60),
+          })
+          .then(({ error: etaError }) => {
+            if (etaError) console.log('[eta] not stored:', etaError.message);
+          });
+      }
+
       const bbox = data.route?.bbox;
       if (bbox && cameraRef.current) {
         cameraRef.current.fitBounds(

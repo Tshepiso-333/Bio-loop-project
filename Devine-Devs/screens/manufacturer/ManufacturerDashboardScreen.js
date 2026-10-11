@@ -131,6 +131,11 @@ const FINISHED_STATUSES = ['completed', 'cancelled'];
 // "View All" link takes over.
 const INCOMING_PREVIEW_COUNT = 4;
 
+// A driving ETA is only shown while it is recent. The driver's app refreshes
+// it each time the route is drawn, so anything older than this is likely to
+// be wrong and a stale "8 min away" is worse than showing nothing.
+const ETA_FRESH_FOR_MS = 15 * 60 * 1000;
+
 const DELIVERY_STATUS_COLORS = {
   collected: C.gradeA,
   arrived_manufacturer: C.gradeB,
@@ -364,12 +369,25 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
   const upcomingDeliveries = incomingPickups.slice(0, INCOMING_PREVIEW_COUNT).map((p) => {
     // A volume of null means nobody has measured it yet — not zero litres.
     const liters = p.actual_volume_liters ?? p.estimated_volume_liters ?? null;
+
+    // Live driving ETA, written by the driver's map from the same
+    // openrouteservice duration it draws (migration 067). Only trusted while
+    // fresh — a 40-minute-old "8 min away" is worse than no ETA.
+    const etaAge = p.eta_updated_at ? Date.now() - new Date(p.eta_updated_at).getTime() : null;
+    const etaFresh = p.eta_minutes != null && etaAge != null && etaAge < ETA_FRESH_FOR_MS;
+
     return {
       id: p.id,
       restaurant: p.restaurants?.name ?? 'Unknown restaurant',
       volume: liters != null ? Number(liters) : null,
       quality: p.quality_grade ?? null,
-      eta: p.pickup_time_start ? String(p.pickup_time_start).slice(0, 5) : null,
+      // A live driving ETA beats a scheduled time window when we have one.
+      eta: etaFresh
+        ? `${p.eta_minutes} min away`
+        : p.pickup_time_start
+          ? String(p.pickup_time_start).slice(0, 5)
+          : null,
+      etaIsLive: etaFresh,
       status: p.status ?? null,
     };
   });
@@ -670,7 +688,11 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                         </View>
                       </View>
                       <View style={styles.deliveryTimeInfo}>
-                        <Text style={styles.etaText}>{delivery.eta ?? 'Time TBC'}</Text>
+                        <Text
+                          style={[styles.etaText, delivery.etaIsLive && styles.etaTextLive]}
+                        >
+                          {delivery.eta ?? 'Time TBC'}
+                        </Text>
                         <View style={styles.statusContainer}>
                           <View
                             style={[
@@ -1267,6 +1289,9 @@ const styles = StyleSheet.create({
   qualityTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   qualityTagText: { fontFamily: F.semiBold, fontSize: 12, fontWeight: '600' },
   deliveryTimeInfo: { alignItems: 'flex-end' },
+  // A live driving ETA is highlighted so it reads as different from a
+  // scheduled time window.
+  etaTextLive: { color: '#15643E' },
   etaText: {
     fontFamily: F.semiBold,
     fontSize: 15,
