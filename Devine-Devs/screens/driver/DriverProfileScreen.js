@@ -2,7 +2,7 @@
 import React from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, StatusBar, Alert,
+  TouchableOpacity, StatusBar, Alert, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,10 @@ import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
+
+// Where a driver's "Help & Support" mail goes. Same address BioLoop sends
+// its own transactional mail from (supabase/functions/send-email).
+const SUPPORT_EMAIL = 'ngubanemzobanzi4@gmail.com';
 
 // Theme colours (matching manufacturer)
 const THEME = {
@@ -59,6 +63,28 @@ export default function DriverProfileScreen() {
   const email = profile?.email ?? user?.email;
   const location = [profile?.city, profile?.province].filter(Boolean).join(', ');
   const coverageLine = [collector?.district, collector?.route_name].filter(Boolean).join(' · ');
+
+  // What the row used to say was "Certifications", behind a "Coming soon"
+  // alert. The compliance facts already exist on the collector record, so say
+  // what is actually on file and send them to the form that fixes the gaps.
+  const missingCompliance = [
+    collector?.drivers_license_number ? null : 'license',
+    collector?.vehicle_registration ? null : 'vehicle',
+  ].filter(Boolean);
+
+  const complianceLine = missingCompliance.length
+    ? `Add your ${missingCompliance.join(' and ')}`
+    : collector?.is_verified
+      ? 'Verified · license and vehicle on file'
+      : 'License and vehicle on file · awaiting review';
+
+  const openSupportEmail = () => {
+    const subject = `BioLoop driver support — ${collector?.employee_code ?? email ?? 'driver'}`;
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`).catch(() => {
+      // No mail client set up. Give them the address rather than failing silently.
+      Alert.alert('Help & Support', `Email us at ${SUPPORT_EMAIL} and we'll come back to you.`);
+    });
+  };
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -229,11 +255,11 @@ export default function DriverProfileScreen() {
             sublabel="Update vehicle, license, bio"
             onPress={() => navigation.navigate('ProfileEdit')}
           />
-          <MenuItem 
-            icon="notifications-outline" 
-            label="Notifications" 
-            sublabel="Manage alerts"
-            onPress={() => Alert.alert('Notifications', 'Coming soon')} 
+          <MenuItem
+            icon="notifications-outline"
+            label="Notifications"
+            sublabel="Pickups, payouts and trip changes"
+            onPress={() => navigation.navigate('DriverAlerts')}
           />
           <MenuItem
             icon="car-outline"
@@ -244,14 +270,14 @@ export default function DriverProfileScreen() {
           <MenuItem 
             icon="shield-checkmark-outline" 
             label="Safety & Compliance" 
-            sublabel="Certifications"
-            onPress={() => Alert.alert('Safety', 'Coming soon')} 
+            sublabel={complianceLine}
+            onPress={() => navigation.navigate('ProfileEdit')}
           />
-          <MenuItem 
-            icon="help-circle-outline" 
-            label="Help & Support" 
-            sublabel="FAQ, contact us"
-            onPress={() => Alert.alert('Help', 'Coming soon')} 
+          <MenuItem
+            icon="help-circle-outline"
+            label="Help & Support"
+            sublabel={SUPPORT_EMAIL}
+            onPress={openSupportEmail}
           />
         </View>
 
