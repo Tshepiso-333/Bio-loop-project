@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import StatementButton from '../../src/components/StatementButton';
+import CertificateCard from '../../src/components/CertificateCard';
 
 const { width } = Dimensions.get('window');
 
@@ -470,6 +471,15 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
         {/* Payment statement — everything this manufacturer has paid, as a PDF */}
         <StatementButton
+          role="manufacturer"
+          ownerId={manufacturer?.id}
+          accountName={manufacturer?.name}
+          tint={T.primary}
+          style={{ marginTop: 18 }}
+        />
+
+        {/* Environmental partner certificate - a star for each year with us */}
+        <CertificateCard
           role="manufacturer"
           ownerId={manufacturer?.id}
           accountName={manufacturer?.name}
