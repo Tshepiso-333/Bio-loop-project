@@ -5,3 +5,7 @@ node_modules/
 .claude/
 CLAUDE.md
 Devine-Devs/supabase/.temp/
+
+# Local git worktree holding the `main` checkout, for porting work across
+# branches. A nested checkout must never be committed into the repo.
+Devine-Devs-main/
