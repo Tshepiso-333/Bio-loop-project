@@ -31,10 +31,25 @@ function loadNativeModules() {
     Notifications = require('expo-notifications');
     // eslint-disable-next-line global-require
     Device = require('expo-device');
-    return true;
   } catch {
+    Notifications = null;
+    Device = null;
     return false;
   }
+
+  // require() returning without throwing is not proof the module is usable.
+  // In a build whose native side is missing these, the require can still hand
+  // back undefined — which is how a missing ExpoPushTokenManager surfaced as
+  // `Cannot read property 'setNotificationHandler' of undefined` thrown from
+  // inside AuthProvider, i.e. the app failing to start rather than quietly
+  // doing without push. Check for the calls we actually make.
+  if (typeof Notifications?.setNotificationHandler !== 'function' || !Device) {
+    Notifications = null;
+    Device = null;
+    return false;
+  }
+
+  return true;
 }
 
 /** True in Expo Go, where push is not available at all. */
