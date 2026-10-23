@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mzoo.DevineDevs",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "BioLoop uses your location to show your position on the map and to navigate you to each collection."
+      }
     },
     "android": {
       "adaptiveIcon": {
