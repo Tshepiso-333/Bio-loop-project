@@ -200,6 +200,10 @@ export default function DriverHomeScreen({
   }, [alerts]);
   const moneyIsWithdrawal = /withdrawal/i.test(moneyAlert?.title ?? '');
 
+  // The bell's red dot used to be painted on unconditionally, so it claimed
+  // unread news even on a clean account.
+  const unreadAlerts = (alerts || []).filter((a) => !a.is_read).length;
+
   const [togglingDuty, setTogglingDuty] =
     useState(false);
 
@@ -344,6 +348,17 @@ export default function DriverHomeScreen({
               style={
                 styles.notificationButton
               }
+              accessibilityRole="button"
+              accessibilityLabel={
+                unreadAlerts > 0
+                  ? `Notifications, ${unreadAlerts} unread`
+                  : 'Notifications'
+              }
+              onPress={() =>
+                navigation.navigate(
+                  'DriverAlerts'
+                )
+              }
             >
               <Ionicons
                 name="notifications-outline"
@@ -351,11 +366,13 @@ export default function DriverHomeScreen({
                 color="#FFFFFF"
               />
 
-              <View
-                style={
-                  styles.notificationDot
-                }
-              />
+              {unreadAlerts > 0 ? (
+                <View
+                  style={
+                    styles.notificationDot
+                  }
+                />
+              ) : null}
             </TouchableOpacity>
 
             <ProfileAvatar
