@@ -1,13 +1,18 @@
 // Turns statement/receipt HTML into a PDF on the device and hands it to the
 // share sheet, so the person can save it to Files, mail it, or send it on.
 //
-// Both modules are native, so this only works in a build that includes them:
-// Expo Go has expo-print and expo-sharing built in, but a custom dev client
-// built before they were added does not — it needs rebuilding. See
-// docs/STATEMENTS.md.
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+// All three modules are native, so this only works in a build that includes
+// them: Expo Go has them built in, but a custom dev client built before they
+// were added does not — it needs rebuilding. See docs/STATEMENTS.md.
+//
+// They are required lazily, inside the export, rather than imported at module
+// scope. A static import runs while the module graph is still loading, and
+// StatementButton — which reaches this file — is imported by four screens that
+// the navigators mount at startup. So on a build without these modules the
+// throw happened before the app had a UI at all: a "[runtime not ready]" red
+// screen instead of one feature being unavailable. Requiring them here moves
+// that throw to the moment the button is pressed, which is where
+// StatementButton's own catch is waiting to turn it into a readable message.
 
 /** Safe, dated filename: bioloop-earnings-statement-2026-10-11.pdf */
 function buildFileName(kind, suffix) {
@@ -23,8 +28,15 @@ function buildFileName(kind, suffix) {
  * Returns { uri, fileName, shared }. `shared: false` means the PDF was
  * written but the platform had no share sheet to offer it to — the caller
  * should tell the person where it is rather than claim it was sent.
+ *
+ * Throws if the native modules are absent; StatementButton catches that and
+ * explains that the build is too old.
  */
 export async function exportPdf({ html, kind = 'document', suffix = '', dialogTitle }) {
+  const Print = require('expo-print');
+  const Sharing = require('expo-sharing');
+  const FileSystem = require('expo-file-system');
+
   // printToFileAsync writes to a cache path with a random name; we copy it to
   // a readable filename so what lands in Files/WhatsApp is self-describing.
   const { uri } = await Print.printToFileAsync({ html, base64: false });
