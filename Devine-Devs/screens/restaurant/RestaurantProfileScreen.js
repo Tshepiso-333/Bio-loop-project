@@ -8,6 +8,7 @@ import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
+import CertificateCard from '../../src/components/CertificateCard';
 import {
   REST_COLORS,
   REST_FONTS,
@@ -82,6 +83,14 @@ export default function RestaurantProfileScreen() {
           <Ionicons name="create-outline" size={18} color={REST_COLORS.white} />
           <Text style={styles.editBtnText}>Edit profile</Text>
         </TouchableOpacity>
+
+        <CertificateCard
+          role="restaurant"
+          ownerId={restaurant?.id}
+          accountName={displayName}
+          tint={REST_COLORS.primary}
+          style={{ marginBottom: 14 }}
+        />
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Business</Text>

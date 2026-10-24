@@ -13,6 +13,7 @@ import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
+import CertificateCard from '../../src/components/CertificateCard';
 
 // Where a driver's "Help & Support" mail goes. Same address BioLoop sends
 // its own transactional mail from (supabase/functions/send-email).
@@ -127,6 +128,13 @@ export default function DriverProfileScreen() {
       <Header />
       
       <ScrollView showsVerticalScrollIndicator={false}>
+        <CertificateCard
+          role="collector"
+          ownerId={collector?.id}
+          accountName={collector?.full_name}
+          tint={THEME.primary}
+          style={{ marginHorizontal: 16, marginTop: 16 }}
+        />
         {/* Stats Card */}
         <View style={styles.statsCard}>
           <LinearGradient
