@@ -31,3 +31,4 @@ ios/
 # git. Both are regenerable from the Firebase console.
 google-services.json
 secrets/
+docs/DEMO_DAY_SETUP.sql
