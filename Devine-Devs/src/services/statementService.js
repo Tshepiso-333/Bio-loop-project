@@ -216,3 +216,93 @@ export async function getReceipt(pickupId) {
   if (!data) throw new Error('No receipt yet — this pickup has not been paid for.');
   return data;
 }
+
+/**
+ * Collection history — the pickups themselves rather than the money.
+ *
+ * The money statements above answer "what am I owed". This answers "what
+ * actually happened": every collection in the period, its litres, its grade
+ * and where it got to in the lifecycle. Nothing exported this before.
+ *
+ * Same shape as getStatement so it renders through the same statementHtml
+ * and exportPdf path — only docTitle and the columns differ.
+ *
+ * RLS does the scoping here too: pickups_select already admits the
+ * restaurant owner, the assigned collector, the assigned manufacturer and
+ * is_admin(), so the role filter below is about relevance, not safety.
+ */
+async function collectionsBody({ role, ownerId, since }) {
+  let query = supabase
+    .from('pickups')
+    .select(
+      'id, created_at, pickup_date, status, quality_grade, actual_volume_liters, estimated_volume_liters, amount_paid, restaurants(name), collectors(full_name)'
+    )
+    .gte('created_at', since)
+    .order('created_at', { ascending: false });
+
+  if (role === 'restaurant') query = query.eq('restaurant_id', ownerId);
+  else if (role === 'collector') query = query.eq('collector_id', ownerId);
+  else if (role === 'manufacturer') query = query.eq('manufacturer_id', ownerId);
+  // admin: unfiltered — is_admin() in the policy already allows every row.
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const rows = (data ?? []).map((p) => {
+    // A restaurant cares who fetched it; everyone else cares where it came
+    // from. actual_volume_liters is null until a trip is finished, so fall
+    // back to the estimate rather than printing a misleading zero.
+    const counterparty =
+      role === 'restaurant'
+        ? (p.collectors?.full_name ?? 'Driver not yet assigned')
+        : (p.restaurants?.name ?? 'Restaurant unavailable');
+    const litres = p.actual_volume_liters ?? p.estimated_volume_liters ?? null;
+    const grade = p.quality_grade ? `Grade ${p.quality_grade}` : 'Grade pending';
+
+    return {
+      date: p.pickup_date ?? p.created_at,
+      reference: String(p.id).slice(0, 8),
+      description: `${counterparty} · ${grade} · ${String(p.status).replace(/_/g, ' ')}`,
+      liters: litres,
+      amount: Number(p.amount_paid ?? 0),
+      // Anything not finished is marked, so a half-done trip can never be
+      // mistaken for a completed one in a printed document.
+      pending: p.status !== 'completed',
+    };
+  });
+
+  const completed = rows.filter((r) => !r.pending);
+  const totalLitres = rows.reduce((sum, r) => sum + Number(r.liters ?? 0), 0);
+  const totalPaid = rows.reduce((sum, r) => sum + r.amount, 0);
+
+  return {
+    docTitle: 'Collection history',
+    columns: ['Date', 'Pickup', 'Collection', 'Litres', 'Value'],
+    rows,
+    totals: [
+      { label: 'Collections in period', raw: String(rows.length) },
+      { label: 'Completed', raw: String(completed.length) },
+      { label: 'Total litres', raw: `${Math.round(totalLitres * 100) / 100} L` },
+      { label: 'Total value', value: totalPaid, strong: true },
+    ],
+  };
+}
+
+/**
+ * Collection history for one role. Mirrors getStatement's signature so the
+ * two are interchangeable wherever a document is rendered.
+ */
+export async function getCollectionsStatement({ role, ownerId, days = DEFAULT_RANGE_DAYS }) {
+  if (!['restaurant', 'collector', 'manufacturer', 'admin'].includes(role)) {
+    throw new Error(`No collection history defined for role "${role}".`);
+  }
+  const since = daysAgoIso(days);
+  const body = await collectionsBody({ role, ownerId, since });
+  return {
+    role,
+    periodDays: days,
+    from: since,
+    to: new Date().toISOString(),
+    ...body,
+  };
+}
