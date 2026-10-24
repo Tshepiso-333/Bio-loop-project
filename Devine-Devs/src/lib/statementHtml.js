@@ -131,8 +131,8 @@ function footer(extra) {
  * @param accountName whose statement it is, for the header
  */
 export function statementHtml(statement, accountName) {
-  const { role, rows = [], columns = [], totals = [], from, to, periodDays } = statement ?? {};
-  const title = ROLE_TITLES[role] ?? 'Statement';
+  const { role, rows = [], columns = [], totals = [], from, to, periodDays, docTitle } = statement ?? {};
+  const title = docTitle ?? ROLE_TITLES[role] ?? 'Statement';
 
   const head = columns.map((c) => `<th class="${/amount|paid|received/i.test(c) ? 'num' : ''}">${esc(c)}</th>`).join('');
 
@@ -162,7 +162,7 @@ export function statementHtml(statement, accountName) {
           (t) =>
             `<div class="${t.strong ? 'strong' : ''}"><span>${esc(t.label)}</span><span${
               t.value < 0 ? ' class="neg"' : ''
-            }>${esc(money(t.value))}</span></div>`
+            }>${esc(t.raw ?? money(t.value))}</span></div>`
         )
         .join('')}</div>`
     : '';
