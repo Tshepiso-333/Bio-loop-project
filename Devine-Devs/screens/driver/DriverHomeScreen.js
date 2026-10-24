@@ -17,8 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../AuthContext';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
-import StatementButton from '../../src/components/StatementButton';
-import CertificateCard from '../../src/components/CertificateCard';
+import DocumentsCard from '../../src/components/DocumentsCard';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import { PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
@@ -516,17 +515,8 @@ export default function DriverHomeScreen({
           </TouchableOpacity>
         </View>
 
-        {/* Earnings statement — every collection fee and withdrawal as a PDF */}
-        <StatementButton
-          role="collector"
-          ownerId={collector?.id}
-          accountName={collector?.full_name}
-          tint={THEME.primary}
-          style={styles.statementBlock}
-        />
-
-        {/* Environmental partner certificate - a star for each year with us */}
-        <CertificateCard
+        {/* Documents — earnings statement and collection history, as PDFs */}
+        <DocumentsCard
           role="collector"
           ownerId={collector?.id}
           accountName={collector?.full_name}

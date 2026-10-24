@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../AuthContext';
 import { useAdminContext } from '../../src/contexts/AdminContext';
 import AdminHeader from '../../src/admin/components/AdminHeader';
-import StatementButton from '../../src/components/StatementButton';
+import DocumentsCard from '../../src/components/DocumentsCard';
 import { PRE_TRIP_STATUSES, PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
 import {
   ADMIN_COLORS,
@@ -452,7 +452,7 @@ export default function AdminDashboardScreen({ navigation }) {
   const renderFinance = () => (
     <View>
       {/* The platform's own books as a PDF — the same rows as platform_ledger. */}
-      <StatementButton
+      <DocumentsCard
         role="admin"
         accountName="BioLoop platform"
         tint={COLORS.primary}

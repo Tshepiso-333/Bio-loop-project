@@ -5,8 +5,7 @@ import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
 import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
-import StatementButton from '../../src/components/StatementButton';
-import CertificateCard from '../../src/components/CertificateCard';
+import DocumentsCard from '../../src/components/DocumentsCard';
 import {
   REST_COLORS,
   REST_FONTS,
@@ -262,22 +261,10 @@ export default function EarningsScreen() {
         )) : <RestaurantEmptyBanner message="No withdrawal or payment history yet." />}
 
         <SectionLabel
-          title="Statements"
-          subtitle="Download a PDF of your payouts to save or send on."
+          title="Documents"
+          subtitle="Download your payouts or your collection history as a PDF."
         />
-        <StatementButton
-          role="restaurant"
-          ownerId={restaurant?.id}
-          accountName={restaurant?.name ?? profile?.full_name}
-          tint={REST_COLORS.primary}
-          style={{ marginBottom: 6 }}
-        />
-
-        <SectionLabel
-          title="Your certificate"
-          subtitle="A star for every year you have kept oil out of the drain."
-        />
-        <CertificateCard
+        <DocumentsCard
           role="restaurant"
           ownerId={restaurant?.id}
           accountName={restaurant?.name ?? profile?.full_name}
