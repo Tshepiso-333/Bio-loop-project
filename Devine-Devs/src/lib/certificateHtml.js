@@ -72,6 +72,7 @@ export function certificateHtml(standing, info = {}) {
     lengthLabel = '',
     issuedLabel = '',
     reference = '',
+    logoDataUri = null,
   } = info;
 
   const stats = [
@@ -101,6 +102,9 @@ export function certificateHtml(standing, info = {}) {
 <body><div class="sheet"><div class="frame">
 
   <div style="text-align:center">
+    ${logoDataUri
+      ? `<img src="${logoDataUri}" alt="BioLoop" style="width:58px;height:58px;object-fit:contain;display:block;margin:0 auto 9px" />`
+      : ''}
     <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:${GREEN};font-family:Helvetica,Arial,sans-serif">
       BioLoop
     </div>
