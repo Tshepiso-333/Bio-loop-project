@@ -16,6 +16,7 @@ import { useAuth } from '../../AuthContext';
 import { getCertificateData } from '../services/certificateService';
 import { certificateHtml } from '../lib/certificateHtml';
 import { exportPdf } from '../lib/documentExport';
+import { getLogoDataUri } from '../lib/brandLogo';
 import {
   certificateStanding,
   longDate,
@@ -105,6 +106,8 @@ export default function CertificateCard({
     if (busy) return;
     setBusy(true);
     try {
+      // Best-effort: null simply prints the certificate without the mark.
+      const logoDataUri = await getLogoDataUri();
       await exportPdf({
         html: certificateHtml(standing, {
           accountName: name,
@@ -116,6 +119,7 @@ export default function CertificateCard({
           lengthLabel: membershipLength(standing.joined, now),
           issuedLabel: longDate(now),
           reference: ownerId ? 'BL-' + String(ownerId).slice(0, 8) : '',
+          logoDataUri,
         }),
         kind: role + '-certificate',
         dialogTitle: 'Save or share your certificate',
