@@ -203,7 +203,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStat}>
           <Text style={styles.summaryStatValue}>{summaryStats.avgReliability}%</Text>
-          <Text style={styles.summaryStatLabel}>Avg Reliability</Text>
+          <Text style={styles.summaryStatLabel}>Completion rate</Text>
         </View>
       </View>
     </View>
@@ -302,7 +302,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
                     <Text style={styles.modalStatValue}>
                       {selectedSupplier.reliability}%
                     </Text>
-                    <Text style={styles.modalStatLabel}>Reliability</Text>
+                    <Text style={styles.modalStatLabel}>Completion rate</Text>
                   </View>
                   <View style={styles.modalStatDivider} />
                   <View style={styles.modalStat}>
@@ -374,7 +374,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
               {supplier.name}
             </Text>
             <View style={styles.reliabilityBadge}>
-              <Ionicons name="star" size={11} color={T.gradeB} />
+              <Ionicons name="checkmark-circle" size={11} color={T.primary} />
               <Text style={styles.reliabilityText}>{supplier.reliability}%</Text>
             </View>
           </View>
@@ -396,7 +396,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
         </View>
 
         <Text style={styles.supplierCuisine} numberOfLines={1}>
-          {supplier.cuisine} • {supplier.location}
+          {[supplier.cuisine, supplier.location].filter((v) => v && v !== '—').join(' · ')}
         </Text>
 
         {supplier.activeDelivery && (
