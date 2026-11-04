@@ -395,7 +395,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
               const color =
                 g === 'A' ? T.gradeA : g === 'B' ? T.gradeB : T.gradeC;
               const label =
-                g === 'A' ? '🟢 Grade A' : g === 'B' ? '🟡 Grade B' : '🔴 Grade C';
+                g === 'A' ? 'Grade A' : g === 'B' ? 'Grade B' : 'Grade C';
               return (
                 <View
                   key={g}
