@@ -28,6 +28,7 @@ import {
   settlePaymentInBackground,
   pollForCompletion,
 } from '../../src/services/paymentService';
+import { formatRand } from '../../src/lib/format';
 
 // Pay in the background instead of sending the manufacturer out to PayFast's
 // own branded checkout (team decision 2026-11-02). The gateway is still here
@@ -202,7 +203,7 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
             </View>
             <Text style={styles.successTitle}>Payment successful</Text>
             <Text style={styles.successText}>
-              You paid {currency(checkout?.amount)} for the delivery from {pickup.restaurants?.name ?? 'the restaurant'}.
+              You paid {formatRand(checkout?.amount)} for the delivery from {pickup.restaurants?.name ?? 'the restaurant'}.
             </Text>
             <TouchableOpacity
               style={styles.doneButton}
@@ -254,7 +255,7 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
             <Text style={styles.successTitle}>Already paid</Text>
             <Text style={styles.successText}>
               This delivery from {pickup.restaurants?.name ?? 'the restaurant'} has been paid for
-              {pickup.amount_paid ? ` (${currency(pickup.amount_paid)})` : ''}. Nothing further is due.
+              {pickup.amount_paid ? ` (${formatRand(pickup.amount_paid)})` : ''}. Nothing further is due.
             </Text>
             <TouchableOpacity
               style={styles.doneButton}
@@ -275,16 +276,16 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
                 <View style={styles.breakdown}>
                   <View style={styles.breakdownRow}>
                     <Text style={styles.breakdownLabel}>Oil value</Text>
-                    <Text style={styles.breakdownValue}>{currency(checkout.breakdown.grossValue)}</Text>
+                    <Text style={styles.breakdownValue}>{formatRand(checkout.breakdown.grossValue)}</Text>
                   </View>
                   <View style={styles.breakdownRow}>
                     <Text style={styles.breakdownLabel}>Platform fee ({checkout.breakdown.markupPct}%)</Text>
-                    <Text style={styles.breakdownValue}>{currency(checkout.breakdown.markupAmount)}</Text>
+                    <Text style={styles.breakdownValue}>{formatRand(checkout.breakdown.markupAmount)}</Text>
                   </View>
                   <View style={styles.breakdownDivider} />
                   <View style={styles.breakdownRow}>
                     <Text style={styles.totalLabel}>Total due</Text>
-                    <Text style={styles.totalValue}>{currency(checkout.amount)}</Text>
+                    <Text style={styles.totalValue}>{formatRand(checkout.amount)}</Text>
                   </View>
                 </View>
               ) : (

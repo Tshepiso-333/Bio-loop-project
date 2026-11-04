@@ -18,10 +18,10 @@ import {
   RestaurantRefreshScrollView,
 } from '../../src/components/RestaurantScreenStates';
 import {
-  formatCurrency,
   formatLongDate,
   getInitials,
 } from '../../src/utils/restaurantViewModels';
+import { formatRand } from '../../src/lib/format';
 
 function getFiniteAmount(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -91,7 +91,7 @@ function mapEarningRows(earnings, withdrawals) {
     return {
       id: String(earning.id),
       date: formatLongDate(earning.created_at),
-      amount: amount === null ? 'Amount unavailable' : formatCurrency(amount),
+      amount: amount === null ? 'Amount unavailable' : formatRand(amount),
       detail: [
         liters === null ? null : `${liters.toLocaleString('en-ZA')} litres`,
         earning.quality_grade ? `Grade ${earning.quality_grade}` : null,
@@ -128,7 +128,7 @@ function mapWithdrawalRows(withdrawals) {
     return {
       id: String(withdrawal.id),
       date: formatLongDate(withdrawal.created_at),
-      amount: amount === null ? 'Amount unavailable' : formatCurrency(amount),
+      amount: amount === null ? 'Amount unavailable' : formatRand(amount),
       method: formatMethod(withdrawal.method),
       ...status,
       references: [
@@ -163,7 +163,7 @@ function mapRates(marketRates) {
       rates.push({
         id: String(rate.id ?? grade),
         grade: grade.startsWith('Grade') ? grade : `Grade ${grade}`,
-        amount: `${formatCurrency(amount)}/L`,
+        amount: `${formatRand(amount)}/L`,
         recordedAt: formatRateDate(rate.created_at),
         change: rate.change_label && !/current/i.test(rate.change_label)
           ? rate.change_label
@@ -304,13 +304,13 @@ function FinancialSummary({ summary }) {
         <View style={styles.primaryAmountBlock}>
           <Text style={styles.amountLabel}>Recorded earnings</Text>
           <Text style={styles.recordedAmount}>
-            {summary.recorded === null ? 'No earnings yet' : formatCurrency(summary.recorded)}
+            {summary.recorded === null ? 'No earnings yet' : formatRand(summary.recorded)}
           </Text>
         </View>
         <View style={styles.availableBlock}>
           <Text style={styles.availableLabel}>Available</Text>
           <Text style={styles.availableAmount}>
-            {summary.available === null ? 'Unavailable' : formatCurrency(summary.available)}
+            {summary.available === null ? 'Unavailable' : formatRand(summary.available)}
           </Text>
         </View>
       </View>
@@ -348,7 +348,7 @@ function PaymentSummary({ label, count, amount, tone }) {
       <View style={[styles.statusDot, tone === 'success' && styles.statusDotSuccess]} />
       <Text style={styles.paymentSummaryLabel}>{label}</Text>
       <Text style={styles.paymentSummaryAmount}>
-        {amount === null ? 'Amount unavailable' : formatCurrency(amount)}
+        {amount === null ? 'Amount unavailable' : formatRand(amount)}
       </Text>
       <Text style={styles.paymentSummaryCount}>{count} recorded</Text>
     </View>
@@ -375,7 +375,7 @@ function WithdrawalAction({ available, lastPayout, requesting, disabled, onPress
           <Text style={styles.withdrawTitle}>Payouts are automatic</Text>
           <Text style={styles.withdrawDetail}>
             {lastPayout
-              ? `Your share is paid out the moment a collection completes. No request needed. Last payout ${formatCurrency(lastPayout.amount)} on ${formatLongDate(lastPayout.created_at)}.`
+              ? `Your share is paid out the moment a collection completes. No request needed. Last payout ${formatRand(lastPayout.amount)} on ${formatLongDate(lastPayout.created_at)}.`
               : 'Your share is paid out the moment a collection completes. Nothing to request.'}
           </Text>
         </View>
@@ -388,7 +388,7 @@ function WithdrawalAction({ available, lastPayout, requesting, disabled, onPress
       <View style={styles.withdrawText}>
         <Text style={styles.withdrawTitle}>Unpaid balance</Text>
         <Text style={styles.withdrawDetail}>
-          {`${formatCurrency(available)} did not pay out automatically. Claim it here.`}
+          {`${formatRand(available)} did not pay out automatically. Claim it here.`}
         </Text>
       </View>
       <Pressable

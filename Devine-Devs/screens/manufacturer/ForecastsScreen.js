@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { formatRand } from '../../src/lib/format';
 
 const { width } = Dimensions.get('window');
 
@@ -215,7 +216,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
                   ]}
                 />
               </View>
-              <Text style={styles.barValue}>{formatZAR(b.value)}</Text>
+              <Text style={styles.barValue}>{formatRand(b.value)}</Text>
             </View>
           );
         })}
@@ -267,7 +268,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
             icon="cart-outline"
             iconBg={T.paleGreen}
             label="Oil purchased"
-            value={formatZAR(calculations.oilPurchased)}
+            value={formatRand(calculations.oilPurchased)}
             sub={`${totalLitres.toLocaleString()} L`}
           />
           <SummaryCard
@@ -281,14 +282,14 @@ const FinanceScreen = ({ navigation, onBack }) => {
             icon="cash-outline"
             iconBg={T.selectedBg}
             label="Est. revenue"
-            value={formatZAR(calculations.revenue)}
-            sub={`@ ${formatZARDecimal(assumptions.biodieselPrice)}/L`}
+            value={formatRand(calculations.revenue)}
+            sub={`@ ${formatRand(assumptions.biodieselPrice)}/L`}
           />
           <SummaryCard
             icon="trending-up-outline"
             iconBg={T.selectedBg}
             label="Est. margin"
-            value={formatZAR(calculations.margin)}
+            value={formatRand(calculations.margin)}
             sub={calculations.margin >= 0 ? 'Positive' : 'Negative'}
             valueColor={calculations.margin >= 0 ? T.primary : T.danger}
           />
@@ -340,7 +341,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
               </View>
               <View style={styles.chainText}>
                 <Text style={[styles.chainValue, { color: T.primary }]}>
-                  {formatZAR(calculations.revenue)}
+                  {formatRand(calculations.revenue)}
                 </Text>
                 <Text style={styles.chainLabel}>Potential Revenue</Text>
               </View>
@@ -354,29 +355,29 @@ const FinanceScreen = ({ navigation, onBack }) => {
           <View style={styles.card}>
             <CostRow
               label="Oil purchased"
-              value={formatZAR(calculations.oilPurchased)}
+              value={formatRand(calculations.oilPurchased)}
             />
             <CostRow
               label="Collection & logistics"
-              value={formatZAR(calculations.logistics)}
+              value={formatRand(calculations.logistics)}
             />
             <CostRow
               label="Processing"
-              value={formatZAR(calculations.processing)}
+              value={formatRand(calculations.processing)}
             />
             <CostRow
               label="Other operating costs"
-              value={formatZAR(calculations.other)}
+              value={formatRand(calculations.other)}
             />
             <View style={styles.costDivider} />
             <CostRow
               label="Total costs"
-              value={formatZAR(calculations.totalCosts)}
+              value={formatRand(calculations.totalCosts)}
               emphasis
             />
             <CostRow
               label="Estimated margin"
-              value={formatZAR(calculations.margin)}
+              value={formatRand(calculations.margin)}
               emphasis
               color={calculations.margin >= 0 ? T.primary : T.danger}
             />
@@ -407,7 +408,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
                     {row.litres.toLocaleString()} L
                   </Text>
                   <Text style={styles.gradePrice}>
-                    {row.litres > 0 ? `${formatZARDecimal(row.avgPrice)}/L` : 'None'}
+                    {row.litres > 0 ? `${formatRand(row.avgPrice)}/L` : 'None'}
                   </Text>
                 </View>
               );
@@ -422,7 +423,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
               <Text
                 style={[styles.gradePrice, { color: T.ink, fontFamily: 'PlusJakartaSans_700Bold' }]}
               >
-                {formatZAR(oilData.totalPaid)}
+                {formatRand(oilData.totalPaid)}
               </Text>
             </View>
 
