@@ -107,30 +107,59 @@ async function collectorStatement(collectorId, since) {
 
 /** Manufacturer: what they paid the platform for oil received. */
 async function manufacturerStatement(manufacturerId, since) {
+  // Joined through to the pickup so the manufacturer can actually check the
+  // bill: a manufacturer buys from several restaurants, and a row reading only
+  // "Oil delivery" can't be reconciled against anything. They are the party
+  // paying per litre, so litres and grade belong on their statement exactly as
+  // they do on the restaurant's and the driver's.
   const { data, error } = await supabase
     .from('payment_transactions')
-    .select('id, created_at, amount, item_name, status, m_payment_id, pickup_id')
+    .select(
+      'id, created_at, amount, item_name, status, m_payment_id, pickup_id, ' +
+        'pickups(quality_grade, actual_volume_liters, estimated_volume_liters, restaurants(name))'
+    )
     .eq('manufacturer_id', manufacturerId)
     .gte('created_at', since)
     .order('created_at', { ascending: false });
   if (error) throw error;
 
-  const rows = (data ?? []).map((p) => ({
-    date: p.created_at,
-    reference: p.m_payment_id ?? String(p.id).slice(0, 8),
-    description: p.item_name ?? 'Oil delivery',
-    liters: null,
-    amount: Number(p.amount ?? 0),
-    pending: p.status !== 'complete',
-  }));
+  const rows = (data ?? []).map((p) => {
+    const pickup = p.pickups ?? null;
+    const restaurantName = pickup?.restaurants?.name ?? null;
+    const grade = pickup?.quality_grade ?? null;
+    // Same precedence as everywhere else: measured litres when they exist,
+    // otherwise the estimate the charge was computed from.
+    const liters = pickup?.actual_volume_liters ?? pickup?.estimated_volume_liters ?? null;
+
+    const detail = restaurantName
+      ? `${restaurantName}${grade ? ` · Grade ${grade}` : ''}`
+      : p.item_name ?? 'Oil delivery';
+
+    return {
+      date: p.created_at,
+      reference: p.m_payment_id ?? String(p.id).slice(0, 8),
+      description: detail,
+      liters,
+      amount: Number(p.amount ?? 0),
+      pending: p.status !== 'complete',
+    };
+  });
 
   // Only settled payments count toward the total; a pending checkout is not
   // money that moved.
   const total = rows.filter((r) => !r.pending).reduce((s, r) => s + r.amount, 0);
+  const totalLitres = rows
+    .filter((r) => !r.pending)
+    .reduce((s, r) => s + Number(r.liters ?? 0), 0);
+
   return {
-    columns: ['Date', 'Reference', 'Detail', '', 'Amount'],
+    columns: ['Date', 'Reference', 'Detail', 'Litres', 'Amount'],
     rows,
-    totals: [{ label: 'Total settled', value: total, strong: true }],
+    totals: [
+      // `raw` so the renderer prints litres instead of formatting them as rands.
+      { label: 'Litres received', value: totalLitres, raw: `${totalLitres} L` },
+      { label: 'Total settled', value: total, strong: true },
+    ],
   };
 }
 

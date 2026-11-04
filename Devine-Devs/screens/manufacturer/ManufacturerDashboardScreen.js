@@ -27,6 +27,7 @@ import AIAssistantScreen from './AIAssistant/AIAssistantScreen';
 import SuppliersScreen from './SuppliersScreen';
 import AlertsScreen from './AlertsScreen';
 import ProfileScreen from './ProfileScreen';
+import { DELIVERY_STATUS_LABELS } from '../../src/lib/pickupStatus';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -108,20 +109,9 @@ const { colors: C, fonts: F, radii: R, spacing: S, shadows: SH } = MANU_THEME;
 // It must stay exhaustive: the renderer used to fall back to 'Scheduled' for
 // anything missing, so a cancelled or newly-added status displayed as though
 // oil were on its way. Anything genuinely absent now reads "Status unknown".
-// Shared checkpoint names live in src/lib/pickupStatus.js — this map is the
-// manufacturer's phrasing of the same enum, not a second source of truth.
-const DELIVERY_STATUS_LABELS = {
-  pending: 'Awaiting a driver',
-  scheduled: 'Awaiting a driver',
-  assigned: 'Awaiting a driver',
-  in_transit: 'Driver en route to restaurant',
-  arrival: 'Driver at restaurant',
-  in_progress: 'Collecting',
-  collected: 'On the way to you',
-  arrived_manufacturer: 'Driver arrived',
-  completed: 'Delivered',
-  cancelled: 'Cancelled',
-};
+// The manufacturer's phrasing now lives in src/lib/pickupStatus.js alongside
+// the driver's and the system's, so SuppliersScreen reads the same words this
+// one does instead of falling back to the system wording.
 
 // Terminal states — these are not "incoming" and must not appear in the
 // Incoming Deliveries list.

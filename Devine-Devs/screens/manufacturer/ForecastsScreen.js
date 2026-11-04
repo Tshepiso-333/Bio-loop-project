@@ -14,7 +14,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
-import DocumentsCard from '../../src/components/DocumentsCard';
 
 const { width } = Dimensions.get('window');
 
@@ -469,13 +468,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
         </View>
 
         {/* Documents — payment statement and collection history, as PDFs */}
-        <DocumentsCard
-          role="manufacturer"
-          ownerId={manufacturer?.id}
-          accountName={manufacturer?.name}
-          tint={T.primary}
-          style={{ marginTop: 18 }}
-        />
+        {/* Documents moved to Profile (team decision 2026-11-02). */}
 
         <View style={{ height: 30 }} />
       </ScrollView>
