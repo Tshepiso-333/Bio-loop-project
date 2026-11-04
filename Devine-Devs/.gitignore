@@ -32,3 +32,10 @@ ios/
 google-services.json
 secrets/
 docs/DEMO_DAY_SETUP.sql
+
+# Exhibition + backend prep written 2026-11-03/04. Internal working docs with
+# team phone numbers and a candid gap list; the PDF regenerates from the md.
+docs/BACKEND_DEFENCE_BRIEF.md
+docs/EXHIBITION_DAY_PACK.md
+docs/EXHIBITION_READINESS.md
+docs/*.pdf
