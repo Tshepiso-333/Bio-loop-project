@@ -232,6 +232,8 @@ export default function DriverHomeScreen({
   // driver's day was simply invisible.
   const hiddenPickupCount = Math.max(0, openPickups.length - todayPickups.length);
 
+  const welcomeRouteText = [stats?.route_name ?? collector?.route_name, stats?.district ?? collector?.district].filter(Boolean).join(' · ');
+
   // -------------------------------------------------------
   // Header
   // -------------------------------------------------------
@@ -355,15 +357,11 @@ export default function DriverHomeScreen({
               'Driver'}
           </Text>
 
-          <Text style={styles.welcomeRoute}>
-            {stats?.route_name ??
-              collector?.route_name ??
-              ''}
-            {' · '}
-            {stats?.district ??
-              collector?.district ??
-              ''}
-          </Text>
+          {welcomeRouteText ? (
+            <Text style={styles.welcomeRoute}>
+              {welcomeRouteText}
+            </Text>
+          ) : null}
         </View>
 
         {/* Duty toggle */}
