@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../AuthContext';
 import AdminHeader from '../../src/admin/components/AdminHeader';
+import DocumentsCard from '../../src/components/DocumentsCard';
 import {
   ADMIN_COLORS,
   ADMIN_FONTS,
@@ -124,6 +125,15 @@ export default function AdminSettingsScreen({ navigation }) {
             color={ADMIN_COLORS.blue}
           />
         </View>
+
+        {/* The platform's books, moved off the Finance tab (team decision
+            2026-11-02) so every role keeps documents in the same place. */}
+        <DocumentsCard
+          role="admin"
+          accountName="BioLoop platform"
+          tint={ADMIN_COLORS.primary}
+          style={{ marginBottom: 18 }}
+        />
 
         <Pressable
           style={({ pressed }) => [styles.logoutButton, pressed && { opacity: 0.9 }]}

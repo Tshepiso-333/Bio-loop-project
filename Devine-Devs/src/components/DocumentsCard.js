@@ -1,10 +1,13 @@
 // "Documents" — every downloadable record for a role, in one place.
 //
-// Placement follows the convention the big money apps settled on: documents
-// live with the money (Uber Driver puts them under Earnings; Uber Eats
-// Manager under Payments > Payouts; banks under the account), behind a date
-// range and a download action — never on the dashboard, never in Profile.
-// Profile answers "who am I"; this answers "prove what happened".
+// Placement: Profile / Settings, for every role (team decision 2026-11-02).
+//
+// This previously sat "with the money" — driver Home, restaurant Earnings,
+// manufacturer Forecasts, admin Finance — on the reasoning that Profile
+// answers "who am I" while this answers "prove what happened". That was
+// overruled: these are occasional downloads, and having them greet you on the
+// screen you open most was noise. One predictable home across all four roles
+// beat the per-role placement.
 //
 // Lives in four differently-themed screens, so it takes a `tint` rather than
 // importing any one role's tokens. RLS scopes every query to the caller's
