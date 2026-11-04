@@ -456,8 +456,8 @@ const styles = StyleSheet.create({
     borderColor: T.border,
   },
   headerTextContainer: { alignItems: 'center', flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
-  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink },
+  headerSubtitle: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginTop: 2 },
 
   // Identity card (avatar + name)
   identityCard: {
@@ -473,13 +473,14 @@ const styles = StyleSheet.create({
   },
   identityName: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginTop: 12,
     textAlign: 'center',
   },
   identitySub: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     marginTop: 4,
     textAlign: 'center',
@@ -498,7 +499,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -525,6 +526,7 @@ const styles = StyleSheet.create({
   fieldContent: { flex: 1 },
   fieldLabel: {
     fontSize: 11,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.muted,
     marginBottom: 2,
     textTransform: 'uppercase',
@@ -533,7 +535,7 @@ const styles = StyleSheet.create({
   fieldValue: {
     fontSize: 14,
     color: T.ink,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
   fieldEditBtn: { padding: 6 },
   editRow: {
@@ -545,7 +547,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: T.ink,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     borderBottomWidth: 1,
     borderBottomColor: T.primary,
     paddingVertical: 2,
@@ -585,7 +587,7 @@ const styles = StyleSheet.create({
   preferenceLabel: {
     fontSize: 14,
     color: T.ink,
-    fontWeight: '500',
+    fontFamily: 'PlusJakartaSans_500Medium',
   },
 
   // Info rows (app info)
@@ -597,9 +599,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: T.divider,
   },
-  infoLabel: { fontSize: 13, color: T.body },
-  infoValue: { fontSize: 13, color: T.ink, fontWeight: '600' },
-  infoLink: { fontSize: 13, color: T.primary, fontWeight: '600' },
+  infoLabel: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: T.body },
+  infoValue: { fontSize: 13, color: T.ink, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  infoLink: { fontSize: 13, color: T.primary, fontFamily: 'PlusJakartaSans_600SemiBold' },
 
   // Logout
   logoutButton: {
@@ -617,7 +619,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.danger,
   },
 });

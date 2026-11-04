@@ -129,6 +129,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 10,
     fontSize: 15,
+    fontFamily: 'PlusJakartaSans_400Regular',
     maxHeight: 120,
     color: '#111827',
   },

@@ -114,14 +114,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: '#111827',
     flex: 1,
     marginRight: 8,
   },
-  time: { fontSize: 11, color: '#9CA3AF' },
-  preview: { fontSize: 13, color: '#6B7280', lineHeight: 18 },
-  previewEmpty: { fontSize: 13, color: '#9CA3AF', fontStyle: 'italic' },
+  time: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: '#9CA3AF' },
+  preview: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: '#6B7280', lineHeight: 18 },
+  previewEmpty: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: '#9CA3AF', fontStyle: 'italic' },
   deleteBtn: {
     width: 32,
     height: 32,

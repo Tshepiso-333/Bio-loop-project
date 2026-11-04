@@ -96,12 +96,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: '#111827',
     marginBottom: 6,
   },
   emptyText: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 19,
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 80,
   },
-  loadingText: { fontSize: 14, color: '#10b981', fontWeight: '600' },
+  loadingText: { fontSize: 14, color: '#10b981', fontFamily: 'PlusJakartaSans_600SemiBold' },
 });
 
 export default ConversationList;

@@ -415,12 +415,12 @@ const FinanceScreen = ({ navigation, onBack }) => {
             <View style={styles.costDivider} />
             <View style={styles.gradeRow}>
               <View style={{ width: 12 }} />
-              <Text style={[styles.gradeName, { fontWeight: '700' }]}>Total</Text>
-              <Text style={[styles.gradeVolume, { fontWeight: '700' }]}>
+              <Text style={[styles.gradeName, { fontFamily: 'PlusJakartaSans_700Bold' }]}>Total</Text>
+              <Text style={[styles.gradeVolume, { fontFamily: 'PlusJakartaSans_700Bold' }]}>
                 {oilData.totalLitres.toLocaleString()} L
               </Text>
               <Text
-                style={[styles.gradePrice, { color: T.ink, fontWeight: '700' }]}
+                style={[styles.gradePrice, { color: T.ink, fontFamily: 'PlusJakartaSans_700Bold' }]}
               >
                 {formatZAR(oilData.totalPaid)}
               </Text>
@@ -507,8 +507,8 @@ const styles = StyleSheet.create({
     borderColor: T.border,
   },
   headerTextContainer: { alignItems: 'center', flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
-  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink },
+  headerSubtitle: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginTop: 2 },
   headerSpacer: { width: 40, height: 40 },
 
   // Summary grid
@@ -541,15 +541,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: T.muted,
     marginBottom: 4,
-    fontWeight: '500',
+    fontFamily: 'PlusJakartaSans_500Medium',
   },
   summaryValue: {
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     color: T.ink,
   },
   summarySub: {
     fontSize: 11,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     marginTop: 4,
   },
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 10,
   },
@@ -589,11 +590,12 @@ const styles = StyleSheet.create({
   chainText: { flex: 1 },
   chainValue: {
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     color: T.ink,
   },
   chainLabel: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     marginTop: 2,
   },
@@ -609,21 +611,22 @@ const styles = StyleSheet.create({
   },
   costLabel: {
     fontSize: 14,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
   },
   costValue: {
     fontSize: 14,
     color: T.ink,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
   costLabelEmphasis: {
     fontSize: 15,
     color: T.ink,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
   },
   costValueEmphasis: {
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
   },
   costDivider: {
     height: 1,
@@ -641,6 +644,7 @@ const styles = StyleSheet.create({
   barLabel: {
     width: 78,
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
   },
   barTrack: {
@@ -654,7 +658,7 @@ const styles = StyleSheet.create({
   barValue: {
     width: 70,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: T.ink,
     textAlign: 'right',
   },
@@ -668,11 +672,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   gradeDot: { width: 10, height: 10, borderRadius: 5 },
-  gradeName: { flex: 1, fontSize: 13, color: T.ink, fontWeight: '500' },
-  gradeVolume: { fontSize: 13, color: T.body, width: 80, textAlign: 'right' },
-  gradePrice: { fontSize: 13, color: T.body, width: 70, textAlign: 'right' },
+  gradeName: { flex: 1, fontSize: 13, color: T.ink, fontFamily: 'PlusJakartaSans_500Medium' },
+  gradeVolume: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, width: 80, textAlign: 'right' },
+  gradePrice: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, width: 70, textAlign: 'right' },
   demoHint: {
     fontSize: 11,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.muted,
     marginTop: 10,
     fontStyle: 'italic',
@@ -692,8 +697,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  impactValue: { fontSize: 16, fontWeight: '700', color: T.ink },
-  impactLabel: { fontSize: 12, color: T.body, marginTop: 2 },
+  impactValue: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink },
+  impactLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginTop: 2 },
 });
 
 export default FinanceScreen;

@@ -468,8 +468,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  headerSubtitle: { fontSize: 11, color: '#fff', opacity: 0.9, marginTop: 1 },
+  headerTitle: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold', color: '#fff' },
+  headerSubtitle: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: '#fff', opacity: 0.9, marginTop: 1 },
   chatContainer: { flex: 1 },
   messagesList: {
     paddingHorizontal: 16,
@@ -495,13 +495,14 @@ const styles = StyleSheet.create({
   emptyLogo: { width: 60, height: 60, borderRadius: 30 },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: '#111827',
     marginBottom: 6,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 19,
@@ -519,7 +520,7 @@ const styles = StyleSheet.create({
   suggestionText: {
     fontSize: 13,
     color: '#047857',
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     textAlign: 'center',
   },
   typingRow: {

@@ -98,9 +98,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  userText: { fontSize: 15, lineHeight: 21, color: '#FFFFFF' },
-  aiText: { fontSize: 15, lineHeight: 21, color: '#111827' },
-  timestamp: { fontSize: 10, marginTop: 4 },
+  userText: { fontSize: 15, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 21, color: '#FFFFFF' },
+  aiText: { fontSize: 15, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 21, color: '#111827' },
+  timestamp: { fontSize: 10, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 4 },
   userTimestamp: { color: 'rgba(255,255,255,0.75)', textAlign: 'right' },
   aiTimestamp: { color: '#9CA3AF' },
 });

@@ -541,8 +541,8 @@ const styles = StyleSheet.create({
     borderColor: T.border,
   },
   headerTextContainer: { alignItems: 'center', flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
-  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink },
+  headerSubtitle: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginTop: 2 },
   headerSpacer: { width: 40, height: 40 },
 
   scrollView: { flex: 1, paddingBottom: 30 },
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   },
   overviewTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 16,
     textAlign: 'center',
@@ -588,8 +588,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  pieCenterText: { fontSize: 26, fontWeight: '800' },
-  pieCenterSubtext: { fontSize: 11, color: T.body, marginTop: 2, fontWeight: '600' },
+  pieCenterText: { fontSize: 26, fontFamily: 'PlusJakartaSans_800ExtraBold' },
+  pieCenterSubtext: { fontSize: 11, color: T.body, marginTop: 2, fontFamily: 'PlusJakartaSans_600SemiBold' },
 
   legendContainer: { marginTop: 6, gap: 10 },
   legendItem: {
@@ -601,8 +601,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   legendDot: { width: 12, height: 12, borderRadius: 6, marginRight: 8 },
-  legendText: { flex: 1, fontSize: 14, fontWeight: '600', color: T.ink },
-  legendVolume: { fontSize: 13, fontWeight: '700', color: T.body },
+  legendText: { flex: 1, fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold', color: T.ink },
+  legendVolume: { fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold', color: T.body },
 
   trendsCard: {
     backgroundColor: T.card,
@@ -614,14 +614,14 @@ const styles = StyleSheet.create({
     borderColor: T.border,
     ...SH.card,
   },
-  trendsTitle: { fontSize: 16, fontWeight: '700', color: T.ink, marginBottom: 2 },
-  trendsSubtitle: { fontSize: 12, color: T.body, marginBottom: 16 },
+  trendsTitle: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink, marginBottom: 2 },
+  trendsSubtitle: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginBottom: 16 },
   trendChartContainer: { marginTop: 6 },
   chartWrapper: { alignItems: 'center' },
   trendLegend: { flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 16 },
   legendItemSmall: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendColor: { width: 10, height: 10, borderRadius: 5 },
-  legendTextSmall: { fontSize: 12, color: T.body, fontWeight: '500' },
+  legendTextSmall: { fontSize: 12, color: T.body, fontFamily: 'PlusJakartaSans_500Medium' },
 
   gradeSection: {
     marginHorizontal: S.screenPadding,
@@ -635,8 +635,8 @@ const styles = StyleSheet.create({
   },
   gradeHeader: { padding: 16 },
   gradeHeaderContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  gradeTitle: { fontSize: 15, fontWeight: '700', color: T.white },
-  gradeTotal: { fontSize: 12, color: T.white, opacity: 0.95, marginTop: 2 },
+  gradeTitle: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold', color: T.white },
+  gradeTotal: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: T.white, opacity: 0.95, marginTop: 2 },
   chevronWrap: {
     width: 28,
     height: 28,
@@ -657,8 +657,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  sourceName: { fontSize: 14, fontWeight: '600', color: T.ink, flex: 1, paddingRight: 8 },
-  sourceVolume: { fontSize: 14, fontWeight: '700', color: T.body },
+  sourceName: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold', color: T.ink, flex: 1, paddingRight: 8 },
+  sourceVolume: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', color: T.body },
   sourceBarContainer: {
     height: 8,
     backgroundColor: T.divider,
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sourceBar: { height: '100%', borderRadius: 4 },
-  sourcePercentage: { fontSize: 11, color: T.muted },
+  sourcePercentage: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.muted },
 
   showMoreRow: {
     flexDirection: 'row',
@@ -678,10 +678,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: T.divider,
   },
-  showMoreText: { fontSize: 13, fontWeight: '600', color: T.primary },
+  showMoreText: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', color: T.primary },
 
   emptyRow: { paddingVertical: 16, paddingHorizontal: 16 },
-  emptyText: { fontSize: 12, color: T.muted, textAlign: 'center' },
+  emptyText: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: T.muted, textAlign: 'center' },
 });
 
 export default QualityScreen;
