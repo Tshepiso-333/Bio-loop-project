@@ -612,13 +612,13 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
               <StatCard
                 iconName="water-outline"
                 label="Current Stock"
-                value={`${currentStock.toLocaleString()} L`}
+                value={`${Math.round(Number(currentStock) || 0)} L`}
                 sub={stockChangeLabel}
               />
               <StatCard
                 iconName="cube-outline"
                 label="This Week"
-                value={`${thisWeekVolume.toLocaleString()} L`}
+                value={`${Math.round(Number(thisWeekVolume) || 0)} L`}
                 sub={`${weeklyDeliveries} deliveries`}
               />
             </View>
