@@ -69,9 +69,7 @@ export default function RestaurantHeader({
           </View>
         ) : variant === 'home' ? (
           <View style={styles.logoContainer}>
-            <View style={styles.logoTile}>
-              <Ionicons name="leaf" size={22} color={REST_COLORS.white} />
-            </View>
+            <Image source={require('../../../assets/BioLoop_Logo.png')} style={styles.logoImage} resizeMode="contain" />
             <View>
               <Text style={styles.appName}>BioLoop</Text>
               <Text style={styles.portalName}>Restaurant portal</Text>
@@ -146,6 +144,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...REST_SHADOWS.button,
   },
+  logoImage: { width: 44, height: 44, borderRadius: 22 },
   appName: { fontFamily: REST_FONTS.extraBold, fontSize: 18, color: REST_COLORS.ink },
   portalName: { fontFamily: REST_FONTS.medium, fontSize: 11, color: REST_COLORS.body, marginTop: 1 },
 
