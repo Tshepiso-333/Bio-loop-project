@@ -25,6 +25,9 @@ import { ACTIVE_TRIP_STATUSES, legForStatus } from '../../src/lib/pickupStatus';
 const TRIP_ACTIONS = {
   in_transit: { label: 'I have arrived', next: 'arrival', icon: 'flag-outline' },
   arrival: { label: 'Oil collected', next: 'collected', icon: 'water-outline' },
+  // Same gap as the native screen: 'in_progress' is an active trip status
+  // with no action, which stranded the driver. Same next step as 'arrival'.
+  in_progress: { label: 'Oil collected', next: 'collected', icon: 'water-outline' },
   collected: { label: 'Arrived at manufacturer', next: 'arrived_manufacturer', icon: 'flag-outline' },
 };
 
