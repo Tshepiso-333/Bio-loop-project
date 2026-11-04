@@ -678,11 +678,13 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                         </View>
                       </View>
                       <View style={styles.deliveryTimeInfo}>
+                        {delivery.eta ? (
                         <Text
                           style={[styles.etaText, delivery.etaIsLive && styles.etaTextLive]}
                         >
-                          {delivery.eta ?? 'Time TBC'}
+                          {delivery.eta}
                         </Text>
+                        ) : null}
                         <View style={styles.statusContainer}>
                           <View
                             style={[
