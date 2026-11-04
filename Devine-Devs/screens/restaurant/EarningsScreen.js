@@ -264,12 +264,12 @@ export default function EarningsScreen() {
           onPress={handleRequestWithdrawal}
         />
 
-        <SectionLabel title="Recorded earnings" subtitle="Amounts created from completed collections; not proof of payment." />
+        <SectionLabel title="Recorded earnings" subtitle="What you earned from each collection." />
         {earningRows.length > 0 ? earningRows.map((earning) => (
           <EarningRow key={earning.id} earning={earning} />
         )) : <RestaurantEmptyBanner message="No earnings have been recorded yet." />}
 
-        <SectionLabel title="Payments and withdrawals" subtitle="Status is shown only from recorded withdrawal data." />
+        <SectionLabel title="Payments and withdrawals" subtitle="Paid out automatically after each trip." />
         {withdrawalRows.length > 0 ? withdrawalRows.map((withdrawal) => (
           <WithdrawalRow key={withdrawal.id} withdrawal={withdrawal} />
         )) : <RestaurantEmptyBanner message="No withdrawal or payment history yet." />}
@@ -280,7 +280,7 @@ export default function EarningsScreen() {
         />
         {/* Documents moved to Profile (team decision 2026-11-02). */}
 
-        <SectionLabel title="Market rates" subtitle="Recorded reference rates, shown with their actual update dates." />
+        <SectionLabel title="Market rates" subtitle="Current price per litre, by grade." />
         {rates.length > 0 ? <MarketRatesCard rates={rates} /> : (
           <RestaurantEmptyBanner message="No market rates are available." />
         )}

@@ -108,7 +108,7 @@ function mapCollectionStatus(pickups = []) {
     case 'arrived_manufacturer':
       return {
         title: 'Oil arrived at the manufacturer.',
-        detail: 'The delivery is awaiting its recorded completion state.',
+        detail: 'Delivered. Waiting for the manufacturer to confirm.',
         icon: 'business-outline',
         tone: 'active',
       };
