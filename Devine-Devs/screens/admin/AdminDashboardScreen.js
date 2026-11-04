@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../AuthContext';
 import { useAdminContext } from '../../src/contexts/AdminContext';
 import AdminHeader from '../../src/admin/components/AdminHeader';
-import DocumentsCard from '../../src/components/DocumentsCard';
 import { PRE_TRIP_STATUSES, PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
 import {
   ADMIN_COLORS,
@@ -451,13 +450,8 @@ export default function AdminDashboardScreen({ navigation }) {
 
   const renderFinance = () => (
     <View>
-      {/* The platform's own books as a PDF — the same rows as platform_ledger. */}
-      <DocumentsCard
-        role="admin"
-        accountName="BioLoop platform"
-        tint={COLORS.primary}
-        style={{ marginBottom: 14 }}
-      />
+      {/* The platform's books as a PDF moved to Settings (team decision
+          2026-11-02) so every role keeps documents in the same place. */}
 
       <View style={styles.heroCard}>
         <View style={styles.heroHeader}>
@@ -602,12 +596,31 @@ export default function AdminDashboardScreen({ navigation }) {
     </View>
   );
 
-  // Compact tile grid so the whole table list fits on one screen without
-  // scrolling — a tile per table, red when admin RLS could not read it.
+  // Two things live here. The row counts below answer "can admin actually
+  // read every table" (a red tile is a missing admin RLS policy, which is how
+  // migration 076's "Unknown restaurant" bug showed itself). Real monitoring —
+  // golden signals, correctness checks, error groups, latency, audit log —
+  // is its own screen, because it is a different job and a much bigger one.
   const renderHealth = () => {
     const failing = admin.tableOverview.filter((table) => table.error);
     return (
       <View>
+        <Pressable
+          style={({ pressed }) => [styles.opsCta, pressed && { opacity: 0.9 }]}
+          onPress={() => navigation.navigate('AdminOperations')}
+        >
+          <View style={styles.opsCtaIcon}>
+            <Ionicons name="pulse" size={18} color={COLORS.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.opsCtaTitle}>Operations console</Text>
+            <Text style={styles.opsCtaText}>
+              Live signals, data-correctness checks, errors, latency and the full audit log.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+        </Pressable>
+
         <View style={styles.healthSummary}>
           <Ionicons
             name={failing.length ? 'warning-outline' : 'checkmark-circle-outline'}
@@ -640,6 +653,7 @@ export default function AdminDashboardScreen({ navigation }) {
         subtitle="Operations center for pickups, users, and finance"
         actions={[
           { key: 'alerts', icon: 'notifications-outline', badge: unreadAlertCount, onPress: () => setShowAlertsPanel(true) },
+          { key: 'ops', icon: 'pulse-outline', onPress: () => navigation.navigate('AdminOperations') },
           { key: 'settings', icon: 'settings-outline', onPress: () => navigation.navigate('AdminSettings') },
           { key: 'signout', icon: 'log-out-outline', onPress: handleSignOut },
         ]}
@@ -1287,6 +1301,17 @@ const styles = StyleSheet.create({
   assignmentChipText: { fontFamily: ADMIN_FONTS.semiBold, fontSize: 12, color: COLORS.body, textTransform: 'capitalize' },
   assignmentChipTextActive: { color: COLORS.white },
 
+  opsCta: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.selectedBg, borderRadius: 16, borderWidth: 1,
+    borderColor: COLORS.primary, padding: 14, marginBottom: 14,
+  },
+  opsCtaIcon: {
+    width: 36, height: 36, borderRadius: 18, alignItems: 'center',
+    justifyContent: 'center', backgroundColor: COLORS.primary,
+  },
+  opsCtaTitle: { fontFamily: ADMIN_FONTS.extraBold, fontSize: 13.5, color: COLORS.ink },
+  opsCtaText: { marginTop: 2, fontFamily: ADMIN_FONTS.medium, fontSize: 11.5, color: COLORS.body, lineHeight: 16 },
   healthSummary: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.card, borderRadius: 14, borderWidth: 1, borderColor: COLORS.border, padding: 12, marginBottom: 10 },
   healthSummaryText: { flex: 1, fontFamily: ADMIN_FONTS.medium, fontSize: 12, color: COLORS.body, lineHeight: 17 },
   healthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
