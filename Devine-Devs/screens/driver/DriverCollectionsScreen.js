@@ -220,7 +220,7 @@ export default function DriverCollectionsScreen({ navigation }) {
     );
   };
 
-  const scheduledCount = pickups.filter(p => p.status !== 'completed').length;
+  const scheduledCount = pickups.filter(p => p.status !== 'completed' && p.status !== 'cancelled').length;
 
   // Header Component with Logo and Gradient that fills to top
   const Header = () => (
@@ -237,7 +237,7 @@ export default function DriverCollectionsScreen({ navigation }) {
         {/* Header Info */}
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle}>Collections</Text>
-          <Text style={styles.headerSub}>{scheduledCount} pickups remaining today</Text>
+          <Text style={styles.headerSub}>{scheduledCount} to do</Text>
         </View>
       </LinearGradient>
     </>

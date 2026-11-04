@@ -337,6 +337,8 @@ export default function DriverMapScreen({ route }) {
     [pickups]
   );
 
+  const openStopCount = useMemo(() => (pickups || []).filter((p) => p.status !== 'completed' && p.status !== 'cancelled').length, [pickups]);
+
   // Only stops heading to the SAME manufacturer belong on one run. A different
   // manufacturer is a different destination, so it is a different trip — the
   // driver would have to drive there and back before serving the next group.
@@ -644,8 +646,8 @@ export default function DriverMapScreen({ route }) {
       ) : null}
 
       <View style={styles.pickupBadge}>
-        <Text style={styles.pickupBadgeValue}>{pickupMarkers.length}</Text>
-        <Text style={styles.pickupBadgeLabel}>pickup stops</Text>
+        <Text style={styles.pickupBadgeValue}>{openStopCount}</Text>
+        <Text style={styles.pickupBadgeLabel}>{openStopCount === 1 ? 'stop to do' : 'stops to do'}</Text>
       </View>
 
       {/* The multi-stop option. Sits on the map rather than in the trip panel,
