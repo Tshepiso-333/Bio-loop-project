@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import { View, Text, StyleSheet, Pressable, Animated, Easing } from 'react-native';
+import Svg, { Circle, Line } from 'react-native-svg';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
 import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
@@ -146,7 +146,10 @@ function mapHomeTankData(tank, latestReading) {
 
   let statusText = tank?.status_text ?? null;
   if (!statusText && fillPercent != null) {
-    statusText = fillPercent >= 85 ? 'Pickup threshold reached' : 'Tank is being monitored';
+    statusText =
+      fillPercent >= PICKUP_THRESHOLD
+        ? 'Pickup threshold reached'
+        : 'Tank is being monitored';
   }
 
   return {
@@ -278,50 +281,167 @@ export default function RestaurantHomeScreen() {
 
 // ─── SUB-COMPONENTS ───────────────────────────────────────────────────────────
 
-const RING_SIZE = 156;
-const RING_STROKE = 13;
+const RING_SIZE = 168;
+const RING_STROKE = 14;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const RING_CENTER = RING_SIZE / 2;
+
+// The 85% line is the same threshold the database fires on
+// (trg_tanks_auto_pickup_request). Keep these in step: the marker on the ring
+// is only honest if it matches what actually triggers a pickup.
+const PICKUP_THRESHOLD = 85;
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+/** A point on the ring, measured clockwise from 12 o'clock. */
+function pointAtPercent(percent, radius) {
+  const angle = (percent / 100) * 2 * Math.PI - Math.PI / 2;
+  return {
+    x: RING_CENTER + radius * Math.cos(angle),
+    y: RING_CENTER + radius * Math.sin(angle),
+  };
+}
 
 function TankRing({ fillPercent, lastDistanceCm }) {
   const hasFillPercent = Number.isFinite(fillPercent);
-  const clamped = hasFillPercent ? Math.min(100, Math.max(0, fillPercent)) : null;
-  const dashOffset = hasFillPercent
-    ? RING_CIRCUMFERENCE * (1 - clamped / 100)
-    : RING_CIRCUMFERENCE;
+  const clamped = hasFillPercent ? Math.min(100, Math.max(0, fillPercent)) : 0;
+  const atThreshold = hasFillPercent && clamped >= PICKUP_THRESHOLD;
+
+  // One driver for both the sweep and the counting number, so they can never
+  // disagree. SVG props can't use the native driver.
+  const progress = useRef(new Animated.Value(0)).current;
+  const [shownPercent, setShownPercent] = useState(0);
+
+  useEffect(() => {
+    const id = progress.addListener(({ value }) => setShownPercent(Math.round(value)));
+    return () => progress.removeListener(id);
+  }, [progress]);
+
+  useEffect(() => {
+    const animation = Animated.timing(progress, {
+      toValue: clamped,
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [clamped, progress]);
+
+  // Once the tank is at the threshold the ring breathes, so a glance at the
+  // counter is enough to see a pickup has been raised.
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!atThreshold) {
+      pulse.setValue(0);
+      return undefined;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1100,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 1100,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [atThreshold, pulse]);
+
+  const dashOffset = progress.interpolate({
+    inputRange: [0, 100],
+    outputRange: [RING_CIRCUMFERENCE, 0],
+  });
+
+  const sweepColor = atThreshold ? REST_COLORS.amber : REST_COLORS.primary;
+  const marker = pointAtPercent(PICKUP_THRESHOLD, RING_RADIUS);
+  const markerInner = pointAtPercent(PICKUP_THRESHOLD, RING_RADIUS - RING_STROKE / 2 - 1);
+  const markerOuter = pointAtPercent(PICKUP_THRESHOLD, RING_RADIUS + RING_STROKE / 2 + 1);
 
   return (
     <View style={styles.ringWrap}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.ringPulse,
+          {
+            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0, 0.4] }),
+            transform: [
+              { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.12] }) },
+            ],
+          },
+        ]}
+      />
       <Svg width={RING_SIZE} height={RING_SIZE}>
+        {/* track */}
         <Circle
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
+          cx={RING_CENTER}
+          cy={RING_CENTER}
           r={RING_RADIUS}
           stroke={REST_COLORS.accent}
-          strokeOpacity={0.35}
+          strokeOpacity={0.3}
           strokeWidth={RING_STROKE}
           fill="none"
         />
+        {/* the 85% line the database actually fires on */}
+        <Line
+          x1={markerInner.x}
+          y1={markerInner.y}
+          x2={markerOuter.x}
+          y2={markerOuter.y}
+          stroke={atThreshold ? REST_COLORS.amber : REST_COLORS.primary}
+          strokeOpacity={atThreshold ? 0.9 : 0.45}
+          strokeWidth={3}
+          strokeLinecap="round"
+        />
         {hasFillPercent ? (
-          <Circle
-            cx={RING_SIZE / 2}
-            cy={RING_SIZE / 2}
+          <AnimatedCircle
+            cx={RING_CENTER}
+            cy={RING_CENTER}
             r={RING_RADIUS}
-            stroke={REST_COLORS.primary}
+            stroke={sweepColor}
             strokeWidth={RING_STROKE}
             strokeLinecap="round"
             strokeDasharray={RING_CIRCUMFERENCE}
             strokeDashoffset={dashOffset}
             fill="none"
-            transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+            transform={`rotate(-90 ${RING_CENTER} ${RING_CENTER})`}
           />
         ) : null}
+        {atThreshold ? (
+          <Circle cx={marker.x} cy={marker.y} r={3.2} fill={REST_COLORS.amber} />
+        ) : null}
       </Svg>
+
       <View style={styles.ringCenter}>
-        <Text style={styles.ringPercent}>
-          {lastDistanceCm != null ? `${lastDistanceCm} cm` : '— cm'}
-        </Text>
-        <Text style={styles.ringCaption}>Sensor reading</Text>
+        {hasFillPercent ? (
+          <>
+            <View style={styles.ringPercentRow}>
+              <Text style={styles.ringPercent}>{shownPercent}</Text>
+              <Text style={styles.ringPercentSign}>%</Text>
+            </View>
+            <Text style={[styles.ringCaption, atThreshold && styles.ringCaptionAlert]}>
+              {atThreshold ? 'Collection triggered' : 'full'}
+            </Text>
+            <Text style={styles.ringDistance}>
+              {lastDistanceCm != null ? `${lastDistanceCm} cm from sensor` : 'awaiting sensor'}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.ringPercentEmpty}>—</Text>
+            <Text style={styles.ringCaption}>no reading yet</Text>
+          </>
+        )}
       </View>
     </View>
   );
@@ -360,19 +480,24 @@ function CollectionStatusCard({ status, onPress }) {
 
 function TankCard({ data, onPress }) {
   const hasFillPercent = data.fillPercent != null;
+  const atThreshold = hasFillPercent && data.fillPercent >= PICKUP_THRESHOLD;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Open tank monitoring"
+      accessibilityLabel={
+        hasFillPercent
+          ? `Oil tank ${Math.round(data.fillPercent)} percent full. Open tank monitoring.`
+          : 'Oil tank, no sensor reading yet. Open tank monitoring.'
+      }
       onPress={onPress}
       style={({ pressed }) => [styles.tankCard, pressed && styles.cardPressed]}
     >
       <View style={styles.tankHeaderRow}>
         <Text style={styles.tankLabel}>{data.label}</Text>
-        <View style={styles.capacityBadge}>
-          <Text style={styles.capacityBadgeText}>
-            {hasFillPercent ? `${Math.round(data.fillPercent)}% capacity` : 'Capacity unavailable'}
+        <View style={[styles.capacityBadge, atThreshold && styles.capacityBadgeAlert]}>
+          <Text style={[styles.capacityBadgeText, atThreshold && styles.capacityBadgeTextAlert]}>
+            {atThreshold ? `Pickup raised at ${PICKUP_THRESHOLD}%` : `Collects at ${PICKUP_THRESHOLD}%`}
           </Text>
         </View>
       </View>
@@ -509,18 +634,53 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: REST_COLORS.primary,
   },
+  capacityBadgeAlert: { backgroundColor: REST_COLORS.warnBg },
+  capacityBadgeTextAlert: { color: REST_COLORS.warnText },
   ringWrap: { justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+  ringPulse: {
+    position: 'absolute',
+    width: RING_SIZE,
+    height: RING_SIZE,
+    borderRadius: RING_SIZE / 2,
+    backgroundColor: REST_COLORS.amber,
+  },
   ringCenter: { position: 'absolute', alignItems: 'center' },
+  ringPercentRow: { flexDirection: 'row', alignItems: 'flex-start' },
   ringPercent: {
     fontFamily: REST_FONTS.extraBold,
-    fontSize: 34,
+    fontSize: 44,
+    lineHeight: 48,
     color: REST_COLORS.ink,
+  },
+  ringPercentSign: {
+    fontFamily: REST_FONTS.bold,
+    fontSize: 18,
+    lineHeight: 24,
+    color: REST_COLORS.body,
+    marginTop: 6,
+    marginLeft: 1,
+  },
+  ringPercentEmpty: {
+    fontFamily: REST_FONTS.extraBold,
+    fontSize: 40,
+    lineHeight: 46,
+    color: REST_COLORS.muted,
   },
   ringCaption: {
     fontFamily: REST_FONTS.medium,
     fontSize: 12,
     color: REST_COLORS.body,
-    marginTop: -2,
+    marginTop: -4,
+  },
+  ringCaptionAlert: {
+    fontFamily: REST_FONTS.semiBold,
+    color: REST_COLORS.warnText,
+  },
+  ringDistance: {
+    fontFamily: REST_FONTS.regular,
+    fontSize: 10.5,
+    color: REST_COLORS.muted,
+    marginTop: 3,
   },
   tankStatus: {
     fontFamily: REST_FONTS.bold,

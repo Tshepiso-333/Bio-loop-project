@@ -133,8 +133,20 @@ const STATUS_STEP_INDEX = {
 export const mapTankCardData = (tank, latestReading = null) => {
   if (!tank) return null;
 
-  const readingPercent = latestReading?.fill_percent;
-  const readingDistance = latestReading?.distance_cm;
+  // The sensor writes a reading row on every call but only moves the tank
+  // columns once the reading is inside the calibrated band, so a fresh reading
+  // is the honest source. It is only fresher if it is actually newer, though:
+  // resetting a tank by hand (demo prep) updates `tanks` and leaves the reading
+  // history behind, and preferring the reading unconditionally then shows a
+  // level the dispatch trigger does not agree with. Take the newer of the two.
+  const readingAt = latestReading?.recorded_at ? Date.parse(latestReading.recorded_at) : NaN;
+  const tankAt = tank.last_updated ? Date.parse(tank.last_updated) : NaN;
+  const readingIsCurrent =
+    latestReading != null &&
+    (Number.isNaN(tankAt) || Number.isNaN(readingAt) || readingAt >= tankAt);
+
+  const readingPercent = readingIsCurrent ? latestReading?.fill_percent : null;
+  const readingDistance = readingIsCurrent ? latestReading?.distance_cm : null;
   const fillPercent = toNumber(readingPercent ?? tank.fill_percent, 0);
   const estimatedDays = toNumber(
     tank.estimated_days_until_full,
@@ -148,7 +160,7 @@ export const mapTankCardData = (tank, latestReading = null) => {
     fillPercent,
     hasFillPercent: (readingPercent ?? tank.fill_percent) != null,
     lastDistanceCm: distanceSource != null ? toNumber(distanceSource, null) : null,
-    lastReadingAt: latestReading?.recorded_at ?? tank.last_updated ?? null,
+    lastReadingAt: (readingIsCurrent ? latestReading?.recorded_at : null) ?? tank.last_updated ?? null,
     statusText:
       tank.status_text ??
       (fillPercent >= 80 ? 'Full' : fillPercent >= 50 ? 'Moderate' : 'Normal'),
