@@ -117,6 +117,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { sendPasswordResetCode } from '../../src/services/authService';
+import { dismissKeyboard } from '../../src/lib/keyboard';
 // import { supabase } from '../../supabase'; // 1. Import your real client
 
 const COLORS = {
@@ -179,7 +180,7 @@ export default function ForgotPasswordScreen({ navigation }) {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.root}

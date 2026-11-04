@@ -19,6 +19,7 @@ import { supabase } from '../../supabase';
 
 import { AUTH_COLORS, AUTH_FONTS, AUTH_BUTTON_SHADOW } from '../../src/auth/authTheme';
 import { sendSignInCode } from '../../src/services/authService';
+import { dismissKeyboard } from '../../src/lib/keyboard';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -71,7 +72,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.root}

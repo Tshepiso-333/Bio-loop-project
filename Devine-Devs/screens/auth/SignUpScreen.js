@@ -20,6 +20,7 @@ import { supabase } from '../../supabase'; // Un-commented your client import
 import { AUTH_COLORS, AUTH_FONTS, AUTH_BUTTON_SHADOW } from '../../src/auth/authTheme';
 import { sendSignInCode } from '../../src/services/authService';
 import RolePickerModal from '../../src/auth/components/RolePickerModal';
+import { dismissKeyboard } from '../../src/lib/keyboard';
 
 // Role keys ('restaurant' | 'driver' | 'manufacturer') are sent to Supabase via
 // options.data.role — they must not change. `desc` is presentational only.
@@ -173,7 +174,7 @@ export default function SignUpScreen({ navigation }) {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.root}

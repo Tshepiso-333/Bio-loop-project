@@ -39,6 +39,7 @@ import {
   verifyEmailCode,
   verifyRecoveryCode,
 } from '../../src/services/authService';
+import { dismissKeyboard } from '../../src/lib/keyboard';
 
 const COLORS = {
   formBg:           '#FFFFFF',
@@ -144,7 +145,7 @@ export default function VerifyCodeScreen({ route, navigation }) {
   const digits = Array.from({ length: CODE_LENGTH }, (_, i) => code[i] ?? '');
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <TouchableWithoutFeedback onPress={dismissKeyboard}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.root}

@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { dismissKeyboard } from '../../src/lib/keyboard';
 
 const INITIAL_MESSAGE = { 
   id: '1', 
@@ -256,7 +257,7 @@ const AIChatScreen = ({ navigation, onBack }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <TouchableWithoutFeedback onPress={dismissKeyboard}>
           <View style={styles.innerContainer}>
             {/* Scrollable Message List */}
             <ScrollView
