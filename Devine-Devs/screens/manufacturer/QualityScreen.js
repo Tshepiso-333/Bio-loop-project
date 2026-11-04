@@ -17,6 +17,7 @@ import Svg, {
   Line,
   Text as SvgText,
   G,
+  Rect,
 } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { groupPickupsByMonth } from '../../src/utils/manufacturerAnalytics';
@@ -132,7 +133,7 @@ const QualityScreen = ({ navigation, onBack }) => {
     },
   ];
 
-  const qualityTrends = useMemo(() => groupPickupsByMonth(pickups, 4), [pickups]);
+  const qualityTrends = useMemo(() => groupPickupsByMonth((pickups || []).filter((p) => p.status === 'completed'), 4), [pickups]);
 
   const toggleExpand = (key) =>
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -255,90 +256,73 @@ const QualityScreen = ({ navigation, onBack }) => {
   // ─── TREND CHART ──────────────────────────────────────────────────────────
 
   const QualityTrendChart = () => {
-    const maxValue = 70;
     const chartHeight = 150;
     const chartWidth = width - 80;
-    const pointSpacing =
-      qualityTrends.length > 1 ? chartWidth / (qualityTrends.length - 1) : chartWidth;
-
-    const y = (value) => chartHeight - (value / maxValue) * chartHeight;
-
-    let gradeAPath = '';
-    let gradeBPath = '';
-    let gradeCPath = '';
-
-    qualityTrends.forEach((item, index) => {
-      const x = index * pointSpacing;
-      const yA = y(item.gradeA);
-      const yB = y(item.gradeB);
-      const yC = y(item.gradeC);
-
-      if (index === 0) {
-        gradeAPath = `M ${x} ${yA}`;
-        gradeBPath = `M ${x} ${yB}`;
-        gradeCPath = `M ${x} ${yC}`;
-      } else {
-        gradeAPath += ` L ${x} ${yA}`;
-        gradeBPath += ` L ${x} ${yB}`;
-        gradeCPath += ` L ${x} ${yC}`;
-      }
-    });
+    const bandWidth = chartWidth / qualityTrends.length;
+    const barWidth = Math.min(44, bandWidth * 0.5);
+    const maxTotal = Math.max(1, ...qualityTrends.map((m) => m.gradeA + m.gradeB + m.gradeC));
+    const segmentHeight = (litres) => (litres / maxTotal) * (chartHeight - 24);
 
     return (
       <View style={styles.trendChartContainer}>
         <View style={styles.chartWrapper}>
           <Svg height={chartHeight + 30} width={chartWidth + 40}>
-            {[0, 25, 50, 75].map((value) => {
-              const yy = y(value);
-              return (
-                <G key={value}>
-                  <Line
-                    x1={20}
-                    y1={yy}
-                    x2={chartWidth + 20}
-                    y2={yy}
-                    stroke={T.border}
-                    strokeWidth={1}
-                    strokeDasharray="5,5"
+            <Line
+              x1={20}
+              y1={chartHeight}
+              x2={chartWidth + 20}
+              y2={chartHeight}
+              stroke={T.border}
+              strokeWidth={1}
+            />
+
+            {qualityTrends.map((item, index) => {
+              const cx = 20 + bandWidth * index + bandWidth / 2;
+              const total = item.gradeA + item.gradeB + item.gradeC;
+              let top = chartHeight;
+              const segments = [
+                { key: 'A', litres: item.gradeA, fill: T.gradeA },
+                { key: 'B', litres: item.gradeB, fill: T.gradeB },
+                { key: 'C', litres: item.gradeC, fill: T.gradeC },
+              ].map((seg) => {
+                if (!(seg.litres > 0)) return null;
+                const h = segmentHeight(seg.litres);
+                top -= h;
+                return (
+                  <Rect
+                    key={seg.key}
+                    x={cx - barWidth / 2}
+                    y={top}
+                    width={barWidth}
+                    height={h}
+                    rx={3}
+                    fill={seg.fill}
                   />
+                );
+              });
+              return (
+                <G key={`bar-${index}`}>
+                  {segments}
                   <SvgText
-                    x={10}
-                    y={yy + 4}
-                    fontSize={10}
-                    fill={T.muted}
-                    textAnchor="end"
+                    x={cx}
+                    y={top - 6}
+                    fontSize={11}
+                    fill={T.ink}
+                    fontWeight="600"
+                    textAnchor="middle"
                   >
-                    {value}%
+                    {`${Math.round(total)} L`}
                   </SvgText>
                 </G>
               );
             })}
 
-            <Path d={gradeAPath} fill="none" stroke={T.gradeA} strokeWidth={3} strokeLinecap="round" />
-            <Path d={gradeBPath} fill="none" stroke={T.gradeB} strokeWidth={3} strokeLinecap="round" />
-            <Path d={gradeCPath} fill="none" stroke={T.gradeC} strokeWidth={3} strokeLinecap="round" />
-
             {qualityTrends.map((item, index) => {
-              const x = index * pointSpacing + 20;
-              return (
-                <Circle
-                  key={`a-${index}`}
-                  cx={x}
-                  cy={y(item.gradeA)}
-                  r={4}
-                  fill={T.gradeA}
-                  stroke={T.white}
-                  strokeWidth={2}
-                />
-              );
-            })}
-
-            {qualityTrends.map((item, index) => {
-              const x = index * pointSpacing + 20;
+              const cx = 20 + bandWidth * index + bandWidth / 2;
               return (
                 <SvgText
                   key={index}
-                  x={x}
+                  x={cx}
                   y={chartHeight + 20}
                   fontSize={11}
                   fill={T.body}
@@ -513,8 +497,8 @@ const QualityScreen = ({ navigation, onBack }) => {
         </View>
 
         <View style={styles.trendsCard}>
-          <Text style={styles.trendsTitle}>Quality Trends</Text>
-          <Text style={styles.trendsSubtitle}>Last 4 months</Text>
+          <Text style={styles.trendsTitle}>Quality trends</Text>
+          <Text style={styles.trendsSubtitle}>Litres received per month, by grade</Text>
           <QualityTrendChart />
         </View>
 
