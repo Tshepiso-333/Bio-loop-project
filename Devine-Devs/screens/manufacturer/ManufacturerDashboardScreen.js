@@ -487,45 +487,6 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
   // ─── CHARTS ──────────────────────────────────────────────────────────────
 
-  const PieChart = () => {
-    const segments = qualityDistribution.map((item) => ({
-      percentage: item.value,
-      color: item.color,
-      label: item.name,
-    }));
-    let cumulativeAngle = 0;
-
-    return (
-      <View style={styles.pieContainer}>
-        <View style={styles.pieWrapper}>
-          <View style={styles.pieRing}>
-            {segments.map((segment, index) => {
-              const angle = (segment.percentage / 100) * 360;
-              const startAngle = cumulativeAngle;
-              cumulativeAngle += angle;
-              return (
-                <View
-                  key={index}
-                  style={[
-                    styles.pieSegment,
-                    {
-                      backgroundColor: segment.color,
-                      transform: [{ rotate: `${startAngle}deg` }],
-                    },
-                  ]}
-                />
-              );
-            })}
-          </View>
-          <View style={styles.pieCenter}>
-            <Text style={styles.pieCenterText}>100%</Text>
-            <Text style={styles.pieCenterSubtext}>Total</Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
-
   const WeeklyAreaChart = () => {
     const maxVolume = Math.max(...weeklyData.map((d) => d.volume), 1);
     return (
@@ -771,7 +732,27 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                     </View>
                   ))}
                 </View>
-                <PieChart />
+                {qualityDistribution.reduce((sum, item) => sum + (item.value || 0), 0) > 0 ? (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      height: 10,
+                      borderRadius: 5,
+                      overflow: 'hidden',
+                      marginTop: 16,
+                      backgroundColor: C.border,
+                    }}
+                  >
+                    {qualityDistribution
+                      .filter((item) => item.value > 0)
+                      .map((item) => (
+                        <View
+                          key={item.name}
+                          style={{ flex: item.value, backgroundColor: item.color }}
+                        />
+                      ))}
+                  </View>
+                ) : null}
               </TouchableOpacity>
             </View>
 
