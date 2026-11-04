@@ -375,7 +375,7 @@ function WithdrawalAction({ available, lastPayout, requesting, disabled, onPress
           <Text style={styles.withdrawTitle}>Payouts are automatic</Text>
           <Text style={styles.withdrawDetail}>
             {lastPayout
-              ? `Your share is paid out the moment a collection completes — no request needed. Last payout ${formatCurrency(lastPayout.amount)} on ${formatLongDate(lastPayout.created_at)}.`
+              ? `Your share is paid out the moment a collection completes. No request needed. Last payout ${formatCurrency(lastPayout.amount)} on ${formatLongDate(lastPayout.created_at)}.`
               : 'Your share is paid out the moment a collection completes. Nothing to request.'}
           </Text>
         </View>

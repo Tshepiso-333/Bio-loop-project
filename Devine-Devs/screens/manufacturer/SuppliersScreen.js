@@ -116,13 +116,13 @@ const SuppliersScreen = ({ navigation, onBack }) => {
           cuisine: r.cuisine ?? '—',
           image: r.image_url ?? null,
           location: r.address ?? '—',
-          contact: r.phone ?? '—',
-          email: r.email ?? '—',
+          contact: r.phone ?? 'Not set',
+          email: r.email ?? 'Not set',
           volume: stats?.volume ?? 0,
           quality: stats?.quality ?? '—',
           deliveries: stats?.deliveries ?? 0,
           reliability: stats?.reliability ?? 0,
-          lastDelivery: stats?.lastDelivery ?? '—',
+          lastDelivery: stats?.lastDelivery ?? 'None',
           activeDelivery: activeDeliveryByRestaurantId.get(r.id) ?? null,
         };
       }),
@@ -269,7 +269,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
                       <Text style={styles.incomingCardTitle}>Incoming delivery</Text>
                     </View>
                     <Text style={styles.incomingCardText}>
-                      {selectedSupplier.activeDelivery.driverName} —{' '}
+                      {selectedSupplier.activeDelivery.driverName}:{' '}
                       {selectedSupplier.activeDelivery.statusLabel}
                     </Text>
                     {selectedSupplier.activeDelivery.status ===

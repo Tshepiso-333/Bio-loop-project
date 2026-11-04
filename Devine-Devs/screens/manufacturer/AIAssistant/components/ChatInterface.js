@@ -51,9 +51,9 @@ const buildResponder = (ctx) => (question) => {
   if (q.includes('quality') || q.includes('grade') || q.includes('forecast')) {
     return (
       `Here's your 7-day quality forecast:\n\n` +
-      `• Grade A: ${ctx.gradeA}% — premium feedstock\n` +
-      `• Grade B: ${ctx.gradeB}% — standard quality\n` +
-      `• Grade C: ${ctx.gradeC}% — additional processing required\n\n` +
+      `• Grade A: ${ctx.gradeA}%, premium feedstock\n` +
+      `• Grade B: ${ctx.gradeB}%, standard quality\n` +
+      `• Grade C: ${ctx.gradeC}%, additional processing required\n\n` +
       `Grade A is best suited for biodiesel production. Grade C is recommended for industrial use.`
     );
   }
@@ -91,16 +91,16 @@ const buildResponder = (ctx) => (question) => {
   }
 
   if (q.includes('alert') || q.includes('notification')) {
-    return `Check the Alerts tab — alerts are grouped into "Requires action" and "Updates".`;
+    return `Check the Alerts tab. Alerts are grouped into "Requires action" and "Updates".`;
   }
 
   if (q.includes('help') || q.includes('what can you')) {
     return (
       `I can help with:\n\n` +
-      `• Inventory — stock and tank levels\n` +
-      `• Quality — Grade A/B/C mix\n` +
-      `• Deliveries — active pickups\n` +
-      `• Finance — output, revenue, margin`
+      `• Inventory: stock and tank levels\n` +
+      `• Quality: Grade A/B/C mix\n` +
+      `• Deliveries: active pickups\n` +
+      `• Finance: output, revenue, margin`
     );
   }
 

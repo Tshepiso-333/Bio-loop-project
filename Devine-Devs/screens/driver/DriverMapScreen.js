@@ -153,7 +153,7 @@ export default function DriverMapScreen({ route }) {
     if (!hasPanelCoords) {
       Alert.alert(
         'No location on file',
-        `${panelLeg === 'manufacturer' ? 'This manufacturer' : 'This restaurant'} doesn't have a location set yet — ask admin to add one.`
+        `${panelLeg === 'manufacturer' ? 'This manufacturer' : 'This restaurant'} doesn't have a location set yet. Ask admin to add one.`
       );
       return;
     }
@@ -277,7 +277,7 @@ export default function DriverMapScreen({ route }) {
       if (dropped.length > 0) {
         Alert.alert(
           'Some stops were left out',
-          `${dropped.length} of ${stops.length} stops could not be fitted into this run — they stay assigned, just not on this route.`
+          `${dropped.length} of ${stops.length} stops could not be fitted into this run. They stay assigned, just not on this route.`
         );
       }
     } catch (err) {

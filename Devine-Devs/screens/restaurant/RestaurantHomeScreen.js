@@ -169,7 +169,7 @@ function mapEarningsSummary(earnings = []) {
 
   if (amounts.length === 0) {
     return {
-      amount: '—',
+      amount: 'None',
       detail: 'No recorded earnings yet. Payment status appears in Earnings.',
     };
   }

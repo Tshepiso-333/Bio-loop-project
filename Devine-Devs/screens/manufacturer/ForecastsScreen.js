@@ -407,7 +407,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
                     {row.litres.toLocaleString()} L
                   </Text>
                   <Text style={styles.gradePrice}>
-                    {row.litres > 0 ? `${formatZARDecimal(row.avgPrice)}/L` : '—'}
+                    {row.litres > 0 ? `${formatZARDecimal(row.avgPrice)}/L` : 'None'}
                   </Text>
                 </View>
               );
@@ -428,7 +428,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
             {oilData.isEmpty && (
               <Text style={styles.demoHint}>
-                No oil purchased yet — figures appear once a pickup is delivered and paid.
+                No oil purchased yet. Figures appear once a pickup is delivered and paid.
               </Text>
             )}
           </View>

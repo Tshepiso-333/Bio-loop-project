@@ -97,7 +97,7 @@ export default function DriverProfileScreen() {
       : 'License and vehicle on file · awaiting review';
 
   const openSupportEmail = () => {
-    const subject = `BioLoop driver support — ${collector?.employee_code ?? email ?? 'driver'}`;
+    const subject = `BioLoop driver support: ${collector?.employee_code ?? email ?? 'driver'}`;
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`).catch(() => {
       // No mail client set up. Give them the address rather than failing silently.
       Alert.alert('Help & Support', `Email us at ${SUPPORT_EMAIL} and we'll come back to you.`);

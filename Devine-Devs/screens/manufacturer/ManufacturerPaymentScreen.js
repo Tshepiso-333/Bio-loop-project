@@ -295,7 +295,7 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
             </View>
 
             <Text style={styles.sandboxHint}>
-              This opens PayFast's real sandbox checkout in-app. Use any PayFast sandbox test card — nothing real is
+              This opens PayFast's real sandbox checkout in-app. Use any PayFast sandbox test card. Nothing real is
               charged.
             </Text>
 
