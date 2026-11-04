@@ -67,12 +67,19 @@ const QualityScreen = ({ navigation, onBack }) => {
   const { forecasts = [], pickups = [] } = useManufacturerContext();
   const insets = useSafeAreaInsets();
 
-  const sevenDayForecast = forecasts?.find((f) => f.period_days === 7);
+  // Same rule the database uses for the forecast: completed pickups from the
+  // last 30 days, or all completed pickups if none are that recent.
+  const completed = (pickups || []).filter((p) => p.status === 'completed');
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const recent = completed.filter(
+    (p) => new Date(p.completed_at ?? p.pickup_date ?? p.created_at).getTime() >= thirtyDaysAgo
+  );
+  const basis = recent.length > 0 ? recent : completed;
 
-  const groupedSources = (pickups || []).reduce(
+  const groupedSources = basis.reduce(
     (groups, p) => {
       const grade = (p.quality_grade || '').toUpperCase();
-      const volume = p.estimated_volume_liters ?? p.actual_volume_liters ?? 0;
+      const volume = p.actual_volume_liters ?? p.estimated_volume_liters ?? 0;
       const restaurantName = p.restaurants?.name ?? 'Unknown';
       if (grade === 'A' || grade === 'B' || grade === 'C') {
         groups[grade].push({ restaurant: restaurantName, volume, percentage: 0 });
@@ -94,11 +101,15 @@ const QualityScreen = ({ navigation, onBack }) => {
   const gradeBSources = calculatePercentages(groupedSources.B);
   const gradeCSources = calculatePercentages(groupedSources.C);
 
+  const sumVolume = (sources) => sources.reduce((sum, item) => sum + item.volume, 0);
+  const total = sumVolume(gradeASources) + sumVolume(gradeBSources) + sumVolume(gradeCSources);
+  const gradePct = (sources) => (total > 0 ? Math.round((sumVolume(sources) / total) * 1000) / 10 : 0);
+
   const qualityDistribution = [
     {
       key: 'A',
       name: 'Grade A',
-      value: sevenDayForecast?.grade_a_pct ?? 0,
+      value: gradePct(gradeASources),
       color: T.gradeA,
       totalVolume: gradeASources.reduce((sum, item) => sum + item.volume, 0),
       sources: gradeASources,
@@ -106,7 +117,7 @@ const QualityScreen = ({ navigation, onBack }) => {
     {
       key: 'B',
       name: 'Grade B',
-      value: sevenDayForecast?.grade_b_pct ?? 0,
+      value: gradePct(gradeBSources),
       color: T.gradeB,
       totalVolume: gradeBSources.reduce((sum, item) => sum + item.volume, 0),
       sources: gradeBSources,
@@ -114,7 +125,7 @@ const QualityScreen = ({ navigation, onBack }) => {
     {
       key: 'C',
       name: 'Grade C',
-      value: sevenDayForecast?.grade_c_pct ?? 0,
+      value: gradePct(gradeCSources),
       color: T.gradeC,
       totalVolume: gradeCSources.reduce((sum, item) => sum + item.volume, 0),
       sources: gradeCSources,
