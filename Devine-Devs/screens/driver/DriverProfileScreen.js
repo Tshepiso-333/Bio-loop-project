@@ -382,17 +382,18 @@ const styles = StyleSheet.create({
   },
   avatarText: { 
     fontSize: 28, 
-    fontWeight: '700', 
+    fontFamily: 'PlusJakartaSans_700Bold', 
     color: THEME.white, 
     letterSpacing: 1 
   },
   name: { 
     fontSize: 22, 
-    fontWeight: '700', 
+    fontFamily: 'PlusJakartaSans_700Bold', 
     color: THEME.white 
   },
   driverId: { 
     fontSize: 13, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: 'rgba(255,255,255,0.8)', 
     marginTop: 4 
   },
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
   ratingText: { 
     fontSize: 13, 
     color: 'rgba(255,255,255,0.9)', 
-    fontWeight: '500' 
+    fontFamily: 'PlusJakartaSans_500Medium' 
   },
   statsCard: {
     marginHorizontal: 16,
@@ -436,11 +437,12 @@ const styles = StyleSheet.create({
   },
   statValue: { 
     fontSize: 18, 
-    fontWeight: '700', 
+    fontFamily: 'PlusJakartaSans_700Bold', 
     color: THEME.text 
   },
   statLabel: { 
     fontSize: 11, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray, 
     textAlign: 'center' 
   },
@@ -466,9 +468,9 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
   },
-  weeklyTitle: { fontSize: 14, fontWeight: '600', color: THEME.text },
-  weeklySub: { fontSize: 12, color: THEME.textSecondary, marginTop: 2 },
-  weeklyChange: { fontSize: 16, fontWeight: '700', color: THEME.primary },
+  weeklyTitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold', color: THEME.text },
+  weeklySub: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: THEME.textSecondary, marginTop: 2 },
+  weeklyChange: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold', color: THEME.primary },
   documentsBlock: {
     marginHorizontal: 16,
     marginTop: 16,
@@ -510,7 +512,7 @@ const styles = StyleSheet.create({
   },
   menuLabel: { 
     fontSize: 15, 
-    fontWeight: '600', 
+    fontFamily: 'PlusJakartaSans_600SemiBold', 
     color: THEME.text 
   },
   menuLabelDanger: { 
@@ -518,6 +520,7 @@ const styles = StyleSheet.create({
   },
   menuSublabel: { 
     fontSize: 12, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary, 
     marginTop: 2 
   },
@@ -525,6 +528,7 @@ const styles = StyleSheet.create({
     textAlign: 'center', 
     color: THEME.gray, 
     fontSize: 12, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     marginTop: 24 
   },
   editBtn: {
@@ -538,10 +542,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
   },
-  editBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  editBtnText: { color: '#fff', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.textSecondary,
     paddingHorizontal: 16,
     paddingTop: 14,
@@ -558,11 +562,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: THEME.grayLight,
   },
-  detailText: { flex: 1, fontSize: 14, color: THEME.text },
+  detailText: { flex: 1, fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', color: THEME.text },
   emptyDetailText: {
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     fontStyle: 'italic',
   },
@@ -570,6 +575,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     lineHeight: 20,
   },

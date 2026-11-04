@@ -330,11 +330,12 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.white,
   },
   companyName: {
     fontSize: 10,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.white,
     opacity: 0.9,
     marginTop: 1,
@@ -345,11 +346,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: { 
     fontSize: 24, 
-    fontWeight: '700', 
+    fontFamily: 'PlusJakartaSans_700Bold', 
     color: THEME.white 
   },
   headerSub: { 
     fontSize: 13, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: 'rgba(255,255,255,0.8)', 
     marginTop: 4 
   },
@@ -377,7 +379,7 @@ const styles = StyleSheet.create({
   },
   filterText: { 
     fontSize: 13, 
-    fontWeight: '500', 
+    fontFamily: 'PlusJakartaSans_500Medium', 
     color: THEME.textSecondary 
   },
   filterTextActive: { 
@@ -425,7 +427,7 @@ const styles = StyleSheet.create({
   },
   cardName: { 
     fontSize: 15, 
-    fontWeight: '600', 
+    fontFamily: 'PlusJakartaSans_600SemiBold', 
     color: THEME.text, 
     marginBottom: 4 
   },
@@ -436,10 +438,12 @@ const styles = StyleSheet.create({
   },
   cardAddress: { 
     fontSize: 12, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary 
   },
   cardTime: { 
     fontSize: 12, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray 
   },
   badge: { 
@@ -449,7 +453,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { 
     fontSize: 11, 
-    fontWeight: '600' 
+    fontFamily: 'PlusJakartaSans_600SemiBold' 
   },
   cardActions: { 
     flexDirection: 'row', 
@@ -468,7 +472,7 @@ const styles = StyleSheet.create({
   },
   callBtnText: { 
     fontSize: 13, 
-    fontWeight: '600', 
+    fontFamily: 'PlusJakartaSans_600SemiBold', 
     color: THEME.text 
   },
   actionBtn: {
@@ -487,7 +491,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: { 
     fontSize: 13, 
-    fontWeight: '600', 
+    fontFamily: 'PlusJakartaSans_600SemiBold', 
     color: THEME.white 
   },
   actionBtnTextDisabled: {
@@ -500,7 +504,7 @@ const styles = StyleSheet.create({
   },
   declineBtnText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: '#DC2626',
   },
   emptyState: { 
@@ -510,6 +514,7 @@ const styles = StyleSheet.create({
   },
   emptyText: { 
     fontSize: 14, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray 
   },
 });

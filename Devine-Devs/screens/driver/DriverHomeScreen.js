@@ -591,12 +591,13 @@ const styles = StyleSheet.create({
 
   appName: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.white,
   },
 
   companyName: {
     fontSize: 10,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.white,
     opacity: 0.9,
     marginTop: 1,
@@ -634,22 +635,21 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 14,
     color: THEME.textSecondary,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'PlusJakartaSans_400Regular',
   },
 
   welcomeName: {
     fontSize: 28,
-    fontWeight: '700',
     color: THEME.text,
     marginTop: 4,
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'PlusJakartaSans_700Bold',
   },
 
   welcomeRoute: {
     fontSize: 14,
     color: THEME.textSecondary,
     marginTop: 4,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'PlusJakartaSans_400Regular',
   },
 
   scroll: {
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
 
   dutyLabel: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.text,
   },
 
@@ -731,6 +731,7 @@ const styles = StyleSheet.create({
 
   dutySub: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     marginTop: 2,
   },
@@ -749,12 +750,13 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
 
   sectionCount: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray,
   },
 
@@ -771,11 +773,12 @@ const styles = StyleSheet.create({
   },
   noPickupsTitle: {
     fontSize: 14.5,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
   noPickupsText: {
     fontSize: 12.5,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
@@ -783,6 +786,7 @@ const styles = StyleSheet.create({
   statementBlock: { marginTop: 14, marginBottom: 4 },
   morePickupsHint: {
     fontSize: 12.5,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray,
     textAlign: 'center',
     paddingBottom: 4,
@@ -825,18 +829,20 @@ const styles = StyleSheet.create({
 
   pickupName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
 
   pickupAddress: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     marginTop: 2,
   },
 
   pickupTime: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray,
     marginTop: 2,
   },
@@ -853,7 +859,7 @@ const styles = StyleSheet.create({
 
   badgeText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
 
   viewAllBtn: {
@@ -874,7 +880,7 @@ const styles = StyleSheet.create({
 
   viewAllText: {
     color: THEME.white,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 14,
   },
 });

@@ -820,12 +820,13 @@ const styles = StyleSheet.create({
   },
   loadingTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.text,
     marginBottom: 6,
   },
   loadingText: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
   },
 
@@ -841,16 +842,18 @@ const styles = StyleSheet.create({
   },
   errorIcon: {
     fontSize: 32,
+    fontFamily: 'PlusJakartaSans_400Regular',
   },
   errorTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   errorText: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
@@ -911,7 +914,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  seqMarkerText: { color: THEME.white, fontWeight: '800', fontSize: 13 },
+  seqMarkerText: { color: THEME.white, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13 },
   seqMarkerDone: { backgroundColor: THEME.textSecondary },
   seqMarkerCurrent: { backgroundColor: THEME.primaryDarker, borderColor: THEME.accent ?? THEME.white },
   planAllBtn: {
@@ -932,13 +935,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   planAllBtnLabel: { maxWidth: 150 },
-  planAllBtnText: { color: THEME.white, fontWeight: '700', fontSize: 12 },
-  planAllBtnSub: { color: THEME.primaryLight, fontWeight: '600', fontSize: 10, marginTop: 1 },
+  planAllBtnText: { color: THEME.white, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12 },
+  planAllBtnSub: { color: THEME.primaryLight, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, marginTop: 1 },
   routeBadge: {
     position: 'absolute', top: 60, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: THEME.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
   },
-  routeBadgeText: { color: THEME.white, fontWeight: '700', fontSize: 13 },
+  routeBadgeText: { color: THEME.white, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13 },
   destinationMarkerWrap: {
     width: 32,
     height: 32,
@@ -990,12 +993,12 @@ const styles = StyleSheet.create({
   },
   pickupBadgeValue: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.primary,
   },
   pickupBadgeLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.textSecondary,
   },
   speedLeft: {
@@ -1005,14 +1008,14 @@ const styles = StyleSheet.create({
   },
   speedValue: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.primary,
     lineHeight: 26,
   },
   speedUnit: {
     fontSize: 12,
     color: THEME.textSecondary,
-    fontWeight: '500',
+    fontFamily: 'PlusJakartaSans_500Medium',
     marginBottom: 2,
   },
   speedDivider: {
@@ -1023,7 +1026,7 @@ const styles = StyleSheet.create({
   speedRight: {},
   speedLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
 
@@ -1059,28 +1062,29 @@ const styles = StyleSheet.create({
   },
   tripLegText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.primaryDarker,
   },
   tripSpeedText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.textSecondary,
   },
   tripDestName: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.text,
   },
   tripDestAddress: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     marginTop: 2,
     marginBottom: 14,
   },
   tripRunNext: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.primary,
     marginTop: -8,
     marginBottom: 14,
@@ -1103,7 +1107,7 @@ const styles = StyleSheet.create({
   },
   navigateBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
   advanceBtn: {
@@ -1121,7 +1125,7 @@ const styles = StyleSheet.create({
   },
   advanceBtnText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.white,
   },
   waitingBanner: {
@@ -1136,7 +1140,7 @@ const styles = StyleSheet.create({
   },
   waitingBannerText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: 'PlusJakartaSans_500Medium',
     color: THEME.textSecondary,
   },
 });
