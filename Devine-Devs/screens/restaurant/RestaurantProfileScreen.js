@@ -8,6 +8,8 @@ import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
+import DocumentsCard from '../../src/components/DocumentsCard';
+import CertificateCard from '../../src/components/CertificateCard';
 import {
   REST_COLORS,
   REST_FONTS,
@@ -83,6 +85,14 @@ export default function RestaurantProfileScreen() {
           <Text style={styles.editBtnText}>Edit profile</Text>
         </TouchableOpacity>
 
+        <CertificateCard
+          role="restaurant"
+          ownerId={restaurant?.id}
+          accountName={displayName}
+          tint={REST_COLORS.primary}
+          style={{ marginBottom: 14 }}
+        />
+
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Business</Text>
           <InfoRow icon="storefront-outline" label="Business type" value={restaurant?.business_type} />
@@ -107,6 +117,16 @@ export default function RestaurantProfileScreen() {
               : profile?.city ?? profile?.province
           } />
         </View>
+
+        {/* Documents live here rather than on Earnings (team decision
+            2026-11-02) so every role keeps them in the same place. */}
+        <DocumentsCard
+          role="restaurant"
+          ownerId={restaurant?.id}
+          accountName={restaurant?.name ?? profile?.full_name}
+          tint={REST_COLORS.primary}
+          style={{ marginTop: 16 }}
+        />
 
         <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
           <Ionicons name="log-out-outline" size={18} color={REST_COLORS.negative} />

@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { computeSupplierStats } from '../../src/utils/manufacturerAnalytics';
-import { ACTIVE_TRIP_STATUSES, PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
+import { ACTIVE_TRIP_STATUSES, DELIVERY_STATUS_LABELS } from '../../src/lib/pickupStatus';
 
 const { width } = Dimensions.get('window');
 
@@ -88,7 +88,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
       map.set(p.restaurant_id, {
         pickupId: p.id,
         status: p.status,
-        statusLabel: PICKUP_STATUS_LABELS[p.status] ?? p.status,
+        statusLabel: DELIVERY_STATUS_LABELS[p.status] ?? p.status,
         driverName: p.collectors?.full_name ?? 'A driver',
       });
     });

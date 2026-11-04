@@ -5,3 +5,12 @@ node_modules/
 .claude/
 CLAUDE.md
 Devine-Devs/supabase/.temp/
+
+# Local git worktree holding the `main` checkout, for porting work across
+# branches. A nested checkout must never be committed into the repo.
+Devine-Devs-main/
+
+# Stand artwork and a vendor setup guide — large binaries git never forgets,
+# and neither is needed to build or run the app.
+stand-brand-kit/
+PayFast-setup-guide.pdf

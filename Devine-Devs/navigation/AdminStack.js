@@ -3,6 +3,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import AdminSettingsScreen from '../screens/admin/AdminSettingsScreen';
+import AdminOperationsScreen from '../screens/admin/AdminOperationsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,6 +23,14 @@ export default function AdminStack() {
       <Stack.Screen
         name="AdminSettings"
         component={AdminSettingsScreen}
+      />
+
+      {/* Monitoring console: golden signals, data-correctness checks, error
+          groups, latency and the audit log. Reads admin-only views from
+          migrations 080-083. */}
+      <Stack.Screen
+        name="AdminOperations"
+        component={AdminOperationsScreen}
       />
 
       {/* Team: import and add admin screens below this line */}

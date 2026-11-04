@@ -1,6 +1,7 @@
 import { supabase } from '../../supabase';
 import { pickups as pickupsSchema } from '../lib/dbColumns';
 import { notifyAllAdmins, notifyUser } from './notificationService';
+import { logError } from './telemetryService';
 
 const assignedPickupSelect =
   '*, restaurants(name, address, latitude, longitude, phone, owner_user_id), manufacturers(name, address, latitude, longitude, owner_user_id), collectors(full_name)';
@@ -23,18 +24,25 @@ async function notifyForStatus(pickup, status) {
 
   const jobs = [];
 
+  // Every one of these refers to a specific pickup, so they all carry it in
+  // meta (migration 064) — that's what makes the bell entry, and later the
+  // push notification, tappable through to the right screen.
+  const meta = { pickupId: pickup.id };
+
   if (status === 'arrival') {
     if (restaurantOwnerId) {
       jobs.push(notifyUser(restaurantOwnerId, {
         title: 'Driver has arrived',
         message: `${driverName} has arrived to collect your oil. Please have it ready.`,
         category: 'delivery',
+        meta,
       }));
     }
     jobs.push(notifyAllAdmins({
       title: 'Driver arrived at restaurant',
       message: `${driverName} arrived at ${restaurantName} for pickup.`,
       category: 'delivery',
+      meta,
     }));
   } else if (status === 'collected') {
     if (manufacturerOwnerId) {
@@ -42,12 +50,14 @@ async function notifyForStatus(pickup, status) {
         title: 'Oil on the way',
         message: `${driverName} collected oil from ${restaurantName} and is heading to you.`,
         category: 'delivery',
+        meta,
       }));
     }
     jobs.push(notifyAllAdmins({
       title: 'Oil collected',
       message: `${driverName} collected oil from ${restaurantName}, en route to ${manufacturerName}.`,
       category: 'delivery',
+      meta,
     }));
   } else if (status === 'arrived_manufacturer') {
     if (manufacturerOwnerId) {
@@ -55,12 +65,14 @@ async function notifyForStatus(pickup, status) {
         title: 'Driver has arrived',
         message: `${driverName} has arrived with oil from ${restaurantName}.`,
         category: 'delivery',
+        meta,
       }));
     }
     jobs.push(notifyAllAdmins({
       title: 'Driver arrived at manufacturer',
       message: `${driverName} arrived at ${manufacturerName} with the collected oil.`,
       category: 'delivery',
+      meta,
     }));
   }
 
@@ -106,6 +118,7 @@ export async function updatePickupStatus(pickupId, status) {
     await notifyForStatus(data, status);
   } catch (err) {
     console.error('Error sending pickup status notifications:', err.message);
+    logError('notify.pickup_status_failed', err);
   }
 
   return data;

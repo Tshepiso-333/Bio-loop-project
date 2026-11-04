@@ -31,6 +31,32 @@ function md5(input: string): string {
   return createHash("md5").update(input).digest("hex");
 }
 
+/**
+ * PHP's urlencode(), which is what PayFast signs with. encodeURIComponent is
+ * NOT the same and the difference is what broke checkout:
+ *   - space        -> '+'   (encodeURIComponent gives %20)
+ *   - ! ' ( ) * ~  -> escaped (encodeURIComponent leaves them alone)
+ *
+ * An apostrophe in a restaurant name ("Mzobanzi Ngubane's Restaurant") made
+ * our signature differ from PayFast's and every such payment 400'd with
+ * "Generated signature does not match submitted signature". Every name that
+ * had worked until then happened to contain no special characters.
+ */
+function pfEncode(value: string): string {
+  return encodeURIComponent(value)
+    .replace(/%20/g, "+")
+    .replace(/[!'()*~]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+/** Keeps a value with quotes or & from breaking out of the hidden input. */
+function htmlAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -131,41 +157,56 @@ Deno.serve(async (req) => {
       transactionId = inserted.id;
     }
 
-    // --- Signature format verified against PayFast's sandbox tool ---
-    // Field order matters (must match the form's field order, not
-    // alphabetical). Passphrase is appended last. URL fields are
-    // percent-encoded; item_name uses '+' for spaces.
-    const cleanReturn = encodeURIComponent(RETURN_URL);
-    const cleanCancel = encodeURIComponent(CANCEL_URL);
-    const cleanNotify = encodeURIComponent(`${SUPABASE_URL}/functions/v1/payfast-itn`);
-    const cleanItem = itemName.replace(/ /g, "+");
+    // --- Signature ---
+    // PayFast rebuilds the signature from the posted fields IN THE ORDER THEY
+    // WERE SUBMITTED, so the signed string and the form must agree exactly.
+    // One ordered list drives both, which makes drift between them impossible
+    // — previously they were written out twice by hand.
+    //
+    // Values are signed with pfEncode (PHP urlencode) but posted RAW; PayFast
+    // re-encodes what it receives before hashing.
+    const fields: Array<[string, string]> = [
+      ["merchant_id", PAYFAST_MERCHANT_ID],
+      ["merchant_key", PAYFAST_MERCHANT_KEY],
+      ["return_url", RETURN_URL],
+      ["cancel_url", CANCEL_URL],
+      ["notify_url", `${SUPABASE_URL}/functions/v1/payfast-itn`],
+      ["m_payment_id", mPaymentId],
+      ["amount", amount],
+      // PayFast caps item_name at 100 characters and rejects anything longer.
+      ["item_name", itemName.slice(0, 100)],
+    ];
 
-    const signatureString =
-      `merchant_id=${PAYFAST_MERCHANT_ID}&` +
-      `merchant_key=${PAYFAST_MERCHANT_KEY}&` +
-      `return_url=${cleanReturn}&` +
-      `cancel_url=${cleanCancel}&` +
-      `notify_url=${cleanNotify}&` +
-      `m_payment_id=${mPaymentId}&` +
-      `amount=${amount}&` +
-      `item_name=${cleanItem}&` +
-      `passphrase=${PAYFAST_PASSPHRASE}`;
+    // An empty field must be left out of the signature entirely, not sent as
+    // `key=`, or the hashes diverge.
+    const signed = fields
+      .map(([k, v]) => [k, (v ?? "").toString().trim()] as [string, string])
+      .filter(([, v]) => v !== "");
+
+    let signatureString = signed.map(([k, v]) => `${k}=${pfEncode(v)}`).join("&");
+
+    // Only append the passphrase when the account actually has one. Appending
+    // an empty (or literally "undefined") passphrase is itself a mismatch.
+    const passphrase = (PAYFAST_PASSPHRASE ?? "").trim();
+    if (passphrase) {
+      signatureString += `&passphrase=${pfEncode(passphrase)}`;
+    }
 
     const signature = md5(signatureString);
+
+    const inputs = signed
+      .map(
+        ([k, v]) =>
+          `<input type="hidden" name="${k}" value="${htmlAttr(v)}" />`,
+      )
+      .join("\n            ");
 
     const html = `
       <html>
         <head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
         <body onload="document.forms['payfast_form'].submit()">
           <form name="payfast_form" action="${PAYFAST_PROCESS_URL}" method="post">
-            <input type="hidden" name="merchant_id" value="${PAYFAST_MERCHANT_ID}" />
-            <input type="hidden" name="merchant_key" value="${PAYFAST_MERCHANT_KEY}" />
-            <input type="hidden" name="return_url" value="${RETURN_URL}" />
-            <input type="hidden" name="cancel_url" value="${CANCEL_URL}" />
-            <input type="hidden" name="notify_url" value="${SUPABASE_URL}/functions/v1/payfast-itn" />
-            <input type="hidden" name="m_payment_id" value="${mPaymentId}" />
-            <input type="hidden" name="amount" value="${amount}" />
-            <input type="hidden" name="item_name" value="${itemName}" />
+            ${inputs}
             <input type="hidden" name="signature" value="${signature}" />
           </form>
           <div style="text-align:center; font-family:sans-serif; margin-top:60px; color:#555;">

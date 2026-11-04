@@ -1,8 +1,8 @@
 // Devine-Devs/screens/driver/DriverProfileScreen.js
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, StatusBar, Alert,
+  TouchableOpacity, StatusBar, Alert, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,12 @@ import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
+import CertificateCard from '../../src/components/CertificateCard';
+import DocumentsCard from '../../src/components/DocumentsCard';
+
+// Where a driver's "Help & Support" mail goes. Same address BioLoop sends
+// its own transactional mail from (supabase/functions/send-email).
+const SUPPORT_EMAIL = 'ngubanemzobanzi4@gmail.com';
 
 // Theme colours (matching manufacturer)
 const THEME = {
@@ -50,7 +56,23 @@ export default function DriverProfileScreen() {
   const navigation = useNavigation();
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
-  const { collector, stats } = useCollectorContext();
+  const { collector, stats, pickups } = useCollectorContext();
+
+  // Litres from trips completed in the last 7 days and the change vs the 7
+  // days before — derived from real pickup rows, not a stored figure.
+  const weekly = useMemo(() => {
+    const now = Date.now();
+    const week = 7 * 24 * 60 * 60 * 1000;
+    const litresOf = (p) => Number(p.actual_volume_liters ?? p.estimated_volume_liters ?? 0);
+    const completedAt = (p) => new Date(p.completed_at ?? p.updated_at ?? p.pickup_date ?? 0).getTime();
+    const done = (pickups || []).filter((p) => p.status === 'completed');
+    const thisWeek = done.filter((p) => now - completedAt(p) < week);
+    const lastWeek = done.filter((p) => { const age = now - completedAt(p); return age >= week && age < 2 * week; });
+    const thisL = thisWeek.reduce((s, p) => s + litresOf(p), 0);
+    const lastL = lastWeek.reduce((s, p) => s + litresOf(p), 0);
+    const change = lastL > 0 ? Math.round(((thisL - lastL) / lastL) * 100) : thisL > 0 ? 100 : 0;
+    return { liters: thisL, stops: thisWeek.length, change };
+  }, [pickups]);
 
   const imageUrl = collector?.profile_image_url ?? profile?.profile_image_url;
   const vehicleLine = [collector?.vehicle_make, collector?.vehicle_model, collector?.vehicle_registration]
@@ -59,6 +81,28 @@ export default function DriverProfileScreen() {
   const email = profile?.email ?? user?.email;
   const location = [profile?.city, profile?.province].filter(Boolean).join(', ');
   const coverageLine = [collector?.district, collector?.route_name].filter(Boolean).join(' · ');
+
+  // What the row used to say was "Certifications", behind a "Coming soon"
+  // alert. The compliance facts already exist on the collector record, so say
+  // what is actually on file and send them to the form that fixes the gaps.
+  const missingCompliance = [
+    collector?.drivers_license_number ? null : 'license',
+    collector?.vehicle_registration ? null : 'vehicle',
+  ].filter(Boolean);
+
+  const complianceLine = missingCompliance.length
+    ? `Add your ${missingCompliance.join(' and ')}`
+    : collector?.is_verified
+      ? 'Verified · license and vehicle on file'
+      : 'License and vehicle on file · awaiting review';
+
+  const openSupportEmail = () => {
+    const subject = `BioLoop driver support — ${collector?.employee_code ?? email ?? 'driver'}`;
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`).catch(() => {
+      // No mail client set up. Give them the address rather than failing silently.
+      Alert.alert('Help & Support', `Email us at ${SUPPORT_EMAIL} and we'll come back to you.`);
+    });
+  };
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -101,6 +145,13 @@ export default function DriverProfileScreen() {
       <Header />
       
       <ScrollView showsVerticalScrollIndicator={false}>
+        <CertificateCard
+          role="collector"
+          ownerId={collector?.id}
+          accountName={collector?.full_name}
+          tint={THEME.primary}
+          style={{ marginHorizontal: 16, marginTop: 16 }}
+        />
         {/* Stats Card */}
         <View style={styles.statsCard}>
           <LinearGradient
@@ -229,11 +280,11 @@ export default function DriverProfileScreen() {
             sublabel="Update vehicle, license, bio"
             onPress={() => navigation.navigate('ProfileEdit')}
           />
-          <MenuItem 
-            icon="notifications-outline" 
-            label="Notifications" 
-            sublabel="Manage alerts"
-            onPress={() => Alert.alert('Notifications', 'Coming soon')} 
+          <MenuItem
+            icon="notifications-outline"
+            label="Notifications"
+            sublabel="Pickups, payouts and trip changes"
+            onPress={() => navigation.navigate('DriverAlerts')}
           />
           <MenuItem
             icon="car-outline"
@@ -244,23 +295,58 @@ export default function DriverProfileScreen() {
           <MenuItem 
             icon="shield-checkmark-outline" 
             label="Safety & Compliance" 
-            sublabel="Certifications"
-            onPress={() => Alert.alert('Safety', 'Coming soon')} 
+            sublabel={complianceLine}
+            onPress={() => navigation.navigate('ProfileEdit')}
           />
-          <MenuItem 
-            icon="help-circle-outline" 
-            label="Help & Support" 
-            sublabel="FAQ, contact us"
-            onPress={() => Alert.alert('Help', 'Coming soon')} 
+          <MenuItem
+            icon="help-circle-outline"
+            label="Help & Support"
+            sublabel={SUPPORT_EMAIL}
+            onPress={openSupportEmail}
           />
         </View>
 
+        {/* Weekly summary — a record of what this driver has done, which
+            belongs with the rest of their record rather than greeting them
+            on the screen they open to start work. */}
+        <View style={styles.weeklyCard}>
+          <LinearGradient
+            colors={[THEME.primary + '15', THEME.primary + '05']}
+            style={styles.weeklyGradient}
+          >
+            <View style={styles.weeklyLeft}>
+              <View style={[styles.weeklyIconWrap, { backgroundColor: THEME.primaryLight }]}>
+                <Ionicons name="bar-chart-outline" size={20} color={THEME.primary} />
+              </View>
+              <View>
+                <Text style={styles.weeklyTitle}>This week</Text>
+                <Text style={styles.weeklySub}>
+                  {weekly.liters}L · {weekly.stops} {weekly.stops === 1 ? 'trip' : 'trips'}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.weeklyChange}>
+              {weekly.change >= 0 ? '+' : ''}{weekly.change}%
+            </Text>
+          </LinearGradient>
+        </View>
+
+        {/* Documents live here rather than on the home screen: they are
+            occasional downloads, not something the driver needs on arrival. */}
+        <DocumentsCard
+          role="collector"
+          ownerId={collector?.id}
+          accountName={collector?.full_name}
+          tint={THEME.primary}
+          style={styles.documentsBlock}
+        />
+
         <View style={styles.menuSection}>
-          <MenuItem 
-            icon="log-out-outline" 
-            label="Sign Out" 
-            danger 
-            onPress={handleSignOut} 
+          <MenuItem
+            icon="log-out-outline"
+            label="Sign Out"
+            danger
+            onPress={handleSignOut}
           />
         </View>
 
@@ -362,6 +448,30 @@ const styles = StyleSheet.create({
     width: 1, 
     height: 50, 
     backgroundColor: THEME.grayLight 
+  },
+  weeklyCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  weeklyGradient: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  weeklyLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  weeklyIconWrap: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  weeklyTitle: { fontSize: 14, fontWeight: '600', color: THEME.text },
+  weeklySub: { fontSize: 12, color: THEME.textSecondary, marginTop: 2 },
+  weeklyChange: { fontSize: 16, fontWeight: '700', color: THEME.primary },
+  documentsBlock: {
+    marginHorizontal: 16,
+    marginTop: 16,
   },
   menuSection: {
     backgroundColor: THEME.white,

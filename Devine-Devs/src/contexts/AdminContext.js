@@ -15,6 +15,7 @@ import {
   updateWithdrawalStatus,
 } from '../services/adminService';
 import { updatePayoutSplit, updatePlatformSettings } from '../services/payoutService';
+import { withTiming } from '../services/telemetryService';
 
 const AdminContext = createContext(null);
 
@@ -55,7 +56,7 @@ export function AdminProvider({ children }) {
   const loadAdminData = useCallback(async () => {
     setError(null);
     try {
-      const bundle = await loadAdminBundle();
+      const bundle = await withTiming('admin.load_bundle', () => loadAdminBundle());
       setState({ ...EMPTY_STATE, ...bundle });
     } catch (err) {
       setError(err.message ?? 'Could not load admin data');

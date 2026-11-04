@@ -165,6 +165,8 @@ export async function finalizeWithdrawal(withdrawal, status) {
       title: 'Withdrawal paid',
       message: `Your withdrawal of ${withdrawal.amount} has been paid.`,
       category: 'info',
+      // No pickup here — a withdrawal spans many. Send them to their wallet.
+      meta: { screen: 'Wallet', amount: withdrawal.amount },
     });
   }
 }

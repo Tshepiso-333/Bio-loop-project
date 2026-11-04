@@ -24,6 +24,14 @@ import {
 import { AuthProvider } from './AuthContext';
 import { ProfileProvider } from './src/contexts/ProfileContext';
 import RootNavigator from './navigation/RootNavigator';
+import { installGlobalErrorHandler } from './src/services/telemetryService';
+
+// Catch crashes and unhandled promise rejections for the whole app and record
+// them in system_events, where admin > Operations > Errors groups them. Called
+// at module scope so it is armed before the first render — a crash during
+// mount is exactly the one worth catching. It chains to the original handler,
+// so the dev red box still behaves normally.
+installGlobalErrorHandler();
 
 export default function App() {
   const [fontsLoaded] = useFonts({

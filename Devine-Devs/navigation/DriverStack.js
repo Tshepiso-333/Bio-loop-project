@@ -9,6 +9,7 @@ import DriverHomeScreen from '../screens/driver/DriverHomeScreen';
 import DriverCollectionsScreen from '../screens/driver/DriverCollectionsScreen';
 import DriverMapScreen from '../screens/driver/DriverMapScreen';
 import DriverProfileScreen from '../screens/driver/DriverProfileScreen';
+import DriverAlertsScreen from '../screens/driver/DriverAlertsScreen';
 import ProfileEditRoute from '../screens/profile/ProfileEditRoute';
 
 import {
@@ -122,6 +123,13 @@ export default function DriverStack() {
       <Stack.Screen
         name="DriverProfile"
         component={DriverProfileScreen}
+      />
+
+      {/* Reached from the bell on Home and the
+          Notifications row on Profile */}
+      <Stack.Screen
+        name="DriverAlerts"
+        component={DriverAlertsScreen}
       />
 
       <Stack.Screen

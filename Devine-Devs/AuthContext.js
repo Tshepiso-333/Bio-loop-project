@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { supabase } from './supabase';
 import { clearUserCaches } from './src/lib/cache';
+import {
+  configureForegroundBehaviour,
+  registerForPush,
+  unregisterPush,
+} from './src/services/pushService';
 
 const AuthContext = createContext(null);
 
@@ -9,13 +14,36 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Verifying a password-reset code signs the user in with a recovery
+  // session — that session is what authorises updateUser({ password }).
+  // RootNavigator only renders AuthStack while signed out, so without this
+  // flag the reset screen was torn down the instant the code was accepted
+  // and the password was never changed. While it is true, the reset screen
+  // owns the whole app regardless of auth state.
+  const [recoveringPassword, setRecoveringPassword] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState(null);
+
+  const beginPasswordRecovery = (email = null) => {
+    setRecoveryEmail(email);
+    setRecoveringPassword(true);
+  };
+  const endPasswordRecovery = () => {
+    setRecoveringPassword(false);
+    setRecoveryEmail(null);
+  };
+
   const signOut = async () => {
     const userId = user?.id;
+    // Drop this device's push token first, while the session can still
+    // authorise the RPC — otherwise the next person to sign in on a shared
+    // phone would receive the previous person's alerts.
+    await unregisterPush();
     if (userId) {
       await clearUserCaches(userId);
     }
     setUser(null);
     setSession(null);
+    setRecoveringPassword(false);
     await supabase.auth.signOut();
   };
 
@@ -37,6 +65,29 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Silence OS banners while the app is open — the in-app bell is the
+  // surface then, and a banner for the screen you're looking at is noise.
+  useEffect(() => {
+    configureForegroundBehaviour();
+  }, []);
+
+  // Register this device whenever someone is signed in. Fails soft: it
+  // returns a reason rather than throwing, because push is unavailable in
+  // Expo Go and the person may simply have declined permission. Neither
+  // should interfere with using the app.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    registerForPush().then((result) => {
+      if (!cancelled && !result.ok) {
+        console.log('[push] not registered:', result.reason);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   const value = useMemo(
     () => ({
       user,
@@ -44,8 +95,12 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated: !!user,
       loading,
       signOut,
+      recoveringPassword,
+      recoveryEmail,
+      beginPasswordRecovery,
+      endPasswordRecovery,
     }),
-    [user, session, loading]
+    [user, session, loading, recoveringPassword, recoveryEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

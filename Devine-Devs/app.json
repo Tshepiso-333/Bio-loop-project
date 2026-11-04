@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Devine-Devs",
+    "name": "BioLoop",
     "slug": "Devine-Devs",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mzoo.DevineDevs",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "BioLoop uses your location to show your position on the map and to navigate you to each collection."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +28,8 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.thobile1504.DevineDevs",
+      "package": "com.mzoo.DevineDevs",
+      "googleServicesFile": "./google-services.json",
       "googleMaps": {
         "apiKey": "AIzaSyB6Sj_L0Eoz867X54mywdZSNA8okbtp6XY"
       }
@@ -40,13 +45,15 @@
           "photosPermission": "Allow Devine-Devs to access your photos to upload a profile picture."
         }
       ],
-      "expo-asset"
+      "@maplibre/maplibre-react-native",
+      "expo-asset",
+      "expo-sharing"
     ],
+    "owner": "mzoo",
     "extra": {
       "eas": {
-        "projectId": "e413c2a6-9dab-499e-89bd-3c95e7f53c05"
+        "projectId": "b8031ad9-e0c2-4932-a42d-99dd7c4bbf69"
       }
-    },
-    "owner": "thobile1504"
+    }
   }
 }

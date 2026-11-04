@@ -32,6 +32,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../AuthContext';
 import {
   sendPasswordResetCode,
   sendSignInCode,
@@ -71,6 +72,7 @@ const RESEND_SECONDS = 45;
 
 export default function VerifyCodeScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
+  const { beginPasswordRecovery, endPasswordRecovery } = useAuth();
   const { email, purpose = 'signin', profile = null } = route?.params ?? {};
 
   const [code, setCode] = useState('');
@@ -102,13 +104,17 @@ export default function VerifyCodeScreen({ route, navigation }) {
     setNotice(null);
     try {
       if (purpose === 'recovery') {
+        // Set before verifying: verifyOtp returns a session, and RootNavigator
+        // would otherwise swap to the role stack before we could navigate.
+        beginPasswordRecovery(email);
         await verifyRecoveryCode(email, token);
-        navigation.replace('ResetPassword', { email });
       } else {
         // The session lands here; RootNavigator swaps to the role stack.
         await verifyEmailCode(email, token);
       }
     } catch (err) {
+      // A wrong code must not leave the app stuck on the reset screen.
+      if (purpose === 'recovery') endPasswordRecovery();
       setError(err.message ?? 'Could not verify that code.');
       setCode('');
     } finally {

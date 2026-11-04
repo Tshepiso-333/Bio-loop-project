@@ -19,6 +19,8 @@ import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
+import CertificateCard from '../../src/components/CertificateCard';
+import DocumentsCard from '../../src/components/DocumentsCard';
 
 // ─── THEME (matches Dashboard / Quality / Finance / Suppliers / Alerts) ──────
 
@@ -293,6 +295,12 @@ const ProfileScreen = ({ onBack }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <CertificateCard
+          role="manufacturer"
+          ownerId={manufacturer?.id}
+          accountName={manufacturer?.name}
+          style={{ marginBottom: 14 }}
+        />
         {/* Profile identity card */}
         <View style={styles.identityCard}>
           <ProfileAvatar
@@ -379,6 +387,16 @@ const ProfileScreen = ({ onBack }) => {
             <Text style={styles.infoLink}>View →</Text>
           </TouchableOpacity>
         </Section>
+
+        {/* Documents live here rather than on Forecasts (team decision
+            2026-11-02) so every role keeps them in the same place. */}
+        <DocumentsCard
+          role="manufacturer"
+          ownerId={manufacturer?.id}
+          accountName={manufacturer?.name}
+          tint={T.primary}
+          style={{ marginTop: 4, marginBottom: 14 }}
+        />
 
         {/* Logout */}
         <TouchableOpacity

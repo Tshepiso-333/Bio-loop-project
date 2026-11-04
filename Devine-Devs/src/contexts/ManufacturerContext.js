@@ -8,6 +8,7 @@ import {
   deleteAlert as deleteAlertService,
   confirmDeliveryReceived,
 } from '../services/manufacturerService';
+import { logError, withTiming } from '../services/telemetryService';
 
 const ManufacturerContext = createContext(null);
 
@@ -63,11 +64,12 @@ export const ManufacturerProvider = ({ children }) => {
 
     try {
       setError(null);
-      const bundle = await loadManufacturerBundle(userId);
+      const bundle = await withTiming('manufacturer.load_bundle', () => loadManufacturerBundle(userId));
       applyBundle(bundle);
       await writeCache(cacheKey, bundle);
     } catch (err) {
       console.error('Error loading manufacturer data:', err.message);
+      logError('manufacturer.load_failed', err);
       setError(err.message);
     } finally {
       setLoading(false);

@@ -38,9 +38,20 @@ function getFiniteNumber(value) {
 // reading is the honest "what the sensor just said" source.
 function mapTankSummary(tank, latestReading = null) {
   if (!tank) return null;
-  const capacity = getFiniteNumber(latestReading?.fill_percent ?? tank.fill_percent);
-  const distance = getFiniteNumber(latestReading?.distance_cm ?? tank.last_distance_cm);
-  const readingAt = latestReading?.recorded_at ?? tank.last_updated;
+  // ...but only while the reading is actually the newer of the two. A tank
+  // reset by hand updates `tanks` without adding a reading, and preferring the
+  // stale reading then reports a level the dispatch trigger disagrees with.
+  const readingTime = latestReading?.recorded_at ? Date.parse(latestReading.recorded_at) : NaN;
+  const tankTime = tank.last_updated ? Date.parse(tank.last_updated) : NaN;
+  const current =
+    latestReading != null &&
+    (Number.isNaN(tankTime) || Number.isNaN(readingTime) || readingTime >= tankTime)
+      ? latestReading
+      : null;
+
+  const capacity = getFiniteNumber(current?.fill_percent ?? tank.fill_percent);
+  const distance = getFiniteNumber(current?.distance_cm ?? tank.last_distance_cm);
+  const readingAt = current?.recorded_at ?? tank.last_updated;
   const lastUpdated = readingAt ? new Date(readingAt) : null;
   const hasValidUpdate = lastUpdated && !Number.isNaN(lastUpdated.getTime());
   const ageHours = hasValidUpdate ? (Date.now() - lastUpdated.getTime()) / 3600000 : null;

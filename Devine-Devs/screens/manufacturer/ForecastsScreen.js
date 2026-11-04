@@ -467,6 +467,9 @@ const FinanceScreen = ({ navigation, onBack }) => {
           </View>
         </View>
 
+        {/* Documents — payment statement and collection history, as PDFs */}
+        {/* Documents moved to Profile (team decision 2026-11-02). */}
+
         <View style={{ height: 30 }} />
       </ScrollView>
     </View>

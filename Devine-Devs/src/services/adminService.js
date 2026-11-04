@@ -305,8 +305,11 @@ export async function notifyCollectorAssignment(collector, pickup) {
 }
 
 // Driver pay is no longer set here — it's computed automatically at pickup
-// completion (see docs/migrations/042_pickups_auto_earnings.sql) from
-// platform_settings.driver_flat_rate_per_pickup. This just assigns the driver.
+// completion by pickups_auto_earnings (docs/migrations/042) as the driver's
+// grade-based share of the pool: litres x market_rates.rate_per_liter x
+// (1 + manufacturer_markup_pct/100), split per payout_splits. The old
+// platform_settings.driver_flat_rate_per_pickup no longer exists (dropped in
+// 069). This function just assigns the driver.
 export async function assignCollectorToPickup(pickupId, collector) {
   const pickup = await assignPickup(pickupId, { collector_id: collector.id, status: 'scheduled' });
   await notifyCollectorAssignment(collector, pickup);
