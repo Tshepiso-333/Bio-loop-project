@@ -92,8 +92,9 @@ function mapOilHistory(tankReadings = []) {
     .reverse();
 }
 
+// No temperature row: the ESP32 does not measure it, so the column was always
+// null and the metric only ever read "Unavailable".
 function mapDeviceDetails(tank, pickups = []) {
-  const fahrenheit = getFiniteNumber(tank?.temperature_f);
   const lastCompletedPickup = pickups.find((pickup) => pickup.status === 'completed');
   const pickupDateValue = lastCompletedPickup?.completed_at ?? lastCompletedPickup?.pickup_date;
   const pickupDate = pickupDateValue ? new Date(pickupDateValue) : null;
@@ -101,11 +102,6 @@ function mapDeviceDetails(tank, pickups = []) {
   const sediment = tank?.sediment_level;
 
   return [
-    {
-      label: 'Temperature',
-      value: fahrenheit === null ? 'Unavailable' : `${Math.round((fahrenheit - 32) * 5 / 9)}°C`,
-      icon: 'thermometer-outline',
-    },
     {
       label: 'Connection',
       value: tank?.connectivity ? String(tank.connectivity) : 'Unavailable',

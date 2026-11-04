@@ -115,7 +115,6 @@ export const tanks = {
   columns: {
     fillPercent: 'fill_percent',
     volumeLiters: 'current_volume_liters',
-    temperatureF: 'temperature_f',
     lastUpdated: 'last_updated',
     connectivity: 'connectivity',
     sedimentLevel: 'sediment_level',
@@ -193,7 +192,6 @@ export const pickupSchedules = {
 export const tankReadings = {
   columns: {
     fillPercent: 'fill_percent',
-    temperatureF: 'temperature_f',
     recordedAt: 'recorded_at',
   },
 };

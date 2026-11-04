@@ -167,7 +167,6 @@ export const mapTankCardData = (tank, latestReading = null) => {
     statusNote: 'Capacity monitoring active. Estimated full in',
     estimatedDays,
     currentVolume: toNumber(tank.current_volume_liters, 0),
-    temperature: Math.round((toNumber(tank.temperature_f, 0) - 32) * 5 / 9),
   };
 };
 
@@ -307,12 +306,9 @@ export const mapDeviceStats = (tank, pickups = []) => {
     ? Math.max(0, Math.floor((Date.now() - new Date(referenceDate).getTime()) / 86400000))
     : null;
 
+  // No temperature row: the ESP32 does not measure it, so the column was
+  // always null and this rendered a confident "-18°C" (0°F converted).
   return [
-    {
-      label: 'Temperature',
-      value: `${Math.round((toNumber(tank?.temperature_f, 0) - 32) * 5 / 9)}°C`,
-      valueColor: '#EA580C',
-    },
     {
       label: 'Connectivity',
       value: tank?.connectivity ? String(tank.connectivity) : '—',

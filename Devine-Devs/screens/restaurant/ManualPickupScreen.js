@@ -44,7 +44,6 @@ export default function ManualPickupScreen({ navigation }) {
 
   const tankData = useMemo(() => mapTankCardData(tank), [tank]);
   const fillPercent = tankData?.fillPercent ?? 0;
-  const temperature = tankData?.temperature ?? 0;
 
   const handleSubmit = async () => {
     if (!selectedReason) {
@@ -106,11 +105,6 @@ export default function ManualPickupScreen({ navigation }) {
           </View>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${Math.min(fillPercent, 100)}%` }]} />
-          </View>
-          <View style={styles.tankStatusRow}>
-            <Ionicons name="thermometer-outline" size={18} color={REST_COLORS.primary} />
-            <Text style={styles.tankStatusLabel}>Temperature</Text>
-            <Text style={styles.tankStatusValue}>{temperature}°C</Text>
           </View>
         </View>
 
