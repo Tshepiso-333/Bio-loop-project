@@ -23,6 +23,29 @@ export async function startPayfastCheckout(pickupId) {
   return data;
 }
 
+/**
+ * Settles a delivery in the background — no gateway round-trip, nothing for
+ * the user to look at. The charge is computed server-side by the SAME maths
+ * payfast-checkout uses, so earnings, payouts and the ledger are unaffected;
+ * only the trip out to PayFast's branded checkout is skipped.
+ *
+ * The row it writes is marked (`SIM-` prefix, `raw_itn.simulated`,
+ * `signature_verified` left false) so it can't be mistaken for money that
+ * actually moved. The real PayFast path above is still live and is one flag
+ * away — see USE_SIMULATED_PAYMENT in ManufacturerPaymentScreen.
+ *
+ * Returns { transactionId, amount, breakdown, simulated: true }.
+ */
+export async function settlePaymentInBackground(pickupId) {
+  const { data, error } = await supabase.functions.invoke('simulate-payment', {
+    body: { pickupId },
+  });
+
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 export async function getPaymentTransaction(transactionId) {
   const { data, error } = await supabase
     .from('payment_transactions')
@@ -56,6 +79,7 @@ export async function pollForCompletion(transactionId, { intervalMs = 2000, time
 
 export default {
   startPayfastCheckout,
+  settlePaymentInBackground,
   getPaymentTransaction,
   pollForCompletion,
 };

@@ -23,7 +23,22 @@ import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
-import { startPayfastCheckout, pollForCompletion } from '../../src/services/paymentService';
+import {
+  startPayfastCheckout,
+  settlePaymentInBackground,
+  pollForCompletion,
+} from '../../src/services/paymentService';
+
+// Pay in the background instead of sending the manufacturer out to PayFast's
+// own branded checkout (team decision 2026-11-02). The gateway is still here
+// and still deployed — payfast-checkout and payfast-itn both work — but the
+// sandbox is slow, sometimes down, and shows a "SANDBOX" banner nobody wants
+// in front of them. Set this to false to put the real checkout back.
+//
+// The charge is computed by the same server-side maths either way, so
+// earnings, payouts and the ledger are identical. Only the round-trip
+// differs, and background settlements are marked in the database.
+const USE_SIMULATED_PAYMENT = true;
 
 const THEME = {
   primary: '#15643E',
@@ -64,6 +79,28 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
     if (!pickup || alreadyPaid) return;
     setLoadingCheckout(true);
     setErrorMessage(null);
+
+    // Background settlement: one tap, no WebView, straight to the result.
+    if (USE_SIMULATED_PAYMENT) {
+      setStage('confirming');
+      try {
+        const result = await settlePaymentInBackground(pickup.id);
+        // The success screen reads the amount off `checkout`, so keep that
+        // the one place the figure comes from whichever path paid.
+        setCheckout(result);
+        // Same completion call the real path makes, so the pickup, the
+        // earnings and the payouts all happen through one code path.
+        await confirmDelivery(pickup.id, result.transactionId);
+        setStage('success');
+      } catch (err) {
+        setErrorMessage(err.message ?? 'The payment could not be completed.');
+        setStage('error');
+      } finally {
+        setLoadingCheckout(false);
+      }
+      return;
+    }
+
     try {
       const result = await startPayfastCheckout(pickup.id);
       webviewHandledRef.current = false;
@@ -177,9 +214,13 @@ export default function ManufacturerPaymentScreen({ route, navigation }) {
         ) : stage === 'confirming' ? (
           <View style={styles.successWrap}>
             <ActivityIndicator size="large" color={THEME.primary} style={{ marginBottom: 20 }} />
-            <Text style={styles.successTitle}>Confirming payment...</Text>
+            <Text style={styles.successTitle}>
+              {USE_SIMULATED_PAYMENT ? 'Processing payment…' : 'Confirming payment...'}
+            </Text>
             <Text style={styles.successText}>
-              Waiting for PayFast to confirm the transaction. This usually takes a few seconds.
+              {USE_SIMULATED_PAYMENT
+                ? 'Settling the payment and releasing the payouts. This only takes a moment.'
+                : 'Waiting for PayFast to confirm the transaction. This usually takes a few seconds.'}
             </Text>
           </View>
         ) : stage === 'cancelled' ? (

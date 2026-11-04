@@ -36,3 +36,10 @@ entrypoint = "./functions/ai-chat/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/ai-chat/*.html" ]
+
+[functions.simulate-payment]
+enabled = true
+# Does its own auth (signed-in manufacturer who owns the pickup), same as the
+# other functions here.
+verify_jwt = false
+entrypoint = "./functions/simulate-payment/index.ts"
