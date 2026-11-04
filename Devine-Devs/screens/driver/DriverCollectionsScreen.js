@@ -8,7 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
-import { ACTIVE_TRIP_STATUSES, PICKUP_STATUS_LABELS, PRE_TRIP_STATUSES } from '../../src/lib/pickupStatus';
+import { ACTIVE_TRIP_STATUSES, DRIVER_STATUS_LABELS, PRE_TRIP_STATUSES } from '../../src/lib/pickupStatus';
 
 // Theme colours (matching manufacturer)
 const THEME = {
@@ -45,7 +45,7 @@ const STATUS_BADGE_COLORS = {
 
 const StatusBadge = ({ status }) => {
   const { bg, color } = STATUS_BADGE_COLORS[status] || STATUS_BADGE_COLORS.pending;
-  const label = PICKUP_STATUS_LABELS[status] ?? 'Status unknown';
+  const label = DRIVER_STATUS_LABELS[status] ?? 'Status unknown';
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
       <Text style={[styles.badgeText, { color }]}>{label}</Text>

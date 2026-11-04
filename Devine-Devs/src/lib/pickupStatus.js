@@ -13,16 +13,63 @@ export const ACTIVE_TRIP_STATUSES = ['in_transit', 'arrival', 'in_progress', 'co
 // the same as 'pending' here.
 export const PRE_TRIP_STATUSES = ['pending', 'scheduled', 'assigned'];
 
-export const PICKUP_STATUS_LABELS = {
-  pending: 'Pending',
-  scheduled: 'Pending',
-  assigned: 'Pending',
-  in_transit: 'Heading to restaurant',
+// One pickup row means different things to different people, so each audience
+// gets its own wording rather than sharing a lowest-common-denominator word.
+// The restaurant already had its own copy (PickupsScreen.STATUS_COPY) and the
+// manufacturer its own labels; these two complete the set.
+//
+// The word that used to be wrong: every pre-trip state read "Pending" for
+// everyone. To a restaurant that is true — they are waiting. To the DRIVER it
+// is not: the job is already theirs and is waiting to be started.
+
+/**
+ * The driver's own view: what this job is to the person doing it.
+ */
+export const DRIVER_STATUS_LABELS = {
+  pending: 'To do',
+  scheduled: 'To do',
+  assigned: 'To do',
+  in_transit: 'Heading there',
   arrival: 'At restaurant',
   in_progress: 'Collecting',
+  collected: 'Oil on board',
+  arrived_manufacturer: 'Dropped off',
+  completed: 'Complete',
+  cancelled: 'Cancelled',
+};
+
+/**
+ * The system-wide view, used by admin: who holds the job and where it is,
+ * described from outside rather than from any one party's seat.
+ */
+export const PICKUP_STATUS_LABELS = {
+  pending: 'Unassigned',
+  scheduled: 'Assigned',
+  assigned: 'Assigned',
+  in_transit: 'Driver en route',
+  arrival: 'Driver at restaurant',
+  in_progress: 'Collecting',
   collected: 'To manufacturer',
-  arrived_manufacturer: 'At manufacturer',
+  arrived_manufacturer: 'Awaiting confirmation',
   completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+/**
+ * The manufacturer's view: everything phrased as "is my oil coming".
+ * Lived in ManufacturerDashboardScreen; moved here so the other manufacturer
+ * screens stop falling back to the system wording.
+ */
+export const DELIVERY_STATUS_LABELS = {
+  pending: 'Awaiting a driver',
+  scheduled: 'Awaiting a driver',
+  assigned: 'Awaiting a driver',
+  in_transit: 'Driver en route to restaurant',
+  arrival: 'Driver at restaurant',
+  in_progress: 'Collecting',
+  collected: 'On the way to you',
+  arrived_manufacturer: 'Driver arrived',
+  completed: 'Delivered',
   cancelled: 'Cancelled',
 };
 

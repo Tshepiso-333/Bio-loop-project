@@ -20,7 +20,7 @@ import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import DocumentsCard from '../../src/components/DocumentsCard';
 import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
-import { PICKUP_STATUS_LABELS } from '../../src/lib/pickupStatus';
+import { DRIVER_STATUS_LABELS } from '../../src/lib/pickupStatus';
 import MoneyPop, { parseAmountFromAlert } from '../../src/components/MoneyPop';
 
 const THEME = {
@@ -83,7 +83,7 @@ const StatusBadge = ({ status }) => {
     STATUS_BADGE_COLORS.pending;
 
   const label =
-    PICKUP_STATUS_LABELS[status] ?? 'Status unknown';
+    DRIVER_STATUS_LABELS[status] ?? 'Status unknown';
 
   return (
     <View
@@ -158,10 +158,7 @@ export default function DriverHomeScreen({
     collector,
     pickups = [],
     stats,
-    wallet,
-    earnings = [],
     toggleDutyStatus,
-    requestWithdrawal,
     alerts = [],
     markAlertRead,
   } = useCollectorContext();
@@ -174,22 +171,7 @@ export default function DriverHomeScreen({
   const openPickups = (pickups || []).filter((p) => p.status !== 'cancelled' && p.status !== 'completed');
   const totalStops = (pickups || []).filter((p) => p.status !== 'cancelled').length;
 
-  // "Weekly Total" = litres from trips completed in the last 7 days and the
-  // change vs the 7 days before — from real pickup rows, not a stored figure.
-  const weekly = useMemo(() => {
-    const now = Date.now();
-    const week = 7 * 24 * 60 * 60 * 1000;
-    const litresOf = (p) => Number(p.actual_volume_liters ?? p.estimated_volume_liters ?? 0);
-    const completedAt = (p) => new Date(p.completed_at ?? p.updated_at ?? p.pickup_date ?? 0).getTime();
-    const done = (pickups || []).filter((p) => p.status === 'completed');
-    const thisWeek = done.filter((p) => now - completedAt(p) < week);
-    const lastWeek = done.filter((p) => { const age = now - completedAt(p); return age >= week && age < 2 * week; });
-    const thisL = thisWeek.reduce((s, p) => s + litresOf(p), 0);
-    const lastL = lastWeek.reduce((s, p) => s + litresOf(p), 0);
-    const change = lastL > 0 ? Math.round(((thisL - lastL) / lastL) * 100) : thisL > 0 ? 100 : 0;
-    return { liters: thisL, stops: thisWeek.length, change };
-  }, [pickups]);
-  const totalLiters = weekly.liters;
+  // The weekly summary moved to DriverProfileScreen along with its card.
 
   // Post-trip money moment: newest unread wallet/withdrawal alert the DB
   // wrote drives the pop; dismissing marks it read so it shows once.
@@ -207,19 +189,6 @@ export default function DriverHomeScreen({
   const [togglingDuty, setTogglingDuty] =
     useState(false);
 
-  const [
-    requestingWithdrawal,
-    setRequestingWithdrawal,
-  ] = useState(false);
-
-  const unpaidEarnings = earnings
-    .filter((row) => !row.withdrawal_id)
-    .reduce(
-      (sum, row) =>
-        sum + Number(row.amount ?? 0),
-      0
-    );
-
   const handleToggleDuty = async (value) => {
     setTogglingDuty(true);
 
@@ -232,23 +201,6 @@ export default function DriverHomeScreen({
       );
     } finally {
       setTogglingDuty(false);
-    }
-  };
-
-  const handleRequestWithdrawal = async () => {
-    setRequestingWithdrawal(true);
-
-    try {
-      await requestWithdrawal();
-
-      // The DB writes a 'Withdrawal paid' alert; MoneyPop shows it.
-    } catch (err) {
-      Alert.alert(
-        'Could not request withdrawal',
-        err.message ?? 'Please try again.'
-      );
-    } finally {
-      setRequestingWithdrawal(false);
     }
   };
 
@@ -431,29 +383,53 @@ export default function DriverHomeScreen({
 
         {/* Duty toggle */}
 
-        <View style={styles.dutyRow}>
-          <View>
-            <Text style={styles.dutyLabel}>
-              {collector?.is_on_duty
-                ? 'On duty'
-                : 'Off duty'}
-            </Text>
+        {/* The whole card carries the state, not just the switch: tinted and
+            outlined when on duty, flat when off, so a glance from across the
+            cab tells the driver whether work can reach them. */}
+        <View
+          style={[
+            styles.dutyRow,
+            collector?.is_on_duty && styles.dutyRowOn,
+          ]}
+        >
+          <View style={styles.dutyLeft}>
+            <View
+              style={[
+                styles.dutyIconWrap,
+                collector?.is_on_duty && styles.dutyIconWrapOn,
+              ]}
+            >
+              <Ionicons
+                name={collector?.is_on_duty ? 'flash' : 'moon-outline'}
+                size={18}
+                color={collector?.is_on_duty ? THEME.white : THEME.textSecondary}
+              />
+            </View>
 
-            <Text style={styles.dutySub}>
-              {collector?.is_on_duty
-                ? 'You can be assigned pickups'
-                : 'Turn on to receive assignments'}
-            </Text>
+            <View style={styles.dutyText}>
+              <View style={styles.dutyLabelRow}>
+                <Text style={styles.dutyLabel}>
+                  {collector?.is_on_duty ? 'On duty' : 'Off duty'}
+                </Text>
+                {collector?.is_on_duty && <View style={styles.dutyDot} />}
+              </View>
+
+              <Text style={styles.dutySub}>
+                {togglingDuty
+                  ? 'Updating…'
+                  : collector?.is_on_duty
+                    ? 'You can be assigned pickups'
+                    : 'Turn on to receive assignments'}
+              </Text>
+            </View>
           </View>
 
           <Switch
-            value={
-              !!collector?.is_on_duty
-            }
-            onValueChange={
-              handleToggleDuty
-            }
+            value={!!collector?.is_on_duty}
+            onValueChange={handleToggleDuty}
             disabled={togglingDuty}
+            thumbColor={THEME.white}
+            ios_backgroundColor={THEME.grayLight}
             trackColor={{
               true: THEME.primary,
               false: THEME.grayLight,
@@ -461,125 +437,23 @@ export default function DriverHomeScreen({
           />
         </View>
 
-        {/* Earnings */}
+        {/* No wallet, no balance, no Withdraw button (team decision
+            2026-11-02). Every trip is paid out the moment it completes
+            (earnings_auto_payout, migration 075), so there is never a held
+            balance to show — a "wallet" would only ever read R0.00 and imply
+            money was being kept back. What was earned is in the payout
+            statement under Profile. */}
 
-        <View style={styles.earningsCard}>
-          <View>
-            <Text
-              style={styles.earningsLabel}
-            >
-              Wallet balance
-            </Text>
-
-            <Text
-              style={styles.earningsValue}
-            >
-              R{' '}
-              {Number(
-                wallet?.balance ?? 0
-              ).toFixed(2)}
-            </Text>
-
-            <Text
-              style={styles.earningsSub}
-            >
-              R {unpaidEarnings.toFixed(2)}{' '}
-              unpaid
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.withdrawBtn,
-              (requestingWithdrawal ||
-                unpaidEarnings <= 0) &&
-                styles.withdrawBtnDisabled,
-            ]}
-            onPress={
-              handleRequestWithdrawal
-            }
-            disabled={
-              requestingWithdrawal ||
-              unpaidEarnings <= 0
-            }
-          >
-            <Text
-              style={
-                styles.withdrawBtnText
-              }
-            >
-              {requestingWithdrawal
-                ? 'Requesting…'
-                : 'Request withdrawal'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Documents — earnings statement and collection history, as PDFs */}
-        <DocumentsCard
-          role="collector"
-          ownerId={collector?.id}
-          accountName={collector?.full_name}
-          tint={THEME.primary}
-          style={styles.statementBlock}
-        />
+        {/* Documents moved to Profile — the home screen is for the work in
+            front of the driver, not paperwork they rarely download. */}
 
         {/*
           "Collected today" and
           "Stops remaining" cards REMOVED
         */}
 
-        {/* Weekly Total */}
-
-        <View style={styles.weeklyCard}>
-          <LinearGradient
-            colors={[
-              THEME.primary + '15',
-              THEME.primary + '05',
-            ]}
-            style={styles.weeklyGradient}
-          >
-            <View style={styles.weeklyLeft}>
-              <View
-                style={[
-                  styles.weeklyIconWrap,
-                  {
-                    backgroundColor:
-                      THEME.primaryLight,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="bar-chart-outline"
-                  size={20}
-                  color={THEME.primary}
-                />
-              </View>
-
-              <View>
-                <Text
-                  style={
-                    styles.weeklyTitle
-                  }
-                >
-                  Weekly Total
-                </Text>
-
-                <Text
-                  style={styles.weeklySub}
-                >
-                  {totalLiters}L · {weekly.stops} {weekly.stops === 1 ? 'trip' : 'trips'}
-                </Text>
-              </View>
-            </View>
-
-            <Text
-              style={styles.weeklyChange}
-            >
-              {weekly.change >= 0 ? '+' : ''}{weekly.change}%
-            </Text>
-          </LinearGradient>
-        </View>
+        {/* Weekly Total moved to Profile — a summary belongs with the
+            driver's own record, not on the screen they open to work. */}
 
         {/* Today's Pickups */}
 
@@ -664,11 +538,13 @@ export default function DriverHomeScreen({
 
         <View style={{ height: 30 }} />
       </ScrollView>
+      {/* No wallet to refer to any more — every trip pays out on completion,
+          so the only thing to say is that it was paid. */}
       <MoneyPop
         visible={!!moneyAlert}
         amount={parseAmountFromAlert(moneyAlert)}
         title={moneyIsWithdrawal ? 'Withdrawal paid' : 'Trip complete — you earned'}
-        subtitle={moneyIsWithdrawal ? 'Paid out instantly. Your wallet is now R0.00.' : `Added to your wallet. Balance: R ${Number(wallet?.balance ?? 0).toFixed(2)}`}
+        subtitle={moneyIsWithdrawal ? 'Paid out instantly.' : 'Paid out to you instantly.'}
         ctaLabel={moneyIsWithdrawal ? 'Done' : 'Nice!'}
         onDismiss={() => moneyAlert && markAlertRead?.(moneyAlert.id)}
       />
@@ -831,10 +707,56 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
+  // On duty: a soft green wash plus a green edge, so the state reads from
+  // the card rather than from the switch alone.
+  dutyRowOn: {
+    backgroundColor: THEME.primaryLight,
+    borderWidth: 1,
+    borderColor: THEME.primary + '33',
+  },
+
+  dutyLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+
+  dutyIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: THEME.grayLight,
+  },
+
+  dutyIconWrapOn: {
+    backgroundColor: THEME.primary,
+  },
+
+  dutyText: {
+    flex: 1,
+  },
+
+  dutyLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+
   dutyLabel: {
     fontSize: 15,
     fontWeight: '700',
     color: THEME.text,
+  },
+
+  // Small live dot next to "On duty" — the usual "we're listening" cue.
+  dutyDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: THEME.primary,
   },
 
   dutySub: {
@@ -843,117 +765,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  earningsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
-    marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: THEME.white,
-    borderRadius: 14,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-
-  earningsLabel: {
-    fontSize: 12,
-    color: THEME.textSecondary,
-  },
-
-  earningsValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: THEME.text,
-    marginTop: 2,
-  },
-
-  earningsSub: {
-    fontSize: 12,
-    color: THEME.primary,
-    marginTop: 2,
-  },
-
-  withdrawBtn: {
-    backgroundColor: THEME.primary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-
-  withdrawBtnDisabled: {
-    opacity: 0.5,
-  },
-
-  withdrawBtnText: {
-    color: THEME.white,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-
   // Weekly card now follows Earnings directly
-
-  weeklyCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-
-  weeklyGradient: {
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
-  },
-
-  weeklyLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-
-  weeklyIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  weeklyTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: THEME.text,
-  },
-
-  weeklySub: {
-    fontSize: 12,
-    color: THEME.textSecondary,
-    marginTop: 2,
-  },
-
-  weeklyChange: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: THEME.primary,
-  },
 
   sectionHeader: {
     flexDirection: 'row',

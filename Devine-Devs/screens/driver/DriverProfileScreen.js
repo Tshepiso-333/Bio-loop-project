@@ -1,5 +1,5 @@
 // Devine-Devs/screens/driver/DriverProfileScreen.js
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, StatusBar, Alert, Linking,
@@ -14,6 +14,7 @@ import { useProfile } from '../../src/hooks/useProfile';
 import ProfileAvatar from '../../src/components/profile/ProfileAvatar';
 import VerifiedBadge from '../../src/components/profile/VerifiedBadge';
 import CertificateCard from '../../src/components/CertificateCard';
+import DocumentsCard from '../../src/components/DocumentsCard';
 
 // Where a driver's "Help & Support" mail goes. Same address BioLoop sends
 // its own transactional mail from (supabase/functions/send-email).
@@ -55,7 +56,23 @@ export default function DriverProfileScreen() {
   const navigation = useNavigation();
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
-  const { collector, stats } = useCollectorContext();
+  const { collector, stats, pickups } = useCollectorContext();
+
+  // Litres from trips completed in the last 7 days and the change vs the 7
+  // days before — derived from real pickup rows, not a stored figure.
+  const weekly = useMemo(() => {
+    const now = Date.now();
+    const week = 7 * 24 * 60 * 60 * 1000;
+    const litresOf = (p) => Number(p.actual_volume_liters ?? p.estimated_volume_liters ?? 0);
+    const completedAt = (p) => new Date(p.completed_at ?? p.updated_at ?? p.pickup_date ?? 0).getTime();
+    const done = (pickups || []).filter((p) => p.status === 'completed');
+    const thisWeek = done.filter((p) => now - completedAt(p) < week);
+    const lastWeek = done.filter((p) => { const age = now - completedAt(p); return age >= week && age < 2 * week; });
+    const thisL = thisWeek.reduce((s, p) => s + litresOf(p), 0);
+    const lastL = lastWeek.reduce((s, p) => s + litresOf(p), 0);
+    const change = lastL > 0 ? Math.round(((thisL - lastL) / lastL) * 100) : thisL > 0 ? 100 : 0;
+    return { liters: thisL, stops: thisWeek.length, change };
+  }, [pickups]);
 
   const imageUrl = collector?.profile_image_url ?? profile?.profile_image_url;
   const vehicleLine = [collector?.vehicle_make, collector?.vehicle_model, collector?.vehicle_registration]
@@ -289,12 +306,47 @@ export default function DriverProfileScreen() {
           />
         </View>
 
+        {/* Weekly summary — a record of what this driver has done, which
+            belongs with the rest of their record rather than greeting them
+            on the screen they open to start work. */}
+        <View style={styles.weeklyCard}>
+          <LinearGradient
+            colors={[THEME.primary + '15', THEME.primary + '05']}
+            style={styles.weeklyGradient}
+          >
+            <View style={styles.weeklyLeft}>
+              <View style={[styles.weeklyIconWrap, { backgroundColor: THEME.primaryLight }]}>
+                <Ionicons name="bar-chart-outline" size={20} color={THEME.primary} />
+              </View>
+              <View>
+                <Text style={styles.weeklyTitle}>This week</Text>
+                <Text style={styles.weeklySub}>
+                  {weekly.liters}L · {weekly.stops} {weekly.stops === 1 ? 'trip' : 'trips'}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.weeklyChange}>
+              {weekly.change >= 0 ? '+' : ''}{weekly.change}%
+            </Text>
+          </LinearGradient>
+        </View>
+
+        {/* Documents live here rather than on the home screen: they are
+            occasional downloads, not something the driver needs on arrival. */}
+        <DocumentsCard
+          role="collector"
+          ownerId={collector?.id}
+          accountName={collector?.full_name}
+          tint={THEME.primary}
+          style={styles.documentsBlock}
+        />
+
         <View style={styles.menuSection}>
-          <MenuItem 
-            icon="log-out-outline" 
-            label="Sign Out" 
-            danger 
-            onPress={handleSignOut} 
+          <MenuItem
+            icon="log-out-outline"
+            label="Sign Out"
+            danger
+            onPress={handleSignOut}
           />
         </View>
 
@@ -396,6 +448,30 @@ const styles = StyleSheet.create({
     width: 1, 
     height: 50, 
     backgroundColor: THEME.grayLight 
+  },
+  weeklyCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  weeklyGradient: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  weeklyLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  weeklyIconWrap: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  weeklyTitle: { fontSize: 14, fontWeight: '600', color: THEME.text },
+  weeklySub: { fontSize: 12, color: THEME.textSecondary, marginTop: 2 },
+  weeklyChange: { fontSize: 16, fontWeight: '700', color: THEME.primary },
+  documentsBlock: {
+    marginHorizontal: 16,
+    marginTop: 16,
   },
   menuSection: {
     backgroundColor: THEME.white,
