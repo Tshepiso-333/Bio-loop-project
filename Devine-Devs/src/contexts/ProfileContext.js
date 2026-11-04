@@ -9,6 +9,7 @@ import React, {
 import { useAuth } from '../../AuthContext';
 import { getProfileCompletionStatus } from '../lib/profileCompletion';
 import { ensureRoleBusinessRecord, getProfile, saveRoleProfile } from '../services/profileService';
+import { logError } from '../services/telemetryService';
 
 const ProfileContext = createContext(null);
 
@@ -36,6 +37,7 @@ export const ProfileProvider = ({ children }) => {
       setProfile(data);
     } catch (err) {
       console.error('Error loading profile:', err.message);
+      logError('profile.load_failed', err);
       setProfile(null);
     } finally {
       setLoading(false);

@@ -2,6 +2,7 @@ import { supabase } from '../../supabase';
 import { pickups as pickupsSchema } from '../lib/dbColumns';
 import { finalizePickupEarnings } from './payoutService';
 import { notifyAllAdmins, notifyUser } from './notificationService';
+import { logError } from './telemetryService';
 
 export async function getManufacturerByOwnerId(ownerUserId) {
   const { data, error } = await supabase
@@ -145,6 +146,7 @@ export async function confirmDeliveryReceived(pickupId, gatewayReference) {
     await notifyDeliveryConfirmed(data);
   } catch (err) {
     console.error('Error sending delivery confirmation notifications:', err.message);
+    logError('notify.delivery_confirm_failed', err);
   }
 
   return data;

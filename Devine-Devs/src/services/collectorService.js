@@ -1,6 +1,7 @@
 import { supabase } from '../../supabase';
 import { pickups as pickupsSchema } from '../lib/dbColumns';
 import { notifyAllAdmins, notifyUser } from './notificationService';
+import { logError } from './telemetryService';
 
 const assignedPickupSelect =
   '*, restaurants(name, address, latitude, longitude, phone, owner_user_id), manufacturers(name, address, latitude, longitude, owner_user_id), collectors(full_name)';
@@ -117,6 +118,7 @@ export async function updatePickupStatus(pickupId, status) {
     await notifyForStatus(data, status);
   } catch (err) {
     console.error('Error sending pickup status notifications:', err.message);
+    logError('notify.pickup_status_failed', err);
   }
 
   return data;

@@ -20,6 +20,7 @@ import {
 } from '../services/restaurantService';
 import { requestWithdrawal } from '../services/payoutService';
 import { markAlertRead } from '../services/notificationService';
+import { logError, withTiming } from '../services/telemetryService';
 
 const RestaurantContext = createContext(null);
 
@@ -86,11 +87,12 @@ export const RestaurantProvider = ({ children }) => {
 
       try {
         setError(null);
-        const bundle = await loadRestaurantBundle(userId);
+        const bundle = await withTiming('restaurant.load_bundle', () => loadRestaurantBundle(userId));
         applyBundle(bundle);
         await writeCache(cacheKey, bundle);
       } catch (err) {
         console.error('Error loading restaurant data:', err.message);
+        logError('restaurant.load_failed', err);
         setError(err.message);
       } finally {
         setLoading(false);

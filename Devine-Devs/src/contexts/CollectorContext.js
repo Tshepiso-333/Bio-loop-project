@@ -10,6 +10,7 @@ import {
 } from '../services/collectorService';
 import { requestWithdrawal } from '../services/payoutService';
 import { markAlertRead } from '../services/notificationService';
+import { logError, withTiming } from '../services/telemetryService';
 
 const CollectorContext = createContext(null);
 
@@ -65,11 +66,12 @@ export const CollectorProvider = ({ children }) => {
 
     try {
       setError(null);
-      const bundle = await loadCollectorBundle(userId);
+      const bundle = await withTiming('driver.load_bundle', () => loadCollectorBundle(userId));
       applyBundle(bundle);
       await writeCache(cacheKey, bundle);
     } catch (err) {
       console.error('Error loading collector data:', err.message);
+      logError('driver.load_failed', err);
       setError(err.message);
     } finally {
       setLoading(false);
