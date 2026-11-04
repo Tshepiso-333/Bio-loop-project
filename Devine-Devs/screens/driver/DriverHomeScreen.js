@@ -148,6 +148,27 @@ const PickupCard = ({ item, onPress }) => (
   </TouchableOpacity>
 );
 
+// Fades and lifts a card in once, on mount, when `animate` is true. The flag
+// is read only at mount, so later re-renders never replay it.
+const SlideIn = ({ animate, children }) => {
+  const opacity = useRef(new Animated.Value(animate ? 0 : 1)).current;
+  const translateY = useRef(new Animated.Value(animate ? 12 : 0)).current;
+  useEffect(() => {
+    if (!animate) return undefined;
+    const anim = Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
+};
+
 export default function DriverHomeScreen({
   navigation,
 }) {
@@ -267,6 +288,16 @@ export default function DriverHomeScreen({
   // The list above previews the first few jobs; without this the rest of a
   // driver's day was simply invisible.
   const hiddenPickupCount = Math.max(0, openPickups.length - todayPickups.length);
+
+  // Ids already shown. Filled with what is there on first render, so nothing
+  // animates when the screen opens; only pickups that arrive later slide in.
+  const shownPickupIds = useRef(null);
+  if (shownPickupIds.current === null) {
+    shownPickupIds.current = new Set(todayPickups.map((p) => p.id));
+  }
+  useEffect(() => {
+    todayPickups.forEach((p) => shownPickupIds.current.add(p.id));
+  });
 
   const welcomeRouteText = [stats?.route_name ?? collector?.route_name, stats?.district ?? collector?.district].filter(Boolean).join(' · ');
 
@@ -503,6 +534,10 @@ export default function DriverHomeScreen({
         ) : null}
 
         {todayPickups.map((item) => (
+          <SlideIn
+            key={item.id}
+            animate={!reduceMotion && !shownPickupIds.current.has(item.id)}
+          >
           <PickupCard
             key={item.id}
             item={item}
@@ -512,6 +547,7 @@ export default function DriverHomeScreen({
               )
             }
           />
+          </SlideIn>
         ))}
 
         {hiddenPickupCount > 0 ? (
