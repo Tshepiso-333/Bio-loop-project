@@ -68,11 +68,11 @@ const MANU_THEME = {
     darkSurfaceText: '#C9D4CE',
   },
   fonts: {
-    regular: 'System',
-    medium: 'System',
-    semiBold: 'System',
-    bold: 'System',
-    extraBold: 'System',
+    regular: 'PlusJakartaSans_400Regular',
+    medium: 'PlusJakartaSans_500Medium',
+    semiBold: 'PlusJakartaSans_600SemiBold',
+    bold: 'PlusJakartaSans_700Bold',
+    extraBold: 'PlusJakartaSans_800ExtraBold',
   },
   radii: { card: 16, pill: 999, chip: 10 },
   spacing: { screenPadding: 18, cardPadding: 16, gap: 16 },
@@ -955,15 +955,15 @@ const styles = StyleSheet.create({
   appNameContainer: { flexDirection: 'column', paddingLeft: 2 },
   appName: {
     fontSize: 26,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     letterSpacing: -0.5,
     lineHeight: 30,
     textShadowColor: 'rgba(0,0,0,0.10)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  bioText: { color: C.ink, fontWeight: '800' },
-  loopText: { color: C.primaryAccent, fontWeight: '800' },
+  bioText: { color: C.ink, fontFamily: 'PlusJakartaSans_800ExtraBold' },
+  loopText: { color: C.primaryAccent, fontFamily: 'PlusJakartaSans_800ExtraBold' },
 
   tagline: {
     backgroundColor: 'rgba(71, 193, 75, 0.14)',
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
   taglineText: {
     fontSize: 9,
     color: C.primaryMid,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: C.white,
   },
-  notificationBadgeText: { fontSize: 9, fontWeight: '700', color: C.white },
+  notificationBadgeText: { fontSize: 9, fontFamily: 'PlusJakartaSans_700Bold', color: C.white },
 
   profileCircle: {
     width: 42,
@@ -1031,7 +1031,6 @@ const styles = StyleSheet.create({
     fontFamily: F.bold,
     fontSize: 15,
     color: C.primary,
-    fontWeight: '700',
   },
 
   // ── Alert banner ─────────────────────────────────────────────────────────
@@ -1060,7 +1059,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.white,
     marginBottom: 2,
-    fontWeight: '700',
   },
   alertBannerMessage: {
     fontFamily: F.medium,
@@ -1105,7 +1103,6 @@ const styles = StyleSheet.create({
     fontFamily: F.semiBold,
     fontSize: 15,
     color: C.ink,
-    fontWeight: '600',
   },
   statSub: {
     fontFamily: F.medium,
@@ -1126,13 +1123,11 @@ const styles = StyleSheet.create({
     fontFamily: F.bold,
     fontSize: 16,
     color: C.ink,
-    fontWeight: '700',
   },
   viewAllText: {
     fontFamily: F.semiBold,
     fontSize: 12,
     color: C.primary,
-    fontWeight: '600',
   },
 
   // ── Card ─────────────────────────────────────────────────────────────────
@@ -1163,7 +1158,6 @@ const styles = StyleSheet.create({
   qualityPercentage: {
     fontFamily: F.bold,
     fontSize: 20,
-    fontWeight: '700',
     color: C.ink,
     marginBottom: 2,
   },
@@ -1201,7 +1195,6 @@ const styles = StyleSheet.create({
   pieCenterText: {
     fontFamily: F.extraBold,
     fontSize: 24,
-    fontWeight: '700',
     color: C.ink,
   },
   pieCenterSubtext: {
@@ -1267,7 +1260,6 @@ const styles = StyleSheet.create({
   restaurantName: {
     fontFamily: F.semiBold,
     fontSize: 15,
-    fontWeight: '600',
     color: C.ink,
     marginBottom: 6,
   },
@@ -1283,7 +1275,7 @@ const styles = StyleSheet.create({
   },
   volumeText: { fontFamily: F.medium, fontSize: 12, color: C.body },
   qualityTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  qualityTagText: { fontFamily: F.semiBold, fontSize: 12, fontWeight: '600' },
+  qualityTagText: { fontFamily: F.semiBold, fontSize: 12 },
   deliveryTimeInfo: { alignItems: 'flex-end' },
   // A live driving ETA is highlighted so it reads as different from a
   // scheduled time window.
@@ -1291,7 +1283,6 @@ const styles = StyleSheet.create({
   etaText: {
     fontFamily: F.semiBold,
     fontSize: 15,
-    fontWeight: '600',
     color: C.ink,
     marginBottom: 4,
   },
@@ -1312,7 +1303,6 @@ const styles = StyleSheet.create({
   confirmReceivedBtnText: {
     fontFamily: F.bold,
     fontSize: 13,
-    fontWeight: '700',
     color: C.white,
   },
 
@@ -1343,7 +1333,7 @@ const styles = StyleSheet.create({
     color: C.body,
     marginTop: 1,
   },
-  activeNavLabel: { color: C.primary, fontWeight: '700' },
+  activeNavLabel: { color: C.primary, fontFamily: 'PlusJakartaSans_700Bold' },
 
   // ── AI Chat floating FAB (reworked, no more overlap) ─────────────────────
   aiChatTabWrapper: {
