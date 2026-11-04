@@ -74,7 +74,7 @@ export default function RestaurantHeader({
             </View>
             <View>
               <Text style={styles.appName}>BioLoop</Text>
-              <Text style={styles.portalName}>Restaurant Portal</Text>
+              <Text style={styles.portalName}>Restaurant portal</Text>
             </View>
           </View>
         ) : null}

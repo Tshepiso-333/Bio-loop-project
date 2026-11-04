@@ -277,7 +277,7 @@ export default function DriverHomeScreen({
               </Text>
 
               <Text style={styles.companyName}>
-                Driver Portal
+                Driver portal
               </Text>
             </View>
           </View>
@@ -444,7 +444,7 @@ export default function DriverHomeScreen({
           <Text
             style={styles.sectionTitle}
           >
-            Today's Pickups
+            Today's pickups
           </Text>
 
           <Text
@@ -508,7 +508,7 @@ export default function DriverHomeScreen({
             <Text
               style={styles.viewAllText}
             >
-              View All Pickups
+              View all pickups
             </Text>
 
             <Ionicons

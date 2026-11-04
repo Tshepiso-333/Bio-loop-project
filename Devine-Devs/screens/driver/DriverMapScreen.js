@@ -549,7 +549,7 @@ export default function DriverMapScreen({ route }) {
         <View style={styles.errorIconCircle}>
           <Text style={styles.errorIcon}>📍</Text>
         </View>
-        <Text style={styles.errorTitle}>Location Access Needed</Text>
+        <Text style={styles.errorTitle}>Location access needed</Text>
         <Text style={styles.errorText}>{errorMsg}</Text>
       </SafeAreaView>
     );

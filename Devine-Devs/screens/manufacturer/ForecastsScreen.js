@@ -266,28 +266,28 @@ const FinanceScreen = ({ navigation, onBack }) => {
           <SummaryCard
             icon="cart-outline"
             iconBg={T.paleGreen}
-            label="Oil Purchased"
+            label="Oil purchased"
             value={formatZAR(calculations.oilPurchased)}
             sub={`${totalLitres.toLocaleString()} L`}
           />
           <SummaryCard
             icon="flash-outline"
             iconBg={T.paleGreen}
-            label="Est. Biodiesel"
+            label="Est. biodiesel"
             value={`${Math.round(calculations.biodiesel).toLocaleString()} L`}
             sub={`${assumptions.conversion}% conversion`}
           />
           <SummaryCard
             icon="cash-outline"
             iconBg={T.selectedBg}
-            label="Est. Revenue"
+            label="Est. revenue"
             value={formatZAR(calculations.revenue)}
             sub={`@ ${formatZARDecimal(assumptions.biodieselPrice)}/L`}
           />
           <SummaryCard
             icon="trending-up-outline"
             iconBg={T.selectedBg}
-            label="Est. Margin"
+            label="Est. margin"
             value={formatZAR(calculations.margin)}
             sub={calculations.margin >= 0 ? 'Positive' : 'Negative'}
             valueColor={calculations.margin >= 0 ? T.primary : T.danger}
@@ -296,7 +296,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
         {/* ── Production Value chain ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Production Value</Text>
+          <Text style={styles.sectionTitle}>Production value</Text>
           <View style={styles.card}>
             <View style={styles.chainRow}>
               <View style={styles.chainIconWrap}>
@@ -350,7 +350,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
         {/* ── Cost Breakdown ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cost Breakdown</Text>
+          <Text style={styles.sectionTitle}>Cost breakdown</Text>
           <View style={styles.card}>
             <CostRow
               label="Oil purchased"
@@ -370,12 +370,12 @@ const FinanceScreen = ({ navigation, onBack }) => {
             />
             <View style={styles.costDivider} />
             <CostRow
-              label="Total Costs"
+              label="Total costs"
               value={formatZAR(calculations.totalCosts)}
               emphasis
             />
             <CostRow
-              label="Estimated Margin"
+              label="Estimated margin"
               value={formatZAR(calculations.margin)}
               emphasis
               color={calculations.margin >= 0 ? T.primary : T.danger}
@@ -388,7 +388,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
         {/* ── Oil Inventory by Grade ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Oil Inventory by Grade</Text>
+          <Text style={styles.sectionTitle}>Oil inventory by grade</Text>
           <View style={styles.card}>
             {['A', 'B', 'C'].map((g, i) => {
               const row = oilData.byGrade[g];
@@ -436,7 +436,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
         {/* ── Environmental Impact ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Environmental Impact</Text>
+          <Text style={styles.sectionTitle}>Environmental impact</Text>
           <View style={[styles.card, styles.impactCard]}>
             <View style={styles.impactRow}>
               <View style={styles.impactIconWrap}>

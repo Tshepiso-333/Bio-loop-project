@@ -105,9 +105,9 @@ export default function DriverProfileScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
   };
 
@@ -163,7 +163,7 @@ export default function DriverProfileScreen() {
                 <Ionicons name="water-outline" size={20} color={THEME.primary} />
               </View>
               <Text style={styles.statValue}>{Number(stats?.total_liters ?? collector?.total_liters ?? 0).toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Litres Total</Text>
+              <Text style={styles.statLabel}>Litres total</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
@@ -344,7 +344,7 @@ export default function DriverProfileScreen() {
         <View style={styles.menuSection}>
           <MenuItem
             icon="log-out-outline"
-            label="Sign Out"
+            label="Sign out"
             danger
             onPress={handleSignOut}
           />

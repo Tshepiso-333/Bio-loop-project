@@ -465,7 +465,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                   <Text style={styles.loopText}>Loop</Text>
                 </Text>
                 <View style={styles.tagline}>
-                  <Text style={styles.taglineText}>Manufacturer Portal</Text>
+                  <Text style={styles.taglineText}>Manufacturer portal</Text>
                 </View>
               </View>
             </View>
@@ -595,13 +595,13 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
             <View style={styles.statRow}>
               <StatCard
                 iconName="water-outline"
-                label="Current Stock"
+                label="Current stock"
                 value={`${Math.round(Number(currentStock) || 0)} L`}
                 sub={stockChangeLabel}
               />
               <StatCard
                 iconName="cube-outline"
-                label="This Week"
+                label="This week"
                 value={`${Math.round(Number(thisWeekVolume) || 0)} L`}
                 sub={`${weeklyDeliveries} deliveries`}
               />
@@ -609,8 +609,8 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
             <View style={styles.section}>
               <SectionHeader
-                title="Incoming Deliveries"
-                action="View All →"
+                title="Incoming deliveries"
+                action="View all →"
                 onPress={() => setSelectedTab('suppliers')}
               />
               <View style={styles.deliveriesList}>
@@ -706,7 +706,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                       >
                         <Ionicons name="card-outline" size={16} color={C.white} />
                         <Text style={styles.confirmReceivedBtnText}>
-                          Confirm Received & Pay
+                          Confirm and pay
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -722,8 +722,8 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
             <View style={styles.section}>
               <SectionHeader
-                title="Quality Distribution"
-                action="View Details →"
+                title="Quality distribution"
+                action="View details →"
                 onPress={() => setSelectedTab('quality')}
               />
               <TouchableOpacity

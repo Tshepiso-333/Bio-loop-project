@@ -187,18 +187,18 @@ const SuppliersScreen = ({ navigation, onBack }) => {
 
   const SupplierSummary = () => (
     <View style={styles.summaryCard}>
-      <Text style={styles.summaryTitle}>Supplier Summary</Text>
+      <Text style={styles.summaryTitle}>Supplier summary</Text>
       <View style={styles.summaryStats}>
         <View style={styles.summaryStat}>
           <Text style={styles.summaryStatValue}>{summaryStats.total}</Text>
-          <Text style={styles.summaryStatLabel}>Active Suppliers</Text>
+          <Text style={styles.summaryStatLabel}>Active suppliers</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStat}>
           <Text style={styles.summaryStatValue}>
             {summaryStats.totalVolume.toLocaleString()}
           </Text>
-          <Text style={styles.summaryStatLabel}>Litres Supplied</Text>
+          <Text style={styles.summaryStatLabel}>Litres supplied</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStat}>
@@ -283,7 +283,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
                       >
                         <Ionicons name="card-outline" size={16} color={T.white} />
                         <Text style={styles.confirmReceivedBtnText}>
-                          Confirm Received & Pay
+                          Confirm and pay
                         </Text>
                       </TouchableOpacity>
                     )}

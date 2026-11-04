@@ -370,7 +370,7 @@ const QualityScreen = ({ navigation, onBack }) => {
           </TouchableOpacity>
 
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Quality Distribution</Text>
+            <Text style={styles.headerTitle}>Quality distribution</Text>
             <Text style={styles.headerSubtitle}>Oil Grade Analysis</Text>
           </View>
 
@@ -401,7 +401,7 @@ const QualityScreen = ({ navigation, onBack }) => {
                 <AlertTriangleIcon color={T.white} size={24} />
               )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.gradeTitle}>{grade.name} Oil Sources</Text>
+                <Text style={styles.gradeTitle}>{grade.name} oil sources</Text>
                 <Text style={styles.gradeTotal}>
                   Total: {grade.totalVolume.toLocaleString()} L ({grade.value}%)
                 </Text>
@@ -474,7 +474,7 @@ const QualityScreen = ({ navigation, onBack }) => {
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
         <View style={styles.overviewCard}>
-          <Text style={styles.overviewTitle}>Current Pipeline Quality</Text>
+          <Text style={styles.overviewTitle}>Current pipeline quality</Text>
           <DonutChart />
 
           <View style={styles.legendContainer}>
