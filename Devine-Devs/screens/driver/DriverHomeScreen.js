@@ -1,7 +1,10 @@
 // Devine-Devs/screens/driver/DriverHomeScreen.js
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
   View,
   Text,
   ScrollView,
@@ -186,6 +189,39 @@ export default function DriverHomeScreen({
 
   const [togglingDuty, setTogglingDuty] =
     useState(false);
+
+  // Respect the phone's "Reduce motion" setting: when it is on, show the
+  // end state with no animation.
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => { if (mounted) setReduceMotion(!!enabled); })
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => setReduceMotion(!!enabled));
+    return () => {
+      mounted = false;
+      sub?.remove?.();
+    };
+  }, []);
+
+  // The on-duty dot breathes so the "listening for work" state reads at a glance.
+  const isOnDuty = !!collector?.is_on_duty;
+  const dutyPulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!isOnDuty || reduceMotion) {
+      dutyPulse.setValue(1);
+      return undefined;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(dutyPulse, { toValue: 0.3, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(dutyPulse, { toValue: 1, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isOnDuty, reduceMotion, dutyPulse]);
 
   const handleToggleDuty = async (value) => {
     setTogglingDuty(true);
@@ -394,7 +430,7 @@ export default function DriverHomeScreen({
                 <Text style={styles.dutyLabel}>
                   {collector?.is_on_duty ? 'On duty' : 'Off duty'}
                 </Text>
-                {collector?.is_on_duty && <View style={styles.dutyDot} />}
+                {collector?.is_on_duty && <Animated.View style={[styles.dutyDot, { opacity: dutyPulse }]} />}
               </View>
 
               <Text style={styles.dutySub}>
