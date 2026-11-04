@@ -34,7 +34,7 @@ const T = {
   body: '#6B6B6B',
   muted: '#9B9B9B',
   border: '#E8E8E8',
-  divider: '#F3F4F6',
+  divider: '#F5F8F6',
   white: '#FFFFFF',
 };
 
@@ -441,15 +441,15 @@ logoIcon: {
   appNameContainer: { flexDirection: 'column', paddingLeft: 4 },
   appName: {
     fontSize: 26,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     letterSpacing: -0.5,
     lineHeight: 30,
     textShadowColor: 'rgba(0,0,0,0.10)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  bioText: { color: T.ink, fontWeight: '800' },
-  loopText: { color: T.primaryLight, fontWeight: '800' },
+  bioText: { color: T.ink, fontFamily: 'PlusJakartaSans_800ExtraBold' },
+  loopText: { color: T.primaryLight, fontFamily: 'PlusJakartaSans_800ExtraBold' },
   tagline: {
     backgroundColor: 'rgba(71, 193, 75, 0.12)',
     paddingHorizontal: 8,
@@ -461,7 +461,7 @@ logoIcon: {
   taglineText: {
     fontSize: 9,
     color: T.primaryMid,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -521,13 +521,14 @@ logoIcon: {
   },
   heroTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 6,
     textAlign: 'center',
   },
   heroSubtitle: {
     fontSize: 14,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     textAlign: 'center',
     lineHeight: 20,
@@ -551,12 +552,12 @@ logoIcon: {
     paddingVertical: 14,
     gap: 8,
   },
-  heroCtaText: { color: T.white, fontSize: 15, fontWeight: '700' },
+  heroCtaText: { color: T.white, fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
 
   // Section title
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginTop: 22,
     marginBottom: 12,
@@ -587,7 +588,7 @@ logoIcon: {
   },
   quickTileLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
@@ -595,7 +596,7 @@ logoIcon: {
   },
   quickTileTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: T.ink,
     lineHeight: 17,
   },
@@ -608,7 +609,7 @@ logoIcon: {
     marginTop: 22,
     marginBottom: 4,
   },
-  recentCount: { fontSize: 12, color: T.muted, fontWeight: '600' },
+  recentCount: { fontSize: 12, color: T.muted, fontFamily: 'PlusJakartaSans_600SemiBold' },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -627,7 +628,7 @@ logoIcon: {
     shadowRadius: 4,
     elevation: 1,
   },
-  searchInput: { flex: 1, fontSize: 14, color: T.ink, paddingVertical: 4 },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', color: T.ink, paddingVertical: 4 },
 
   // Empty search
   emptySearch: {
@@ -637,11 +638,11 @@ logoIcon: {
   },
   emptySearchTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginTop: 6,
   },
-  emptySearchText: { fontSize: 12, color: T.body, textAlign: 'center' },
+  emptySearchText: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, textAlign: 'center' },
 });
 
 export default AIAssistantScreen;

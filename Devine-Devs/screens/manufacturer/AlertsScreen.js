@@ -545,8 +545,8 @@ const styles = StyleSheet.create({
     borderColor: T.border,
   },
   headerTextContainer: { alignItems: 'center', flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
-  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink },
+  headerSubtitle: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginTop: 2 },
   headerSpacer: { width: 40, height: 40 },
 
   // Filters
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
     borderRadius: R.pill,
   },
   filterChipActive: { backgroundColor: T.primary },
-  filterChipText: { fontSize: 13, color: T.body, fontWeight: '600' },
+  filterChipText: { fontSize: 13, color: T.body, fontFamily: 'PlusJakartaSans_600SemiBold' },
   filterChipTextActive: { color: T.white },
   filterBadge: {
     backgroundColor: T.border,
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterBadgeActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
-  filterBadgeText: { fontSize: 11, color: T.body, fontWeight: '700' },
+  filterBadgeText: { fontSize: 11, color: T.body, fontFamily: 'PlusJakartaSans_700Bold' },
   filterBadgeTextActive: { color: T.white },
 
   // Scroll area
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
   sectionDot: { width: 8, height: 8, borderRadius: 4 },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
   },
   sectionCount: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.body,
     backgroundColor: T.divider,
     paddingHorizontal: 8,
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
   },
   alertTypeLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.body,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
@@ -660,12 +660,13 @@ const styles = StyleSheet.create({
   },
   alertTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 4,
   },
   alertMessage: {
     fontSize: 12.5,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     lineHeight: 18,
     marginBottom: 10,
@@ -679,6 +680,7 @@ const styles = StyleSheet.create({
   },
   alertTime: {
     fontSize: 11,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.muted,
   },
   alertFooterActions: {
@@ -698,7 +700,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.white,
   },
 
@@ -719,12 +721,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 6,
   },
   emptyText: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     textAlign: 'center',
     lineHeight: 19,

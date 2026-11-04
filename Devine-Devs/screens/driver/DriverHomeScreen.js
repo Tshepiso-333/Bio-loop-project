@@ -1,7 +1,10 @@
 // Devine-Devs/screens/driver/DriverHomeScreen.js
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
   View,
   Text,
   ScrollView,
@@ -15,7 +18,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../AuthContext';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import DocumentsCard from '../../src/components/DocumentsCard';
 import { useProfile } from '../../src/hooks/useProfile';
@@ -36,8 +38,8 @@ const THEME = {
   grayLight: '#E4EDE7',
   pending: '#F59E0B',
   pendingBg: '#FFF7ED',
-  inProgress: '#2563EB',
-  inProgressBg: '#EFF6FF',
+  inProgress: '#2E8B5A',
+  inProgressBg: '#E7F1EB',
   completed: '#15643E',
   completedBg: '#E7F1EB',
 };
@@ -128,7 +130,7 @@ const PickupCard = ({ item, onPress }) => (
       </Text>
 
       <Text style={styles.pickupTime}>
-        {item.time || 'Time TBC'} ·{' '}
+        {item.time ? `${item.time} · ` : ''}
         {item.estimatedLiters != null ? `${item.estimatedLiters}L est.` : 'volume TBC'}
       </Text>
     </View>
@@ -146,12 +148,32 @@ const PickupCard = ({ item, onPress }) => (
   </TouchableOpacity>
 );
 
+// Fades and lifts a card in once, on mount, when `animate` is true. The flag
+// is read only at mount, so later re-renders never replay it.
+const SlideIn = ({ animate, children }) => {
+  const opacity = useRef(new Animated.Value(animate ? 0 : 1)).current;
+  const translateY = useRef(new Animated.Value(animate ? 12 : 0)).current;
+  useEffect(() => {
+    if (!animate) return undefined;
+    const anim = Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
+};
+
 export default function DriverHomeScreen({
   navigation,
 }) {
   const insets = useSafeAreaInsets();
 
-  const { signOut } = useAuth();
   const { profile } = useProfile();
 
   const {
@@ -188,6 +210,39 @@ export default function DriverHomeScreen({
 
   const [togglingDuty, setTogglingDuty] =
     useState(false);
+
+  // Respect the phone's "Reduce motion" setting: when it is on, show the
+  // end state with no animation.
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => { if (mounted) setReduceMotion(!!enabled); })
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => setReduceMotion(!!enabled));
+    return () => {
+      mounted = false;
+      sub?.remove?.();
+    };
+  }, []);
+
+  // The on-duty dot breathes so the "listening for work" state reads at a glance.
+  const isOnDuty = !!collector?.is_on_duty;
+  const dutyPulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!isOnDuty || reduceMotion) {
+      dutyPulse.setValue(1);
+      return undefined;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(dutyPulse, { toValue: 0.3, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(dutyPulse, { toValue: 1, duration: 550, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isOnDuty, reduceMotion, dutyPulse]);
 
   const handleToggleDuty = async (value) => {
     setTogglingDuty(true);
@@ -234,6 +289,18 @@ export default function DriverHomeScreen({
   // driver's day was simply invisible.
   const hiddenPickupCount = Math.max(0, openPickups.length - todayPickups.length);
 
+  // Ids already shown. Filled with what is there on first render, so nothing
+  // animates when the screen opens; only pickups that arrive later slide in.
+  const shownPickupIds = useRef(null);
+  if (shownPickupIds.current === null) {
+    shownPickupIds.current = new Set(todayPickups.map((p) => p.id));
+  }
+  useEffect(() => {
+    todayPickups.forEach((p) => shownPickupIds.current.add(p.id));
+  });
+
+  const welcomeRouteText = [stats?.route_name ?? collector?.route_name, stats?.district ?? collector?.district].filter(Boolean).join(' · ');
+
   // -------------------------------------------------------
   // Header
   // -------------------------------------------------------
@@ -277,25 +344,12 @@ export default function DriverHomeScreen({
               </Text>
 
               <Text style={styles.companyName}>
-                Driver Portal
+                Driver portal
               </Text>
             </View>
           </View>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={
-                styles.headerSignOutButton
-              }
-              onPress={signOut}
-            >
-              <Ionicons
-                name="log-out-outline"
-                size={22}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={
                 styles.notificationButton
@@ -370,15 +424,11 @@ export default function DriverHomeScreen({
               'Driver'}
           </Text>
 
-          <Text style={styles.welcomeRoute}>
-            {stats?.route_name ??
-              collector?.route_name ??
-              ''}
-            {' · '}
-            {stats?.district ??
-              collector?.district ??
-              ''}
-          </Text>
+          {welcomeRouteText ? (
+            <Text style={styles.welcomeRoute}>
+              {welcomeRouteText}
+            </Text>
+          ) : null}
         </View>
 
         {/* Duty toggle */}
@@ -411,7 +461,7 @@ export default function DriverHomeScreen({
                 <Text style={styles.dutyLabel}>
                   {collector?.is_on_duty ? 'On duty' : 'Off duty'}
                 </Text>
-                {collector?.is_on_duty && <View style={styles.dutyDot} />}
+                {collector?.is_on_duty && <Animated.View style={[styles.dutyDot, { opacity: dutyPulse }]} />}
               </View>
 
               <Text style={styles.dutySub}>
@@ -461,7 +511,7 @@ export default function DriverHomeScreen({
           <Text
             style={styles.sectionTitle}
           >
-            Today's Pickups
+            Today's pickups
           </Text>
 
           <Text
@@ -484,6 +534,10 @@ export default function DriverHomeScreen({
         ) : null}
 
         {todayPickups.map((item) => (
+          <SlideIn
+            key={item.id}
+            animate={!reduceMotion && !shownPickupIds.current.has(item.id)}
+          >
           <PickupCard
             key={item.id}
             item={item}
@@ -493,6 +547,7 @@ export default function DriverHomeScreen({
               )
             }
           />
+          </SlideIn>
         ))}
 
         {hiddenPickupCount > 0 ? (
@@ -525,7 +580,7 @@ export default function DriverHomeScreen({
             <Text
               style={styles.viewAllText}
             >
-              View All Pickups
+              View all pickups
             </Text>
 
             <Ionicons
@@ -543,7 +598,7 @@ export default function DriverHomeScreen({
       <MoneyPop
         visible={!!moneyAlert}
         amount={parseAmountFromAlert(moneyAlert)}
-        title={moneyIsWithdrawal ? 'Withdrawal paid' : 'Trip complete — you earned'}
+        title={moneyIsWithdrawal ? 'Withdrawal paid' : 'Trip complete. You earned'}
         subtitle={moneyIsWithdrawal ? 'Paid out instantly.' : 'Paid out to you instantly.'}
         ctaLabel={moneyIsWithdrawal ? 'Done' : 'Nice!'}
         onDismiss={() => moneyAlert && markAlertRead?.(moneyAlert.id)}
@@ -608,12 +663,13 @@ const styles = StyleSheet.create({
 
   appName: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.white,
   },
 
   companyName: {
     fontSize: 10,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.white,
     opacity: 0.9,
     marginTop: 1,
@@ -628,19 +684,6 @@ const styles = StyleSheet.create({
   notificationButton: {
     position: 'relative',
     padding: 8,
-  },
-
-  headerSignOutButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor:
-      'rgba(220,38,38,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor:
-      'rgba(255,255,255,0.3)',
   },
 
   notificationDot: {
@@ -664,22 +707,21 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 14,
     color: THEME.textSecondary,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'PlusJakartaSans_400Regular',
   },
 
   welcomeName: {
     fontSize: 28,
-    fontWeight: '700',
     color: THEME.text,
     marginTop: 4,
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'PlusJakartaSans_700Bold',
   },
 
   welcomeRoute: {
     fontSize: 14,
     color: THEME.textSecondary,
     marginTop: 4,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'PlusJakartaSans_400Regular',
   },
 
   scroll: {
@@ -747,7 +789,7 @@ const styles = StyleSheet.create({
 
   dutyLabel: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.text,
   },
 
@@ -761,6 +803,7 @@ const styles = StyleSheet.create({
 
   dutySub: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     marginTop: 2,
   },
@@ -779,12 +822,13 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
 
   sectionCount: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray,
   },
 
@@ -801,11 +845,12 @@ const styles = StyleSheet.create({
   },
   noPickupsTitle: {
     fontSize: 14.5,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
   noPickupsText: {
     fontSize: 12.5,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
@@ -813,6 +858,7 @@ const styles = StyleSheet.create({
   statementBlock: { marginTop: 14, marginBottom: 4 },
   morePickupsHint: {
     fontSize: 12.5,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray,
     textAlign: 'center',
     paddingBottom: 4,
@@ -855,18 +901,20 @@ const styles = StyleSheet.create({
 
   pickupName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
 
   pickupAddress: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     marginTop: 2,
   },
 
   pickupTime: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray,
     marginTop: 2,
   },
@@ -883,7 +931,7 @@ const styles = StyleSheet.create({
 
   badgeText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
 
   viewAllBtn: {
@@ -904,7 +952,7 @@ const styles = StyleSheet.create({
 
   viewAllText: {
     color: THEME.white,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     fontSize: 14,
   },
 });

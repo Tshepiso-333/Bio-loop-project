@@ -34,7 +34,7 @@ export const DRIVER_STATUS_LABELS = {
   in_progress: 'Collecting',
   collected: 'Oil on board',
   arrived_manufacturer: 'Dropped off',
-  completed: 'Complete',
+  completed: 'Completed',
   cancelled: 'Cancelled',
 };
 

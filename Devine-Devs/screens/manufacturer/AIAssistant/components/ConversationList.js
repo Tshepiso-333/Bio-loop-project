@@ -29,7 +29,7 @@ const ConversationList = ({
   const renderEmpty = () => (
     <View style={styles.emptyState}>
       <View style={styles.emptyIcon}>
-        <Ionicons name="chatbubble-ellipses-outline" size={36} color="#10b981" />
+        <Ionicons name="chatbubble-ellipses-outline" size={36} color="#2E8B5A" />
       </View>
       <Text style={styles.emptyTitle}>No conversations yet</Text>
       <Text style={styles.emptyText}>
@@ -67,8 +67,8 @@ const ConversationList = ({
         <RefreshControl
           refreshing={refreshing}
           onRefresh={handleRefresh}
-          tintColor="#10b981"
-          colors={['#10b981']}
+          tintColor="#2E8B5A"
+          colors={['#2E8B5A']}
         />
       }
       showsVerticalScrollIndicator={false}
@@ -96,13 +96,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: 'PlusJakartaSans_700Bold',
+    color: '#122A1F',
     marginBottom: 6,
   },
   emptyText: {
     fontSize: 13,
-    color: '#6B7280',
+    fontFamily: 'PlusJakartaSans_400Regular',
+    color: '#6B7F75',
     textAlign: 'center',
     lineHeight: 19,
   },
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 80,
   },
-  loadingText: { fontSize: 14, color: '#10b981', fontWeight: '600' },
+  loadingText: { fontSize: 14, color: '#2E8B5A', fontFamily: 'PlusJakartaSans_600SemiBold' },
 });
 
 export default ConversationList;

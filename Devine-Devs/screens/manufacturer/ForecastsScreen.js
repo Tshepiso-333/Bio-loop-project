@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
+import { formatRand } from '../../src/lib/format';
 
 const { width } = Dimensions.get('window');
 
@@ -215,7 +216,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
                   ]}
                 />
               </View>
-              <Text style={styles.barValue}>{formatZAR(b.value)}</Text>
+              <Text style={styles.barValue}>{formatRand(b.value)}</Text>
             </View>
           );
         })}
@@ -266,29 +267,29 @@ const FinanceScreen = ({ navigation, onBack }) => {
           <SummaryCard
             icon="cart-outline"
             iconBg={T.paleGreen}
-            label="Oil Purchased"
-            value={formatZAR(calculations.oilPurchased)}
+            label="Oil purchased"
+            value={formatRand(calculations.oilPurchased)}
             sub={`${totalLitres.toLocaleString()} L`}
           />
           <SummaryCard
             icon="flash-outline"
             iconBg={T.paleGreen}
-            label="Est. Biodiesel"
+            label="Est. biodiesel"
             value={`${Math.round(calculations.biodiesel).toLocaleString()} L`}
             sub={`${assumptions.conversion}% conversion`}
           />
           <SummaryCard
             icon="cash-outline"
             iconBg={T.selectedBg}
-            label="Est. Revenue"
-            value={formatZAR(calculations.revenue)}
-            sub={`@ ${formatZARDecimal(assumptions.biodieselPrice)}/L`}
+            label="Est. revenue"
+            value={formatRand(calculations.revenue)}
+            sub={`@ ${formatRand(assumptions.biodieselPrice)}/L`}
           />
           <SummaryCard
             icon="trending-up-outline"
             iconBg={T.selectedBg}
-            label="Est. Margin"
-            value={formatZAR(calculations.margin)}
+            label="Est. margin"
+            value={formatRand(calculations.margin)}
             sub={calculations.margin >= 0 ? 'Positive' : 'Negative'}
             valueColor={calculations.margin >= 0 ? T.primary : T.danger}
           />
@@ -296,7 +297,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
         {/* ── Production Value chain ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Production Value</Text>
+          <Text style={styles.sectionTitle}>Production value</Text>
           <View style={styles.card}>
             <View style={styles.chainRow}>
               <View style={styles.chainIconWrap}>
@@ -340,7 +341,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
               </View>
               <View style={styles.chainText}>
                 <Text style={[styles.chainValue, { color: T.primary }]}>
-                  {formatZAR(calculations.revenue)}
+                  {formatRand(calculations.revenue)}
                 </Text>
                 <Text style={styles.chainLabel}>Potential Revenue</Text>
               </View>
@@ -350,33 +351,33 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
         {/* ── Cost Breakdown ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cost Breakdown</Text>
+          <Text style={styles.sectionTitle}>Cost breakdown</Text>
           <View style={styles.card}>
             <CostRow
               label="Oil purchased"
-              value={formatZAR(calculations.oilPurchased)}
+              value={formatRand(calculations.oilPurchased)}
             />
             <CostRow
               label="Collection & logistics"
-              value={formatZAR(calculations.logistics)}
+              value={formatRand(calculations.logistics)}
             />
             <CostRow
               label="Processing"
-              value={formatZAR(calculations.processing)}
+              value={formatRand(calculations.processing)}
             />
             <CostRow
               label="Other operating costs"
-              value={formatZAR(calculations.other)}
+              value={formatRand(calculations.other)}
             />
             <View style={styles.costDivider} />
             <CostRow
-              label="Total Costs"
-              value={formatZAR(calculations.totalCosts)}
+              label="Total costs"
+              value={formatRand(calculations.totalCosts)}
               emphasis
             />
             <CostRow
-              label="Estimated Margin"
-              value={formatZAR(calculations.margin)}
+              label="Estimated margin"
+              value={formatRand(calculations.margin)}
               emphasis
               color={calculations.margin >= 0 ? T.primary : T.danger}
             />
@@ -388,14 +389,14 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
         {/* ── Oil Inventory by Grade ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Oil Inventory by Grade</Text>
+          <Text style={styles.sectionTitle}>Oil inventory by grade</Text>
           <View style={styles.card}>
             {['A', 'B', 'C'].map((g, i) => {
               const row = oilData.byGrade[g];
               const color =
                 g === 'A' ? T.gradeA : g === 'B' ? T.gradeB : T.gradeC;
               const label =
-                g === 'A' ? '🟢 Grade A' : g === 'B' ? '🟡 Grade B' : '🔴 Grade C';
+                g === 'A' ? 'Grade A' : g === 'B' ? 'Grade B' : 'Grade C';
               return (
                 <View
                   key={g}
@@ -407,7 +408,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
                     {row.litres.toLocaleString()} L
                   </Text>
                   <Text style={styles.gradePrice}>
-                    {row.litres > 0 ? `${formatZARDecimal(row.avgPrice)}/L` : '—'}
+                    {row.litres > 0 ? `${formatRand(row.avgPrice)}/L` : 'None'}
                   </Text>
                 </View>
               );
@@ -415,20 +416,20 @@ const FinanceScreen = ({ navigation, onBack }) => {
             <View style={styles.costDivider} />
             <View style={styles.gradeRow}>
               <View style={{ width: 12 }} />
-              <Text style={[styles.gradeName, { fontWeight: '700' }]}>Total</Text>
-              <Text style={[styles.gradeVolume, { fontWeight: '700' }]}>
+              <Text style={[styles.gradeName, { fontFamily: 'PlusJakartaSans_700Bold' }]}>Total</Text>
+              <Text style={[styles.gradeVolume, { fontFamily: 'PlusJakartaSans_700Bold' }]}>
                 {oilData.totalLitres.toLocaleString()} L
               </Text>
               <Text
-                style={[styles.gradePrice, { color: T.ink, fontWeight: '700' }]}
+                style={[styles.gradePrice, { color: T.ink, fontFamily: 'PlusJakartaSans_700Bold' }]}
               >
-                {formatZAR(oilData.totalPaid)}
+                {formatRand(oilData.totalPaid)}
               </Text>
             </View>
 
             {oilData.isEmpty && (
               <Text style={styles.demoHint}>
-                No oil purchased yet — figures appear once a pickup is delivered and paid.
+                No oil purchased yet. Figures appear once a pickup is delivered and paid.
               </Text>
             )}
           </View>
@@ -436,7 +437,7 @@ const FinanceScreen = ({ navigation, onBack }) => {
 
         {/* ── Environmental Impact ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Environmental Impact</Text>
+          <Text style={styles.sectionTitle}>Environmental impact</Text>
           <View style={[styles.card, styles.impactCard]}>
             <View style={styles.impactRow}>
               <View style={styles.impactIconWrap}>
@@ -507,8 +508,8 @@ const styles = StyleSheet.create({
     borderColor: T.border,
   },
   headerTextContainer: { alignItems: 'center', flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
-  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink },
+  headerSubtitle: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginTop: 2 },
   headerSpacer: { width: 40, height: 40 },
 
   // Summary grid
@@ -541,15 +542,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: T.muted,
     marginBottom: 4,
-    fontWeight: '500',
+    fontFamily: 'PlusJakartaSans_500Medium',
   },
   summaryValue: {
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     color: T.ink,
   },
   summarySub: {
     fontSize: 11,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     marginTop: 4,
   },
@@ -560,7 +562,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 10,
   },
@@ -589,11 +591,12 @@ const styles = StyleSheet.create({
   chainText: { flex: 1 },
   chainValue: {
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     color: T.ink,
   },
   chainLabel: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     marginTop: 2,
   },
@@ -609,21 +612,22 @@ const styles = StyleSheet.create({
   },
   costLabel: {
     fontSize: 14,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
   },
   costValue: {
     fontSize: 14,
     color: T.ink,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
   costLabelEmphasis: {
     fontSize: 15,
     color: T.ink,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
   },
   costValueEmphasis: {
     fontSize: 16,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
   },
   costDivider: {
     height: 1,
@@ -641,6 +645,7 @@ const styles = StyleSheet.create({
   barLabel: {
     width: 78,
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
   },
   barTrack: {
@@ -654,7 +659,7 @@ const styles = StyleSheet.create({
   barValue: {
     width: 70,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: T.ink,
     textAlign: 'right',
   },
@@ -668,11 +673,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   gradeDot: { width: 10, height: 10, borderRadius: 5 },
-  gradeName: { flex: 1, fontSize: 13, color: T.ink, fontWeight: '500' },
-  gradeVolume: { fontSize: 13, color: T.body, width: 80, textAlign: 'right' },
-  gradePrice: { fontSize: 13, color: T.body, width: 70, textAlign: 'right' },
+  gradeName: { flex: 1, fontSize: 13, color: T.ink, fontFamily: 'PlusJakartaSans_500Medium' },
+  gradeVolume: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, width: 80, textAlign: 'right' },
+  gradePrice: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, width: 70, textAlign: 'right' },
   demoHint: {
     fontSize: 11,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.muted,
     marginTop: 10,
     fontStyle: 'italic',
@@ -692,8 +698,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  impactValue: { fontSize: 16, fontWeight: '700', color: T.ink },
-  impactLabel: { fontSize: 12, color: T.body, marginTop: 2 },
+  impactValue: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink },
+  impactLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginTop: 2 },
 });
 
 export default FinanceScreen;

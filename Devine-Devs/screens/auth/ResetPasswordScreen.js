@@ -46,12 +46,12 @@ const COLORS = {
 };
 
 const FONTS = {
-  bold:        'Poppins_700Bold',
-  semiBold:    'Poppins_600SemiBold',
-  regular:     'Poppins_400Regular',
-  bodyRegular: 'Inter_400Regular',
-  bodyMedium:  'Inter_500Medium',
-  bodySemiBold:'Inter_600SemiBold',
+  bold:        'PlusJakartaSans_700Bold',
+  semiBold:    'PlusJakartaSans_600SemiBold',
+  regular:     'PlusJakartaSans_400Regular',
+  bodyRegular: 'PlusJakartaSans_400Regular',
+  bodyMedium:  'PlusJakartaSans_500Medium',
+  bodySemiBold:'PlusJakartaSans_600SemiBold',
 };
 
 const MIN_LENGTH = 8;

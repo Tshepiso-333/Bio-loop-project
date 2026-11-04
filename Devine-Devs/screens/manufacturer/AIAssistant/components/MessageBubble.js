@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#E4EDE7',
   },
   bubble: {
     maxWidth: screenWidth * 0.75,
@@ -92,17 +92,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 18,
   },
-  userBubble: { backgroundColor: '#10b981' },
+  userBubble: { backgroundColor: '#2E8B5A' },
   aiBubble: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E4EDE7',
   },
-  userText: { fontSize: 15, lineHeight: 21, color: '#FFFFFF' },
-  aiText: { fontSize: 15, lineHeight: 21, color: '#111827' },
-  timestamp: { fontSize: 10, marginTop: 4 },
+  userText: { fontSize: 15, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 21, color: '#FFFFFF' },
+  aiText: { fontSize: 15, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 21, color: '#122A1F' },
+  timestamp: { fontSize: 10, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 4 },
   userTimestamp: { color: 'rgba(255,255,255,0.75)', textAlign: 'right' },
-  aiTimestamp: { color: '#9CA3AF' },
+  aiTimestamp: { color: '#A9B5AD' },
 });
 
 export default MessageBubble;

@@ -51,9 +51,9 @@ const buildResponder = (ctx) => (question) => {
   if (q.includes('quality') || q.includes('grade') || q.includes('forecast')) {
     return (
       `Here's your 7-day quality forecast:\n\n` +
-      `• Grade A: ${ctx.gradeA}% — premium feedstock\n` +
-      `• Grade B: ${ctx.gradeB}% — standard quality\n` +
-      `• Grade C: ${ctx.gradeC}% — additional processing required\n\n` +
+      `• Grade A: ${ctx.gradeA}%, premium feedstock\n` +
+      `• Grade B: ${ctx.gradeB}%, standard quality\n` +
+      `• Grade C: ${ctx.gradeC}%, additional processing required\n\n` +
       `Grade A is best suited for biodiesel production. Grade C is recommended for industrial use.`
     );
   }
@@ -91,16 +91,16 @@ const buildResponder = (ctx) => (question) => {
   }
 
   if (q.includes('alert') || q.includes('notification')) {
-    return `Check the Alerts tab — alerts are grouped into "Requires action" and "Updates".`;
+    return `Check the Alerts tab. Alerts are grouped into "Requires action" and "Updates".`;
   }
 
   if (q.includes('help') || q.includes('what can you')) {
     return (
       `I can help with:\n\n` +
-      `• Inventory — stock and tank levels\n` +
-      `• Quality — Grade A/B/C mix\n` +
-      `• Deliveries — active pickups\n` +
-      `• Finance — output, revenue, margin`
+      `• Inventory: stock and tank levels\n` +
+      `• Quality: Grade A/B/C mix\n` +
+      `• Deliveries: active pickups\n` +
+      `• Finance: output, revenue, margin`
     );
   }
 
@@ -365,7 +365,7 @@ const ChatInterface = ({
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={['#10b981', '#059669']}
+        colors={['#2E8B5A', '#059669']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={[styles.header, { paddingTop: insets.top + 10 }]}
@@ -468,8 +468,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  headerSubtitle: { fontSize: 11, color: '#fff', opacity: 0.9, marginTop: 1 },
+  headerTitle: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold', color: '#fff' },
+  headerSubtitle: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: '#fff', opacity: 0.9, marginTop: 1 },
   chatContainer: { flex: 1 },
   messagesList: {
     paddingHorizontal: 16,
@@ -495,14 +495,15 @@ const styles = StyleSheet.create({
   emptyLogo: { width: 60, height: 60, borderRadius: 30 },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
+    fontFamily: 'PlusJakartaSans_700Bold',
+    color: '#122A1F',
     marginBottom: 6,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 13,
-    color: '#6b7280',
+    fontFamily: 'PlusJakartaSans_400Regular',
+    color: '#6B7F75',
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 20,
@@ -519,7 +520,7 @@ const styles = StyleSheet.create({
   suggestionText: {
     fontSize: 13,
     color: '#047857',
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     textAlign: 'center',
   },
   typingRow: {
@@ -535,13 +536,13 @@ const styles = StyleSheet.create({
     marginRight: 6,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#E4EDE7',
   },
   typingBubble: {
     backgroundColor: '#fff',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E4EDE7',
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -550,7 +551,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10b981',
+    backgroundColor: '#2E8B5A',
   },
 });
 

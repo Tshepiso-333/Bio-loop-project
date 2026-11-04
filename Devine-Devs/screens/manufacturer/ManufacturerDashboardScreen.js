@@ -51,7 +51,7 @@ const MANU_THEME = {
     body: '#6B6B6B',
     muted: '#9B9B9B',
     border: '#E8E8E8',
-    divider: '#F3F4F6',
+    divider: '#F5F8F6',
 
     white: '#FFFFFF',
 
@@ -68,11 +68,11 @@ const MANU_THEME = {
     darkSurfaceText: '#C9D4CE',
   },
   fonts: {
-    regular: 'System',
-    medium: 'System',
-    semiBold: 'System',
-    bold: 'System',
-    extraBold: 'System',
+    regular: 'PlusJakartaSans_400Regular',
+    medium: 'PlusJakartaSans_500Medium',
+    semiBold: 'PlusJakartaSans_600SemiBold',
+    bold: 'PlusJakartaSans_700Bold',
+    extraBold: 'PlusJakartaSans_800ExtraBold',
   },
   radii: { card: 16, pill: 999, chip: 10 },
   spacing: { screenPadding: 18, cardPadding: 16, gap: 16 },
@@ -316,20 +316,38 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
     (p) => p.status === 'completed' && (p.pickup_date ?? '') >= weekAgoIso
   ).length;
 
+  // The last 7 calendar days ending today, completed pickups only.
   const weeklyData = (() => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const totals = days.reduce((acc, day) => ({ ...acc, [day]: 0 }), {});
+    const pad = (n) => String(n).padStart(2, '0');
+    const localKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const today = new Date();
+    const buckets = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      buckets.push({
+        key: localKey(d),
+        day: i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' }),
+        volume: 0,
+      });
+    }
+    const byKey = Object.fromEntries(buckets.map((b) => [b.key, b]));
     (pickups || []).forEach((p) => {
-      if (!p.pickup_date) return;
-      const date = new Date(p.pickup_date);
-      if (Number.isNaN(date.getTime())) return;
-      const day = date.toLocaleDateString('en-US', { weekday: 'short' });
-      if (totals[day] !== undefined) {
-        totals[day] += p.estimated_volume_liters ?? p.actual_volume_liters ?? 0;
+      if (p.status !== 'completed') return;
+      let key = null;
+      if (p.completed_at) {
+        const date = new Date(p.completed_at);
+        if (!Number.isNaN(date.getTime())) key = localKey(date);
+      } else if (p.pickup_date) {
+        key = p.pickup_date;
+      }
+      const bucket = key ? byKey[key] : null;
+      if (bucket) {
+        bucket.volume += Number(p.actual_volume_liters ?? p.estimated_volume_liters ?? 0) || 0;
       }
     });
-    return days.map((day) => ({ day, volume: totals[day] }));
+    return buckets.map(({ day, volume }) => ({ day, volume }));
   })();
+  const weeklyTotal = weeklyData.reduce((sum, d) => sum + d.volume, 0);
 
   const sevenDayForecast = forecasts?.find((f) => f.period_days === 7) || null;
   const qualityDistribution = sevenDayForecast
@@ -447,7 +465,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                   <Text style={styles.loopText}>Loop</Text>
                 </Text>
                 <View style={styles.tagline}>
-                  <Text style={styles.taglineText}>Manufacturer Portal</Text>
+                  <Text style={styles.taglineText}>Manufacturer portal</Text>
                 </View>
               </View>
             </View>
@@ -487,54 +505,20 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
   // ─── CHARTS ──────────────────────────────────────────────────────────────
 
-  const PieChart = () => {
-    const segments = qualityDistribution.map((item) => ({
-      percentage: item.value,
-      color: item.color,
-      label: item.name,
-    }));
-    let cumulativeAngle = 0;
-
-    return (
-      <View style={styles.pieContainer}>
-        <View style={styles.pieWrapper}>
-          <View style={styles.pieRing}>
-            {segments.map((segment, index) => {
-              const angle = (segment.percentage / 100) * 360;
-              const startAngle = cumulativeAngle;
-              cumulativeAngle += angle;
-              return (
-                <View
-                  key={index}
-                  style={[
-                    styles.pieSegment,
-                    {
-                      backgroundColor: segment.color,
-                      transform: [{ rotate: `${startAngle}deg` }],
-                    },
-                  ]}
-                />
-              );
-            })}
-          </View>
-          <View style={styles.pieCenter}>
-            <Text style={styles.pieCenterText}>100%</Text>
-            <Text style={styles.pieCenterSubtext}>Total</Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
-
   const WeeklyAreaChart = () => {
     const maxVolume = Math.max(...weeklyData.map((d) => d.volume), 1);
     return (
       <View style={styles.areaChart}>
         {weeklyData.map((item, index) => {
-          const height = maxVolume > 0 ? (item.volume / maxVolume) * 120 : 0;
+          const height = maxVolume > 0 ? (item.volume / maxVolume) * 110 : 0;
           return (
             <View key={index} style={styles.areaBarWrapper}>
               <View style={styles.areaBarContainer}>
+                {item.volume > 0 ? (
+                  <Text style={[styles.areaBarLabel, { marginBottom: 2 }]}>
+                    {Math.round(item.volume)}
+                  </Text>
+                ) : null}
                 <View
                   style={[styles.areaBar, { height, backgroundColor: C.gradeA }]}
                 />
@@ -611,22 +595,22 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
             <View style={styles.statRow}>
               <StatCard
                 iconName="water-outline"
-                label="Current Stock"
-                value={`${currentStock.toLocaleString()} L`}
+                label="Current stock"
+                value={`${Math.round(Number(currentStock) || 0)} L`}
                 sub={stockChangeLabel}
               />
               <StatCard
                 iconName="cube-outline"
-                label="This Week"
-                value={`${thisWeekVolume.toLocaleString()} L`}
+                label="This week"
+                value={`${Math.round(Number(thisWeekVolume) || 0)} L`}
                 sub={`${weeklyDeliveries} deliveries`}
               />
             </View>
 
             <View style={styles.section}>
               <SectionHeader
-                title="Incoming Deliveries"
-                action="View All →"
+                title="Incoming deliveries"
+                action="View all →"
                 onPress={() => setSelectedTab('suppliers')}
               />
               <View style={styles.deliveriesList}>
@@ -678,11 +662,13 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                         </View>
                       </View>
                       <View style={styles.deliveryTimeInfo}>
+                        {delivery.eta ? (
                         <Text
                           style={[styles.etaText, delivery.etaIsLive && styles.etaTextLive]}
                         >
-                          {delivery.eta ?? 'Time TBC'}
+                          {delivery.eta}
                         </Text>
+                        ) : null}
                         <View style={styles.statusContainer}>
                           <View
                             style={[
@@ -720,7 +706,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                       >
                         <Ionicons name="card-outline" size={16} color={C.white} />
                         <Text style={styles.confirmReceivedBtnText}>
-                          Confirm Received & Pay
+                          Confirm and pay
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -736,8 +722,8 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
 
             <View style={styles.section}>
               <SectionHeader
-                title="Quality Distribution"
-                action="View Details →"
+                title="Quality distribution"
+                action="View details →"
                 onPress={() => setSelectedTab('quality')}
               />
               <TouchableOpacity
@@ -769,12 +755,32 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
                     </View>
                   ))}
                 </View>
-                <PieChart />
+                {qualityDistribution.reduce((sum, item) => sum + (item.value || 0), 0) > 0 ? (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      height: 10,
+                      borderRadius: 5,
+                      overflow: 'hidden',
+                      marginTop: 16,
+                      backgroundColor: C.border,
+                    }}
+                  >
+                    {qualityDistribution
+                      .filter((item) => item.value > 0)
+                      .map((item) => (
+                        <View
+                          key={item.name}
+                          style={{ flex: item.value, backgroundColor: item.color }}
+                        />
+                      ))}
+                  </View>
+                ) : null}
               </TouchableOpacity>
             </View>
 
             <View style={styles.section}>
-              <SectionHeader title="Weekly Collection" action="Last 7 days" />
+              <SectionHeader title="Weekly collection" action={`${Math.round(weeklyTotal)} L in 7 days`} />
               <View style={styles.card}>
                 <WeeklyAreaChart />
               </View>
@@ -949,15 +955,15 @@ const styles = StyleSheet.create({
   appNameContainer: { flexDirection: 'column', paddingLeft: 2 },
   appName: {
     fontSize: 26,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     letterSpacing: -0.5,
     lineHeight: 30,
     textShadowColor: 'rgba(0,0,0,0.10)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  bioText: { color: C.ink, fontWeight: '800' },
-  loopText: { color: C.primaryAccent, fontWeight: '800' },
+  bioText: { color: C.ink, fontFamily: 'PlusJakartaSans_800ExtraBold' },
+  loopText: { color: C.primaryAccent, fontFamily: 'PlusJakartaSans_800ExtraBold' },
 
   tagline: {
     backgroundColor: 'rgba(71, 193, 75, 0.14)',
@@ -970,7 +976,7 @@ const styles = StyleSheet.create({
   taglineText: {
     fontSize: 9,
     color: C.primaryMid,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -1004,7 +1010,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: C.white,
   },
-  notificationBadgeText: { fontSize: 9, fontWeight: '700', color: C.white },
+  notificationBadgeText: { fontSize: 9, fontFamily: 'PlusJakartaSans_700Bold', color: C.white },
 
   profileCircle: {
     width: 42,
@@ -1025,7 +1031,6 @@ const styles = StyleSheet.create({
     fontFamily: F.bold,
     fontSize: 15,
     color: C.primary,
-    fontWeight: '700',
   },
 
   // ── Alert banner ─────────────────────────────────────────────────────────
@@ -1054,7 +1059,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.white,
     marginBottom: 2,
-    fontWeight: '700',
   },
   alertBannerMessage: {
     fontFamily: F.medium,
@@ -1099,7 +1103,6 @@ const styles = StyleSheet.create({
     fontFamily: F.semiBold,
     fontSize: 15,
     color: C.ink,
-    fontWeight: '600',
   },
   statSub: {
     fontFamily: F.medium,
@@ -1120,13 +1123,11 @@ const styles = StyleSheet.create({
     fontFamily: F.bold,
     fontSize: 16,
     color: C.ink,
-    fontWeight: '700',
   },
   viewAllText: {
     fontFamily: F.semiBold,
     fontSize: 12,
     color: C.primary,
-    fontWeight: '600',
   },
 
   // ── Card ─────────────────────────────────────────────────────────────────
@@ -1157,7 +1158,6 @@ const styles = StyleSheet.create({
   qualityPercentage: {
     fontFamily: F.bold,
     fontSize: 20,
-    fontWeight: '700',
     color: C.ink,
     marginBottom: 2,
   },
@@ -1195,7 +1195,6 @@ const styles = StyleSheet.create({
   pieCenterText: {
     fontFamily: F.extraBold,
     fontSize: 24,
-    fontWeight: '700',
     color: C.ink,
   },
   pieCenterSubtext: {
@@ -1261,7 +1260,6 @@ const styles = StyleSheet.create({
   restaurantName: {
     fontFamily: F.semiBold,
     fontSize: 15,
-    fontWeight: '600',
     color: C.ink,
     marginBottom: 6,
   },
@@ -1277,7 +1275,7 @@ const styles = StyleSheet.create({
   },
   volumeText: { fontFamily: F.medium, fontSize: 12, color: C.body },
   qualityTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  qualityTagText: { fontFamily: F.semiBold, fontSize: 12, fontWeight: '600' },
+  qualityTagText: { fontFamily: F.semiBold, fontSize: 12 },
   deliveryTimeInfo: { alignItems: 'flex-end' },
   // A live driving ETA is highlighted so it reads as different from a
   // scheduled time window.
@@ -1285,7 +1283,6 @@ const styles = StyleSheet.create({
   etaText: {
     fontFamily: F.semiBold,
     fontSize: 15,
-    fontWeight: '600',
     color: C.ink,
     marginBottom: 4,
   },
@@ -1306,7 +1303,6 @@ const styles = StyleSheet.create({
   confirmReceivedBtnText: {
     fontFamily: F.bold,
     fontSize: 13,
-    fontWeight: '700',
     color: C.white,
   },
 
@@ -1337,7 +1333,7 @@ const styles = StyleSheet.create({
     color: C.body,
     marginTop: 1,
   },
-  activeNavLabel: { color: C.primary, fontWeight: '700' },
+  activeNavLabel: { color: C.primary, fontFamily: 'PlusJakartaSans_700Bold' },
 
   // ── AI Chat floating FAB (reworked, no more overlap) ─────────────────────
   aiChatTabWrapper: {

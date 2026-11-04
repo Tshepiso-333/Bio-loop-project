@@ -153,7 +153,7 @@ export default function DriverMapScreen({ route }) {
     if (!hasPanelCoords) {
       Alert.alert(
         'No location on file',
-        `${panelLeg === 'manufacturer' ? 'This manufacturer' : 'This restaurant'} doesn't have a location set yet — ask admin to add one.`
+        `${panelLeg === 'manufacturer' ? 'This manufacturer' : 'This restaurant'} doesn't have a location set yet. Ask admin to add one.`
       );
       return;
     }
@@ -277,7 +277,7 @@ export default function DriverMapScreen({ route }) {
       if (dropped.length > 0) {
         Alert.alert(
           'Some stops were left out',
-          `${dropped.length} of ${stops.length} stops could not be fitted into this run — they stay assigned, just not on this route.`
+          `${dropped.length} of ${stops.length} stops could not be fitted into this run. They stay assigned, just not on this route.`
         );
       }
     } catch (err) {
@@ -336,6 +336,8 @@ export default function DriverMapScreen({ route }) {
         .filter(Boolean),
     [pickups]
   );
+
+  const openStopCount = useMemo(() => (pickups || []).filter((p) => p.status !== 'completed' && p.status !== 'cancelled').length, [pickups]);
 
   // Only stops heading to the SAME manufacturer belong on one run. A different
   // manufacturer is a different destination, so it is a different trip — the
@@ -547,7 +549,7 @@ export default function DriverMapScreen({ route }) {
         <View style={styles.errorIconCircle}>
           <Text style={styles.errorIcon}>📍</Text>
         </View>
-        <Text style={styles.errorTitle}>Location Access Needed</Text>
+        <Text style={styles.errorTitle}>Location access needed</Text>
         <Text style={styles.errorText}>{errorMsg}</Text>
       </SafeAreaView>
     );
@@ -644,8 +646,8 @@ export default function DriverMapScreen({ route }) {
       ) : null}
 
       <View style={styles.pickupBadge}>
-        <Text style={styles.pickupBadgeValue}>{pickupMarkers.length}</Text>
-        <Text style={styles.pickupBadgeLabel}>pickup stops</Text>
+        <Text style={styles.pickupBadgeValue}>{openStopCount}</Text>
+        <Text style={styles.pickupBadgeLabel}>{openStopCount === 1 ? 'stop to do' : 'stops to do'}</Text>
       </View>
 
       {/* The multi-stop option. Sits on the map rather than in the trip panel,
@@ -818,12 +820,13 @@ const styles = StyleSheet.create({
   },
   loadingTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.text,
     marginBottom: 6,
   },
   loadingText: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
   },
 
@@ -839,16 +842,18 @@ const styles = StyleSheet.create({
   },
   errorIcon: {
     fontSize: 32,
+    fontFamily: 'PlusJakartaSans_400Regular',
   },
   errorTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   errorText: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
@@ -909,7 +914,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  seqMarkerText: { color: THEME.white, fontWeight: '800', fontSize: 13 },
+  seqMarkerText: { color: THEME.white, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 13 },
   seqMarkerDone: { backgroundColor: THEME.textSecondary },
   seqMarkerCurrent: { backgroundColor: THEME.primaryDarker, borderColor: THEME.accent ?? THEME.white },
   planAllBtn: {
@@ -930,13 +935,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   planAllBtnLabel: { maxWidth: 150 },
-  planAllBtnText: { color: THEME.white, fontWeight: '700', fontSize: 12 },
-  planAllBtnSub: { color: THEME.primaryLight, fontWeight: '600', fontSize: 10, marginTop: 1 },
+  planAllBtnText: { color: THEME.white, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12 },
+  planAllBtnSub: { color: THEME.primaryLight, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, marginTop: 1 },
   routeBadge: {
     position: 'absolute', top: 60, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: THEME.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
   },
-  routeBadgeText: { color: THEME.white, fontWeight: '700', fontSize: 13 },
+  routeBadgeText: { color: THEME.white, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13 },
   destinationMarkerWrap: {
     width: 32,
     height: 32,
@@ -988,12 +993,12 @@ const styles = StyleSheet.create({
   },
   pickupBadgeValue: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.primary,
   },
   pickupBadgeLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.textSecondary,
   },
   speedLeft: {
@@ -1003,14 +1008,14 @@ const styles = StyleSheet.create({
   },
   speedValue: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.primary,
     lineHeight: 26,
   },
   speedUnit: {
     fontSize: 12,
     color: THEME.textSecondary,
-    fontWeight: '500',
+    fontFamily: 'PlusJakartaSans_500Medium',
     marginBottom: 2,
   },
   speedDivider: {
@@ -1021,7 +1026,7 @@ const styles = StyleSheet.create({
   speedRight: {},
   speedLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
 
@@ -1057,28 +1062,29 @@ const styles = StyleSheet.create({
   },
   tripLegText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.primaryDarker,
   },
   tripSpeedText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.textSecondary,
   },
   tripDestName: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.text,
   },
   tripDestAddress: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     marginTop: 2,
     marginBottom: 14,
   },
   tripRunNext: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.primary,
     marginTop: -8,
     marginBottom: 14,
@@ -1101,7 +1107,7 @@ const styles = StyleSheet.create({
   },
   navigateBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: THEME.text,
   },
   advanceBtn: {
@@ -1119,7 +1125,7 @@ const styles = StyleSheet.create({
   },
   advanceBtnText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.white,
   },
   waitingBanner: {
@@ -1134,7 +1140,7 @@ const styles = StyleSheet.create({
   },
   waitingBannerText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: 'PlusJakartaSans_500Medium',
     color: THEME.textSecondary,
   },
 });

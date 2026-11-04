@@ -1,8 +1,9 @@
 // Devine-Devs/screens/driver/DriverProfileScreen.js
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
   TouchableOpacity, StatusBar, Alert, Linking,
+  AccessibilityInfo, Animated, Easing,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,12 +52,54 @@ const MenuItem = ({ icon, label, sublabel, onPress, danger }) => (
   </TouchableOpacity>
 );
 
+// Counts a number up from 0 over 600 ms, once, the first time it has a value
+// (same approach as MoneyPop). Later changes, or Reduce motion, show the
+// final number straight away. Text can't use the native driver.
+const CountUp = ({ value, format, reduceMotion }) => {
+  const target = Number(value) || 0;
+  const [shown, setShown] = useState(reduceMotion ? target : 0);
+  const counter = useRef(new Animated.Value(0)).current;
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current || reduceMotion) {
+      setShown(target);
+      return undefined;
+    }
+    if (target === 0) {
+      setShown(0);
+      return undefined;
+    }
+    started.current = true;
+    const sub = counter.addListener(({ value: v }) => setShown(v));
+    const anim = Animated.timing(counter, { toValue: target, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+    anim.start(() => setShown(target));
+    return () => {
+      anim.stop();
+      counter.removeListener(sub);
+    };
+  }, [target, reduceMotion, counter]);
+  return format(shown === target ? target : Math.round(shown));
+};
+
 export default function DriverProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { signOut, user } = useAuth();
   const { profile } = useProfile();
   const { collector, stats, pickups } = useCollectorContext();
+
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => { if (mounted) setReduceMotion(!!enabled); })
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => setReduceMotion(!!enabled));
+    return () => {
+      mounted = false;
+      sub?.remove?.();
+    };
+  }, []);
 
   // Litres from trips completed in the last 7 days and the change vs the 7
   // days before — derived from real pickup rows, not a stored figure.
@@ -97,7 +140,7 @@ export default function DriverProfileScreen() {
       : 'License and vehicle on file · awaiting review';
 
   const openSupportEmail = () => {
-    const subject = `BioLoop driver support — ${collector?.employee_code ?? email ?? 'driver'}`;
+    const subject = `BioLoop driver support: ${collector?.employee_code ?? email ?? 'driver'}`;
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`).catch(() => {
       // No mail client set up. Give them the address rather than failing silently.
       Alert.alert('Help & Support', `Email us at ${SUPPORT_EMAIL} and we'll come back to you.`);
@@ -105,9 +148,9 @@ export default function DriverProfileScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
   };
 
@@ -162,15 +205,15 @@ export default function DriverProfileScreen() {
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="water-outline" size={20} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{Number(stats?.total_liters ?? collector?.total_liters ?? 0).toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Litres Total</Text>
+              <Text style={styles.statValue}><CountUp value={stats?.total_liters ?? collector?.total_liters ?? 0} format={(n) => Number(n).toLocaleString()} reduceMotion={reduceMotion} /></Text>
+              <Text style={styles.statLabel}>Litres total</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <View style={[styles.statIconWrap, { backgroundColor: THEME.primaryLight }]}>
                 <Ionicons name="cube-outline" size={20} color={THEME.primary} />
               </View>
-              <Text style={styles.statValue}>{stats?.total_collections ?? collector?.total_collections ?? 0}</Text>
+              <Text style={styles.statValue}><CountUp value={stats?.total_collections ?? collector?.total_collections ?? 0} format={(n) => `${n}`} reduceMotion={reduceMotion} /></Text>
               <Text style={styles.statLabel}>Collections</Text>
             </View>
             <View style={styles.statDivider} />
@@ -344,7 +387,7 @@ export default function DriverProfileScreen() {
         <View style={styles.menuSection}>
           <MenuItem
             icon="log-out-outline"
-            label="Sign Out"
+            label="Sign out"
             danger
             onPress={handleSignOut}
           />
@@ -382,17 +425,18 @@ const styles = StyleSheet.create({
   },
   avatarText: { 
     fontSize: 28, 
-    fontWeight: '700', 
+    fontFamily: 'PlusJakartaSans_700Bold', 
     color: THEME.white, 
     letterSpacing: 1 
   },
   name: { 
     fontSize: 22, 
-    fontWeight: '700', 
+    fontFamily: 'PlusJakartaSans_700Bold', 
     color: THEME.white 
   },
   driverId: { 
     fontSize: 13, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: 'rgba(255,255,255,0.8)', 
     marginTop: 4 
   },
@@ -404,7 +448,7 @@ const styles = StyleSheet.create({
   ratingText: { 
     fontSize: 13, 
     color: 'rgba(255,255,255,0.9)', 
-    fontWeight: '500' 
+    fontFamily: 'PlusJakartaSans_500Medium' 
   },
   statsCard: {
     marginHorizontal: 16,
@@ -436,11 +480,12 @@ const styles = StyleSheet.create({
   },
   statValue: { 
     fontSize: 18, 
-    fontWeight: '700', 
+    fontFamily: 'PlusJakartaSans_700Bold', 
     color: THEME.text 
   },
   statLabel: { 
     fontSize: 11, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray, 
     textAlign: 'center' 
   },
@@ -466,9 +511,9 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
   },
-  weeklyTitle: { fontSize: 14, fontWeight: '600', color: THEME.text },
-  weeklySub: { fontSize: 12, color: THEME.textSecondary, marginTop: 2 },
-  weeklyChange: { fontSize: 16, fontWeight: '700', color: THEME.primary },
+  weeklyTitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold', color: THEME.text },
+  weeklySub: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: THEME.textSecondary, marginTop: 2 },
+  weeklyChange: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold', color: THEME.primary },
   documentsBlock: {
     marginHorizontal: 16,
     marginTop: 16,
@@ -510,7 +555,7 @@ const styles = StyleSheet.create({
   },
   menuLabel: { 
     fontSize: 15, 
-    fontWeight: '600', 
+    fontFamily: 'PlusJakartaSans_600SemiBold', 
     color: THEME.text 
   },
   menuLabelDanger: { 
@@ -518,6 +563,7 @@ const styles = StyleSheet.create({
   },
   menuSublabel: { 
     fontSize: 12, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary, 
     marginTop: 2 
   },
@@ -525,6 +571,7 @@ const styles = StyleSheet.create({
     textAlign: 'center', 
     color: THEME.gray, 
     fontSize: 12, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     marginTop: 24 
   },
   editBtn: {
@@ -538,10 +585,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
   },
-  editBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  editBtnText: { color: '#fff', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14 },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.textSecondary,
     paddingHorizontal: 16,
     paddingTop: 14,
@@ -558,11 +605,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: THEME.grayLight,
   },
-  detailText: { flex: 1, fontSize: 14, color: THEME.text },
+  detailText: { flex: 1, fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', color: THEME.text },
   emptyDetailText: {
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     fontStyle: 'italic',
   },
@@ -570,6 +618,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary,
     lineHeight: 20,
   },

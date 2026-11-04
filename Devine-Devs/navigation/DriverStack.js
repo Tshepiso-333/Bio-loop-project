@@ -4,6 +4,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DriverHomeScreen from '../screens/driver/DriverHomeScreen';
 import DriverCollectionsScreen from '../screens/driver/DriverCollectionsScreen';
@@ -21,6 +22,8 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function DriverTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -39,8 +42,8 @@ function DriverTabs() {
             DRV_COLORS.border,
           borderTopWidth: 1,
           paddingTop: 8,
-          paddingBottom: 10,
-          height: 65,
+          paddingBottom: Math.max(10, insets.bottom),
+          height: 65 + insets.bottom,
         },
 
         tabBarLabelStyle: {

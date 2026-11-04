@@ -24,8 +24,8 @@ const THEME = {
   grayLight: '#E4EDE7',
   pending: '#F59E0B',
   pendingBg: '#FFF7ED',
-  inProgress: '#2563EB',
-  inProgressBg: '#EFF6FF',
+  inProgress: '#2E8B5A',
+  inProgressBg: '#E7F1EB',
   completed: '#15643E',
   completedBg: '#E7F1EB',
 };
@@ -55,6 +55,7 @@ const StatusBadge = ({ status }) => {
 
 const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
   const actionDisabled = item.status === 'completed';
+  const isFinished = item.status === 'completed' || item.status === 'cancelled';
   const actionLabel = PRE_TRIP_STATUSES.includes(item.status)
     ? 'Accept'
     : ACTIVE_TRIP_STATUSES.includes(item.status)
@@ -79,7 +80,7 @@ const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
               <Ionicons name="time-outline" size={12} color={THEME.gray} />
               <Text style={styles.cardTime}>
                 {' '}
-                {item.time || 'Time TBC'} ·{' '}
+                {item.time ? `${item.time} · ` : ''}
                 {item.estimatedLiters != null ? `${item.estimatedLiters}L est.` : 'volume TBC'}
               </Text>
             </View>
@@ -87,6 +88,7 @@ const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
         </View>
         <StatusBadge status={item.status} />
       </View>
+      {!isFinished ? (
       <View style={styles.cardActions}>
         <TouchableOpacity style={styles.callBtn} onPress={onCall} activeOpacity={0.7}>
           <Ionicons name="call-outline" size={15} color={THEME.text} />
@@ -120,6 +122,7 @@ const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      ) : null}
       {canDecline ? (
         <TouchableOpacity style={styles.declineBtn} onPress={onDecline} activeOpacity={0.7}>
           <Text style={styles.declineBtnText}>Decline this pickup</Text>
@@ -220,7 +223,7 @@ export default function DriverCollectionsScreen({ navigation }) {
     );
   };
 
-  const scheduledCount = pickups.filter(p => p.status !== 'completed').length;
+  const scheduledCount = pickups.filter(p => p.status !== 'completed' && p.status !== 'cancelled').length;
 
   // Header Component with Logo and Gradient that fills to top
   const Header = () => (
@@ -237,7 +240,7 @@ export default function DriverCollectionsScreen({ navigation }) {
         {/* Header Info */}
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle}>Collections</Text>
-          <Text style={styles.headerSub}>{scheduledCount} pickups remaining today</Text>
+          <Text style={styles.headerSub}>{scheduledCount} to do</Text>
         </View>
       </LinearGradient>
     </>
@@ -327,11 +330,12 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: THEME.white,
   },
   companyName: {
     fontSize: 10,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.white,
     opacity: 0.9,
     marginTop: 1,
@@ -342,11 +346,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: { 
     fontSize: 24, 
-    fontWeight: '700', 
+    fontFamily: 'PlusJakartaSans_700Bold', 
     color: THEME.white 
   },
   headerSub: { 
     fontSize: 13, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: 'rgba(255,255,255,0.8)', 
     marginTop: 4 
   },
@@ -374,7 +379,7 @@ const styles = StyleSheet.create({
   },
   filterText: { 
     fontSize: 13, 
-    fontWeight: '500', 
+    fontFamily: 'PlusJakartaSans_500Medium', 
     color: THEME.textSecondary 
   },
   filterTextActive: { 
@@ -422,7 +427,7 @@ const styles = StyleSheet.create({
   },
   cardName: { 
     fontSize: 15, 
-    fontWeight: '600', 
+    fontFamily: 'PlusJakartaSans_600SemiBold', 
     color: THEME.text, 
     marginBottom: 4 
   },
@@ -433,10 +438,12 @@ const styles = StyleSheet.create({
   },
   cardAddress: { 
     fontSize: 12, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.textSecondary 
   },
   cardTime: { 
     fontSize: 12, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray 
   },
   badge: { 
@@ -446,7 +453,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { 
     fontSize: 11, 
-    fontWeight: '600' 
+    fontFamily: 'PlusJakartaSans_600SemiBold' 
   },
   cardActions: { 
     flexDirection: 'row', 
@@ -465,7 +472,7 @@ const styles = StyleSheet.create({
   },
   callBtnText: { 
     fontSize: 13, 
-    fontWeight: '600', 
+    fontFamily: 'PlusJakartaSans_600SemiBold', 
     color: THEME.text 
   },
   actionBtn: {
@@ -484,7 +491,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: { 
     fontSize: 13, 
-    fontWeight: '600', 
+    fontFamily: 'PlusJakartaSans_600SemiBold', 
     color: THEME.white 
   },
   actionBtnTextDisabled: {
@@ -497,7 +504,7 @@ const styles = StyleSheet.create({
   },
   declineBtnText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: '#DC2626',
   },
   emptyState: { 
@@ -507,6 +514,7 @@ const styles = StyleSheet.create({
   },
   emptyText: { 
     fontSize: 14, 
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: THEME.gray 
   },
 });

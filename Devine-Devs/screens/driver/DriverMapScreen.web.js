@@ -164,8 +164,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 22,
     borderBottomRightRadius: 22,
   },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: THEME.white, letterSpacing: -0.3 },
-  headerSub: { fontSize: 12.5, color: 'rgba(255,255,255,0.78)', marginTop: 4 },
+  headerTitle: { fontSize: 20, fontFamily: 'PlusJakartaSans_800ExtraBold', color: THEME.white, letterSpacing: -0.3 },
+  headerSub: { fontSize: 12.5, fontFamily: 'PlusJakartaSans_400Regular', color: 'rgba(255,255,255,0.78)', marginTop: 4 },
 
   body: { padding: 18, gap: 14 },
 
@@ -186,9 +186,9 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.primaryLight,
   },
   cardCopy: { flex: 1 },
-  cardTitle: { fontSize: 14.5, fontWeight: '700', color: THEME.ink },
-  cardAddress: { fontSize: 12.5, color: THEME.body, marginTop: 2, lineHeight: 18 },
-  cardLeg: { fontSize: 11.5, color: THEME.muted, marginTop: 4 },
+  cardTitle: { fontSize: 14.5, fontFamily: 'PlusJakartaSans_700Bold', color: THEME.ink },
+  cardAddress: { fontSize: 12.5, fontFamily: 'PlusJakartaSans_400Regular', color: THEME.body, marginTop: 2, lineHeight: 18 },
+  cardLeg: { fontSize: 11.5, fontFamily: 'PlusJakartaSans_400Regular', color: THEME.muted, marginTop: 4 },
 
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   secondary: {
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 14,
   },
-  secondaryText: { fontSize: 12.5, fontWeight: '600', color: THEME.primary },
+  secondaryText: { fontSize: 12.5, fontFamily: 'PlusJakartaSans_600SemiBold', color: THEME.primary },
   primary: {
     flex: 1,
     flexDirection: 'row',
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     paddingVertical: 10,
   },
-  primaryText: { fontSize: 12.5, fontWeight: '700', color: THEME.white },
+  primaryText: { fontSize: 12.5, fontFamily: 'PlusJakartaSans_700Bold', color: THEME.white },
   pressed: { opacity: 0.7 },
 
   empty: { alignItems: 'center', gap: 8, paddingTop: 60, paddingHorizontal: 24 },
@@ -225,6 +225,6 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.primaryLight,
     marginBottom: 4,
   },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: THEME.ink },
-  emptyText: { fontSize: 13, lineHeight: 19, color: THEME.body, textAlign: 'center' },
+  emptyTitle: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold', color: THEME.ink },
+  emptyText: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 19, color: THEME.body, textAlign: 'center' },
 });

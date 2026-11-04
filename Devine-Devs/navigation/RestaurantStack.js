@@ -51,9 +51,8 @@ function RestaurantTabs() {
           height: 65 + insets.bottom,
         },
         tabBarLabelStyle: {
-          fontFamily: 'Inter_500Medium',
+          fontFamily: 'PlusJakartaSans_500Medium',
           fontSize: 11,
-          fontWeight: '500',
           marginTop: 2,
         },
       }}

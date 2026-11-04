@@ -70,7 +70,7 @@ const STATUS_COPY = {
   },
   arrived_manufacturer: {
     title: 'Your oil reached the manufacturer.',
-    detail: 'The collection is awaiting its recorded completion.',
+    detail: 'Delivered. Waiting for the manufacturer to confirm.',
   },
 };
 

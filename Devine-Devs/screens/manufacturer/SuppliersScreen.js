@@ -116,13 +116,13 @@ const SuppliersScreen = ({ navigation, onBack }) => {
           cuisine: r.cuisine ?? '—',
           image: r.image_url ?? null,
           location: r.address ?? '—',
-          contact: r.phone ?? '—',
-          email: r.email ?? '—',
+          contact: r.phone ?? 'Not set',
+          email: r.email ?? 'Not set',
           volume: stats?.volume ?? 0,
           quality: stats?.quality ?? '—',
           deliveries: stats?.deliveries ?? 0,
           reliability: stats?.reliability ?? 0,
-          lastDelivery: stats?.lastDelivery ?? '—',
+          lastDelivery: stats?.lastDelivery ?? 'None',
           activeDelivery: activeDeliveryByRestaurantId.get(r.id) ?? null,
         };
       }),
@@ -187,23 +187,23 @@ const SuppliersScreen = ({ navigation, onBack }) => {
 
   const SupplierSummary = () => (
     <View style={styles.summaryCard}>
-      <Text style={styles.summaryTitle}>Supplier Summary</Text>
+      <Text style={styles.summaryTitle}>Supplier summary</Text>
       <View style={styles.summaryStats}>
         <View style={styles.summaryStat}>
           <Text style={styles.summaryStatValue}>{summaryStats.total}</Text>
-          <Text style={styles.summaryStatLabel}>Active Suppliers</Text>
+          <Text style={styles.summaryStatLabel}>Active suppliers</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStat}>
           <Text style={styles.summaryStatValue}>
             {summaryStats.totalVolume.toLocaleString()}
           </Text>
-          <Text style={styles.summaryStatLabel}>Litres Supplied</Text>
+          <Text style={styles.summaryStatLabel}>Litres supplied</Text>
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryStat}>
           <Text style={styles.summaryStatValue}>{summaryStats.avgReliability}%</Text>
-          <Text style={styles.summaryStatLabel}>Avg Reliability</Text>
+          <Text style={styles.summaryStatLabel}>Completion rate</Text>
         </View>
       </View>
     </View>
@@ -269,7 +269,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
                       <Text style={styles.incomingCardTitle}>Incoming delivery</Text>
                     </View>
                     <Text style={styles.incomingCardText}>
-                      {selectedSupplier.activeDelivery.driverName} —{' '}
+                      {selectedSupplier.activeDelivery.driverName}:{' '}
                       {selectedSupplier.activeDelivery.statusLabel}
                     </Text>
                     {selectedSupplier.activeDelivery.status ===
@@ -283,7 +283,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
                       >
                         <Ionicons name="card-outline" size={16} color={T.white} />
                         <Text style={styles.confirmReceivedBtnText}>
-                          Confirm Received & Pay
+                          Confirm and pay
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -302,7 +302,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
                     <Text style={styles.modalStatValue}>
                       {selectedSupplier.reliability}%
                     </Text>
-                    <Text style={styles.modalStatLabel}>Reliability</Text>
+                    <Text style={styles.modalStatLabel}>Completion rate</Text>
                   </View>
                   <View style={styles.modalStatDivider} />
                   <View style={styles.modalStat}>
@@ -374,7 +374,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
               {supplier.name}
             </Text>
             <View style={styles.reliabilityBadge}>
-              <Ionicons name="star" size={11} color={T.gradeB} />
+              <Ionicons name="checkmark-circle" size={11} color={T.primary} />
               <Text style={styles.reliabilityText}>{supplier.reliability}%</Text>
             </View>
           </View>
@@ -396,7 +396,7 @@ const SuppliersScreen = ({ navigation, onBack }) => {
         </View>
 
         <Text style={styles.supplierCuisine} numberOfLines={1}>
-          {supplier.cuisine} • {supplier.location}
+          {[supplier.cuisine, supplier.location].filter((v) => v && v !== '—').join(' · ')}
         </Text>
 
         {supplier.activeDelivery && (
@@ -534,8 +534,8 @@ const styles = StyleSheet.create({
     borderColor: T.border,
   },
   headerTextContainer: { alignItems: 'center', flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
-  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink },
+  headerSubtitle: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginTop: 2 },
   headerSpacer: { width: 40, height: 40 },
 
   // Summary card
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   },
   summaryTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 14,
   },
@@ -564,12 +564,13 @@ const styles = StyleSheet.create({
   summaryDivider: { width: 1, height: 36, backgroundColor: T.divider },
   summaryStatValue: {
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     color: T.ink,
     marginBottom: 2,
   },
   summaryStatLabel: {
     fontSize: 11,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     textAlign: 'center',
   },
@@ -594,6 +595,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.ink,
     paddingVertical: 6,
   },
@@ -641,7 +643,7 @@ const styles = StyleSheet.create({
   },
   supplierName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: T.ink,
   },
   reliabilityBadge: {
@@ -655,7 +657,7 @@ const styles = StyleSheet.create({
   },
   reliabilityText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: '#C2410C',
   },
   supplierQuality: {
@@ -665,10 +667,11 @@ const styles = StyleSheet.create({
   },
   supplierQualityText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
   supplierCuisine: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     marginBottom: 8,
   },
@@ -686,7 +689,7 @@ const styles = StyleSheet.create({
   },
   incomingText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: T.primary,
   },
   supplierStats: {
@@ -699,17 +702,18 @@ const styles = StyleSheet.create({
   supplierStat: { alignItems: 'center', flex: 1 },
   supplierStatValue: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 2,
   },
   supplierStatLabel: {
     fontSize: 10,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.muted,
   },
   supplierLastDelivery: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     color: T.ink,
     marginBottom: 2,
   },
@@ -736,12 +740,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 4,
   },
   emptyText: {
     fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     textAlign: 'center',
     lineHeight: 18,
@@ -792,7 +797,7 @@ const styles = StyleSheet.create({
   modalHeaderInfo: { flex: 1 },
   modalName: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 8,
   },
@@ -804,7 +809,7 @@ const styles = StyleSheet.create({
   },
   modalQualityText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
   incomingCard: {
     backgroundColor: T.selectedBg,
@@ -822,11 +827,12 @@ const styles = StyleSheet.create({
   },
   incomingCardTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.primary,
   },
   incomingCardText: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.ink,
     marginBottom: 4,
   },
@@ -843,7 +849,7 @@ const styles = StyleSheet.create({
   },
   confirmReceivedBtnText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.white,
   },
   modalStats: {
@@ -859,11 +865,11 @@ const styles = StyleSheet.create({
   modalStatDivider: { width: 1, backgroundColor: T.divider },
   modalStatValue: {
     fontSize: 18,
-    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
     color: T.primary,
     marginBottom: 4,
   },
-  modalStatLabel: { fontSize: 11, color: T.body },
+  modalStatLabel: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.body },
   modalInfo: { gap: 12, marginBottom: 20 },
   modalInfoRow: {
     flexDirection: 'row',
@@ -872,6 +878,7 @@ const styles = StyleSheet.create({
   },
   modalInfoText: {
     fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
     color: T.body,
     flex: 1,
   },
@@ -887,7 +894,7 @@ const styles = StyleSheet.create({
   },
   contactButtonText: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.white,
   },
 });

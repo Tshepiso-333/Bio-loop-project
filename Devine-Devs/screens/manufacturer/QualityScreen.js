@@ -17,6 +17,7 @@ import Svg, {
   Line,
   Text as SvgText,
   G,
+  Rect,
 } from 'react-native-svg';
 import { useManufacturerContext } from '../../src/contexts/ManufacturerContext';
 import { groupPickupsByMonth } from '../../src/utils/manufacturerAnalytics';
@@ -67,12 +68,19 @@ const QualityScreen = ({ navigation, onBack }) => {
   const { forecasts = [], pickups = [] } = useManufacturerContext();
   const insets = useSafeAreaInsets();
 
-  const sevenDayForecast = forecasts?.find((f) => f.period_days === 7);
+  // Same rule the database uses for the forecast: completed pickups from the
+  // last 30 days, or all completed pickups if none are that recent.
+  const completed = (pickups || []).filter((p) => p.status === 'completed');
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const recent = completed.filter(
+    (p) => new Date(p.completed_at ?? p.pickup_date ?? p.created_at).getTime() >= thirtyDaysAgo
+  );
+  const basis = recent.length > 0 ? recent : completed;
 
-  const groupedSources = (pickups || []).reduce(
+  const groupedSources = basis.reduce(
     (groups, p) => {
       const grade = (p.quality_grade || '').toUpperCase();
-      const volume = p.estimated_volume_liters ?? p.actual_volume_liters ?? 0;
+      const volume = p.actual_volume_liters ?? p.estimated_volume_liters ?? 0;
       const restaurantName = p.restaurants?.name ?? 'Unknown';
       if (grade === 'A' || grade === 'B' || grade === 'C') {
         groups[grade].push({ restaurant: restaurantName, volume, percentage: 0 });
@@ -94,11 +102,15 @@ const QualityScreen = ({ navigation, onBack }) => {
   const gradeBSources = calculatePercentages(groupedSources.B);
   const gradeCSources = calculatePercentages(groupedSources.C);
 
+  const sumVolume = (sources) => sources.reduce((sum, item) => sum + item.volume, 0);
+  const total = sumVolume(gradeASources) + sumVolume(gradeBSources) + sumVolume(gradeCSources);
+  const gradePct = (sources) => (total > 0 ? Math.round((sumVolume(sources) / total) * 1000) / 10 : 0);
+
   const qualityDistribution = [
     {
       key: 'A',
       name: 'Grade A',
-      value: sevenDayForecast?.grade_a_pct ?? 0,
+      value: gradePct(gradeASources),
       color: T.gradeA,
       totalVolume: gradeASources.reduce((sum, item) => sum + item.volume, 0),
       sources: gradeASources,
@@ -106,7 +118,7 @@ const QualityScreen = ({ navigation, onBack }) => {
     {
       key: 'B',
       name: 'Grade B',
-      value: sevenDayForecast?.grade_b_pct ?? 0,
+      value: gradePct(gradeBSources),
       color: T.gradeB,
       totalVolume: gradeBSources.reduce((sum, item) => sum + item.volume, 0),
       sources: gradeBSources,
@@ -114,14 +126,14 @@ const QualityScreen = ({ navigation, onBack }) => {
     {
       key: 'C',
       name: 'Grade C',
-      value: sevenDayForecast?.grade_c_pct ?? 0,
+      value: gradePct(gradeCSources),
       color: T.gradeC,
       totalVolume: gradeCSources.reduce((sum, item) => sum + item.volume, 0),
       sources: gradeCSources,
     },
   ];
 
-  const qualityTrends = useMemo(() => groupPickupsByMonth(pickups, 4), [pickups]);
+  const qualityTrends = useMemo(() => groupPickupsByMonth((pickups || []).filter((p) => p.status === 'completed'), 4), [pickups]);
 
   const toggleExpand = (key) =>
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -244,90 +256,73 @@ const QualityScreen = ({ navigation, onBack }) => {
   // ─── TREND CHART ──────────────────────────────────────────────────────────
 
   const QualityTrendChart = () => {
-    const maxValue = 70;
     const chartHeight = 150;
     const chartWidth = width - 80;
-    const pointSpacing =
-      qualityTrends.length > 1 ? chartWidth / (qualityTrends.length - 1) : chartWidth;
-
-    const y = (value) => chartHeight - (value / maxValue) * chartHeight;
-
-    let gradeAPath = '';
-    let gradeBPath = '';
-    let gradeCPath = '';
-
-    qualityTrends.forEach((item, index) => {
-      const x = index * pointSpacing;
-      const yA = y(item.gradeA);
-      const yB = y(item.gradeB);
-      const yC = y(item.gradeC);
-
-      if (index === 0) {
-        gradeAPath = `M ${x} ${yA}`;
-        gradeBPath = `M ${x} ${yB}`;
-        gradeCPath = `M ${x} ${yC}`;
-      } else {
-        gradeAPath += ` L ${x} ${yA}`;
-        gradeBPath += ` L ${x} ${yB}`;
-        gradeCPath += ` L ${x} ${yC}`;
-      }
-    });
+    const bandWidth = chartWidth / qualityTrends.length;
+    const barWidth = Math.min(44, bandWidth * 0.5);
+    const maxTotal = Math.max(1, ...qualityTrends.map((m) => m.gradeA + m.gradeB + m.gradeC));
+    const segmentHeight = (litres) => (litres / maxTotal) * (chartHeight - 24);
 
     return (
       <View style={styles.trendChartContainer}>
         <View style={styles.chartWrapper}>
           <Svg height={chartHeight + 30} width={chartWidth + 40}>
-            {[0, 25, 50, 75].map((value) => {
-              const yy = y(value);
-              return (
-                <G key={value}>
-                  <Line
-                    x1={20}
-                    y1={yy}
-                    x2={chartWidth + 20}
-                    y2={yy}
-                    stroke={T.border}
-                    strokeWidth={1}
-                    strokeDasharray="5,5"
+            <Line
+              x1={20}
+              y1={chartHeight}
+              x2={chartWidth + 20}
+              y2={chartHeight}
+              stroke={T.border}
+              strokeWidth={1}
+            />
+
+            {qualityTrends.map((item, index) => {
+              const cx = 20 + bandWidth * index + bandWidth / 2;
+              const total = item.gradeA + item.gradeB + item.gradeC;
+              let top = chartHeight;
+              const segments = [
+                { key: 'A', litres: item.gradeA, fill: T.gradeA },
+                { key: 'B', litres: item.gradeB, fill: T.gradeB },
+                { key: 'C', litres: item.gradeC, fill: T.gradeC },
+              ].map((seg) => {
+                if (!(seg.litres > 0)) return null;
+                const h = segmentHeight(seg.litres);
+                top -= h;
+                return (
+                  <Rect
+                    key={seg.key}
+                    x={cx - barWidth / 2}
+                    y={top}
+                    width={barWidth}
+                    height={h}
+                    rx={3}
+                    fill={seg.fill}
                   />
+                );
+              });
+              return (
+                <G key={`bar-${index}`}>
+                  {segments}
                   <SvgText
-                    x={10}
-                    y={yy + 4}
-                    fontSize={10}
-                    fill={T.muted}
-                    textAnchor="end"
+                    x={cx}
+                    y={top - 6}
+                    fontSize={11}
+                    fill={T.ink}
+                    fontWeight="600"
+                    textAnchor="middle"
                   >
-                    {value}%
+                    {`${Math.round(total)} L`}
                   </SvgText>
                 </G>
               );
             })}
 
-            <Path d={gradeAPath} fill="none" stroke={T.gradeA} strokeWidth={3} strokeLinecap="round" />
-            <Path d={gradeBPath} fill="none" stroke={T.gradeB} strokeWidth={3} strokeLinecap="round" />
-            <Path d={gradeCPath} fill="none" stroke={T.gradeC} strokeWidth={3} strokeLinecap="round" />
-
             {qualityTrends.map((item, index) => {
-              const x = index * pointSpacing + 20;
-              return (
-                <Circle
-                  key={`a-${index}`}
-                  cx={x}
-                  cy={y(item.gradeA)}
-                  r={4}
-                  fill={T.gradeA}
-                  stroke={T.white}
-                  strokeWidth={2}
-                />
-              );
-            })}
-
-            {qualityTrends.map((item, index) => {
-              const x = index * pointSpacing + 20;
+              const cx = 20 + bandWidth * index + bandWidth / 2;
               return (
                 <SvgText
                   key={index}
-                  x={x}
+                  x={cx}
                   y={chartHeight + 20}
                   fontSize={11}
                   fill={T.body}
@@ -375,7 +370,7 @@ const QualityScreen = ({ navigation, onBack }) => {
           </TouchableOpacity>
 
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Quality Distribution</Text>
+            <Text style={styles.headerTitle}>Quality distribution</Text>
             <Text style={styles.headerSubtitle}>Oil Grade Analysis</Text>
           </View>
 
@@ -406,7 +401,7 @@ const QualityScreen = ({ navigation, onBack }) => {
                 <AlertTriangleIcon color={T.white} size={24} />
               )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.gradeTitle}>{grade.name} Oil Sources</Text>
+                <Text style={styles.gradeTitle}>{grade.name} oil sources</Text>
                 <Text style={styles.gradeTotal}>
                   Total: {grade.totalVolume.toLocaleString()} L ({grade.value}%)
                 </Text>
@@ -479,7 +474,7 @@ const QualityScreen = ({ navigation, onBack }) => {
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
         <View style={styles.overviewCard}>
-          <Text style={styles.overviewTitle}>Current Pipeline Quality</Text>
+          <Text style={styles.overviewTitle}>Current pipeline quality</Text>
           <DonutChart />
 
           <View style={styles.legendContainer}>
@@ -502,8 +497,8 @@ const QualityScreen = ({ navigation, onBack }) => {
         </View>
 
         <View style={styles.trendsCard}>
-          <Text style={styles.trendsTitle}>Quality Trends</Text>
-          <Text style={styles.trendsSubtitle}>Last 4 months</Text>
+          <Text style={styles.trendsTitle}>Quality trends</Text>
+          <Text style={styles.trendsSubtitle}>Litres received per month, by grade</Text>
           <QualityTrendChart />
         </View>
 
@@ -546,8 +541,8 @@ const styles = StyleSheet.create({
     borderColor: T.border,
   },
   headerTextContainer: { alignItems: 'center', flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: T.ink },
-  headerSubtitle: { fontSize: 11, color: T.body, marginTop: 2 },
+  headerTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink },
+  headerSubtitle: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginTop: 2 },
   headerSpacer: { width: 40, height: 40 },
 
   scrollView: { flex: 1, paddingBottom: 30 },
@@ -564,7 +559,7 @@ const styles = StyleSheet.create({
   },
   overviewTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans_700Bold',
     color: T.ink,
     marginBottom: 16,
     textAlign: 'center',
@@ -593,8 +588,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  pieCenterText: { fontSize: 26, fontWeight: '800' },
-  pieCenterSubtext: { fontSize: 11, color: T.body, marginTop: 2, fontWeight: '600' },
+  pieCenterText: { fontSize: 26, fontFamily: 'PlusJakartaSans_800ExtraBold' },
+  pieCenterSubtext: { fontSize: 11, color: T.body, marginTop: 2, fontFamily: 'PlusJakartaSans_600SemiBold' },
 
   legendContainer: { marginTop: 6, gap: 10 },
   legendItem: {
@@ -606,8 +601,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   legendDot: { width: 12, height: 12, borderRadius: 6, marginRight: 8 },
-  legendText: { flex: 1, fontSize: 14, fontWeight: '600', color: T.ink },
-  legendVolume: { fontSize: 13, fontWeight: '700', color: T.body },
+  legendText: { flex: 1, fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold', color: T.ink },
+  legendVolume: { fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold', color: T.body },
 
   trendsCard: {
     backgroundColor: T.card,
@@ -619,14 +614,14 @@ const styles = StyleSheet.create({
     borderColor: T.border,
     ...SH.card,
   },
-  trendsTitle: { fontSize: 16, fontWeight: '700', color: T.ink, marginBottom: 2 },
-  trendsSubtitle: { fontSize: 12, color: T.body, marginBottom: 16 },
+  trendsTitle: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold', color: T.ink, marginBottom: 2 },
+  trendsSubtitle: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: T.body, marginBottom: 16 },
   trendChartContainer: { marginTop: 6 },
   chartWrapper: { alignItems: 'center' },
   trendLegend: { flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 16 },
   legendItemSmall: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendColor: { width: 10, height: 10, borderRadius: 5 },
-  legendTextSmall: { fontSize: 12, color: T.body, fontWeight: '500' },
+  legendTextSmall: { fontSize: 12, color: T.body, fontFamily: 'PlusJakartaSans_500Medium' },
 
   gradeSection: {
     marginHorizontal: S.screenPadding,
@@ -640,8 +635,8 @@ const styles = StyleSheet.create({
   },
   gradeHeader: { padding: 16 },
   gradeHeaderContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  gradeTitle: { fontSize: 15, fontWeight: '700', color: T.white },
-  gradeTotal: { fontSize: 12, color: T.white, opacity: 0.95, marginTop: 2 },
+  gradeTitle: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold', color: T.white },
+  gradeTotal: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: T.white, opacity: 0.95, marginTop: 2 },
   chevronWrap: {
     width: 28,
     height: 28,
@@ -662,8 +657,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  sourceName: { fontSize: 14, fontWeight: '600', color: T.ink, flex: 1, paddingRight: 8 },
-  sourceVolume: { fontSize: 14, fontWeight: '700', color: T.body },
+  sourceName: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold', color: T.ink, flex: 1, paddingRight: 8 },
+  sourceVolume: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', color: T.body },
   sourceBarContainer: {
     height: 8,
     backgroundColor: T.divider,
@@ -672,7 +667,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sourceBar: { height: '100%', borderRadius: 4 },
-  sourcePercentage: { fontSize: 11, color: T.muted },
+  sourcePercentage: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: T.muted },
 
   showMoreRow: {
     flexDirection: 'row',
@@ -683,10 +678,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: T.divider,
   },
-  showMoreText: { fontSize: 13, fontWeight: '600', color: T.primary },
+  showMoreText: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', color: T.primary },
 
   emptyRow: { paddingVertical: 16, paddingHorizontal: 16 },
-  emptyText: { fontSize: 12, color: T.muted, textAlign: 'center' },
+  emptyText: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', color: T.muted, textAlign: 'center' },
 });
 
 export default QualityScreen;

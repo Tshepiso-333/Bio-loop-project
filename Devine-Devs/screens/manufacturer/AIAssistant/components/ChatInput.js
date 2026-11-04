@@ -74,7 +74,7 @@ const ChatInput = ({ onSendMessage, disabled }) => {
         <TextInput
           style={[styles.textInput, { height: Math.max(40, inputHeight) }]}
           placeholder="Ask about inventory, quality, finance…"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor="#A9B5AD"
           value={inputText}
           onChangeText={setInputText}
           multiline
@@ -95,7 +95,7 @@ const ChatInput = ({ onSendMessage, disabled }) => {
           >
             <LinearGradient
               colors={
-                canSend ? ['#10b981', '#059669'] : ['#d1d5db', '#9ca3af']
+                canSend ? ['#2E8B5A', '#059669'] : ['#D8E2DC', '#A9B5AD']
               }
               style={styles.sendGradient}
             >
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E4EDE7',
     paddingTop: 10,
     paddingHorizontal: 12,
   },
@@ -123,14 +123,15 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F5F8F6',
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
     fontSize: 15,
+    fontFamily: 'PlusJakartaSans_400Regular',
     maxHeight: 120,
-    color: '#111827',
+    color: '#122A1F',
   },
   sendButton: { borderRadius: 22, overflow: 'hidden' },
   sendButtonDisabled: { opacity: 0.5 },
