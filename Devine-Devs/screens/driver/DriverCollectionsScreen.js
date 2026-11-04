@@ -80,7 +80,7 @@ const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
               <Ionicons name="time-outline" size={12} color={THEME.gray} />
               <Text style={styles.cardTime}>
                 {' '}
-                {item.time || 'Time TBC'} ·{' '}
+                {item.time ? `${item.time} · ` : ''}
                 {item.estimatedLiters != null ? `${item.estimatedLiters}L est.` : 'volume TBC'}
               </Text>
             </View>

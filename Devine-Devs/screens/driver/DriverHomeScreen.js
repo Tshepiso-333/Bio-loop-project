@@ -127,7 +127,7 @@ const PickupCard = ({ item, onPress }) => (
       </Text>
 
       <Text style={styles.pickupTime}>
-        {item.time || 'Time TBC'} ·{' '}
+        {item.time ? `${item.time} · ` : ''}
         {item.estimatedLiters != null ? `${item.estimatedLiters}L est.` : 'volume TBC'}
       </Text>
     </View>
