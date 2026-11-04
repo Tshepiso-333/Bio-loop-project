@@ -5,7 +5,6 @@ import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useRestaurant } from '../../src/hooks/useRestaurant';
 import RestaurantHeader from '../../src/restaurant/components/RestaurantHeader';
-import DocumentsCard from '../../src/components/DocumentsCard';
 import {
   REST_COLORS,
   REST_FONTS,
@@ -112,10 +111,13 @@ function mapEarningRows(earnings, withdrawals) {
 function mapWithdrawalRows(withdrawals) {
   return withdrawals.map((withdrawal) => {
     const amount = getFiniteAmount(withdrawal.amount);
+    // 'approved' is the DB's word, inherited from a manual review step that no
+    // longer exists — payouts are instant. To the person reading this the money
+    // is already in their account, so the label says so.
     const statusMap = {
-      pending: { title: 'Withdrawal pending', label: 'Pending', tone: 'pending' },
-      approved: { title: 'Payment completed', label: 'Completed', tone: 'success' },
-      rejected: { title: 'Withdrawal rejected', label: 'Rejected', tone: 'error' },
+      pending: { title: 'Payout on its way', label: 'Sending', tone: 'pending' },
+      approved: { title: 'Paid out', label: 'Paid', tone: 'success' },
+      rejected: { title: 'Payout failed', label: 'Failed', tone: 'error' },
     };
     const status = statusMap[withdrawal.status] ?? {
       title: 'Withdrawal update',
@@ -131,7 +133,9 @@ function mapWithdrawalRows(withdrawals) {
       ...status,
       references: [
         { label: 'Withdrawal reference', value: withdrawal.id },
-        { label: 'Recorded status', value: withdrawal.status },
+        // The mapped label, not the raw DB value — otherwise this line reads
+        // "approved" directly beneath a badge that says "Paid".
+        { label: 'Status', value: status.label },
         { label: 'Recorded method', value: withdrawal.method },
       ].filter((item) => item.value),
     };
@@ -213,6 +217,16 @@ export default function EarningsScreen() {
       .reduce((sum, earning) => sum + Number(earning.amount ?? 0), 0),
     [earnings]
   );
+  // Newest approved payout, for the "paid automatically" card. withdrawals
+  // already arrive newest-first from the service, but sort defensively rather
+  // than depend on that ordering from here.
+  const lastPayout = useMemo(() => {
+    const paid = (withdrawals ?? []).filter((item) => item?.status === 'approved');
+    if (paid.length === 0) return null;
+    return paid
+      .slice()
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+  }, [withdrawals]);
 
   const handleRequestWithdrawal = async () => {
     setRequestingWithdrawal(true);
@@ -243,8 +257,8 @@ export default function EarningsScreen() {
 
         <FinancialSummary summary={summary} />
         <WithdrawalAction
-          available={summary.available}
-          hasPending={summary.pendingCount > 0}
+          available={unpaidEarnings}
+          lastPayout={lastPayout}
           requesting={requestingWithdrawal}
           disabled={requestingWithdrawal || unpaidEarnings <= 0}
           onPress={handleRequestWithdrawal}
@@ -264,13 +278,7 @@ export default function EarningsScreen() {
           title="Documents"
           subtitle="Download your payouts or your collection history as a PDF."
         />
-        <DocumentsCard
-          role="restaurant"
-          ownerId={restaurant?.id}
-          accountName={restaurant?.name ?? profile?.full_name}
-          tint={REST_COLORS.primary}
-          style={{ marginBottom: 6 }}
-        />
+        {/* Documents moved to Profile (team decision 2026-11-02). */}
 
         <SectionLabel title="Market rates" subtitle="Recorded reference rates, shown with their actual update dates." />
         {rates.length > 0 ? <MarketRatesCard rates={rates} /> : (
@@ -347,19 +355,40 @@ function PaymentSummary({ label, count, amount, tone }) {
   );
 }
 
-function WithdrawalAction({ available, hasPending, requesting, disabled, onPress }) {
+// Payouts are automatic: earnings_auto_payout (migration 036, extended to
+// drivers in 075) creates an approved withdrawal the moment an earning is
+// written, so a restaurant's available balance is 0 essentially always.
+//
+// This card used to be a "Withdraw available earnings" button, which meant it
+// permanently read "There is currently no balance available to withdraw" and
+// sat there disabled — describing working instant payouts as if the money were
+// missing. It now states the actual policy and shows the last payout, and only
+// falls back to a claim button if an unpaid balance ever does appear, which
+// would mean the auto-payout trigger did not fire.
+function WithdrawalAction({ available, lastPayout, requesting, disabled, onPress }) {
+  const needsClaim = (available ?? 0) > 0;
+
+  if (!needsClaim) {
+    return (
+      <View style={styles.withdrawCard}>
+        <View style={styles.withdrawText}>
+          <Text style={styles.withdrawTitle}>Payouts are automatic</Text>
+          <Text style={styles.withdrawDetail}>
+            {lastPayout
+              ? `Your share is paid out the moment a collection completes — no request needed. Last payout ${formatCurrency(lastPayout.amount)} on ${formatLongDate(lastPayout.created_at)}.`
+              : 'Your share is paid out the moment a collection completes. Nothing to request.'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.withdrawCard}>
       <View style={styles.withdrawText}>
-        <Text style={styles.withdrawTitle}>Withdraw available earnings</Text>
+        <Text style={styles.withdrawTitle}>Unpaid balance</Text>
         <Text style={styles.withdrawDetail}>
-          {hasPending && (available ?? 0) <= 0
-            ? 'Your recorded withdrawal is awaiting review.'
-            : available === null
-              ? 'The available balance could not be loaded.'
-              : available <= 0
-                ? 'There is currently no balance available to withdraw.'
-                : `${formatCurrency(available)} is currently available.`}
+          {`${formatCurrency(available)} did not pay out automatically. Claim it here.`}
         </Text>
       </View>
       <Pressable
@@ -372,7 +401,7 @@ function WithdrawalAction({ available, hasPending, requesting, disabled, onPress
           pressed && styles.pressed,
         ]}
       >
-        <Text style={styles.withdrawButtonText}>{requesting ? 'Requesting…' : 'Request'}</Text>
+        <Text style={styles.withdrawButtonText}>{requesting ? 'Paying…' : 'Claim'}</Text>
       </Pressable>
     </View>
   );
