@@ -55,6 +55,7 @@ const StatusBadge = ({ status }) => {
 
 const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
   const actionDisabled = item.status === 'completed';
+  const isFinished = item.status === 'completed' || item.status === 'cancelled';
   const actionLabel = PRE_TRIP_STATUSES.includes(item.status)
     ? 'Accept'
     : ACTIVE_TRIP_STATUSES.includes(item.status)
@@ -87,6 +88,7 @@ const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
         </View>
         <StatusBadge status={item.status} />
       </View>
+      {!isFinished ? (
       <View style={styles.cardActions}>
         <TouchableOpacity style={styles.callBtn} onPress={onCall} activeOpacity={0.7}>
           <Ionicons name="call-outline" size={15} color={THEME.text} />
@@ -120,6 +122,7 @@ const CollectionCard = ({ item, onCall, onAction, onDecline }) => {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      ) : null}
       {canDecline ? (
         <TouchableOpacity style={styles.declineBtn} onPress={onDecline} activeOpacity={0.7}>
           <Text style={styles.declineBtnText}>Decline this pickup</Text>
