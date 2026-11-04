@@ -24,6 +24,22 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const PAYFAST_PASSPHRASE = Deno.env.get("PAYFAST_PASSPHRASE")!;
 
+/**
+ * PHP's urlencode(), which is what PayFast hashes with. encodeURIComponent is
+ * NOT the same: it gives %20 for a space and leaves ! ' ( ) * ~ alone.
+ *
+ * This handler used to encode spaces only, so any posted field containing one
+ * of those characters — an apostrophe in a restaurant name, say — produced a
+ * signature that could never match, and the payment was written off as
+ * `failed` even though PayFast had taken it. Same bug, and the same fix, as
+ * in payfast-checkout.
+ */
+function pfEncode(value: string): string {
+  return encodeURIComponent(value)
+    .replace(/%20/g, "+")
+    .replace(/[!'()*~]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
 function md5(input: string): string {
   return createHash("md5").update(input).digest("hex");
 }
@@ -82,9 +98,18 @@ Deno.serve(async (req) => {
     const pairs: string[] = [];
     for (const [key, value] of params.entries()) {
       if (key === "signature") continue;
-      pairs.push(`${key}=${encodeURIComponent(value).replace(/%20/g, "+")}`);
+      pairs.push(`${key}=${pfEncode(value)}`);
     }
-    const signatureString = `${pairs.join("&")}&passphrase=${PAYFAST_PASSPHRASE}`;
+
+    let signatureString = pairs.join("&");
+
+    // Only append the passphrase when there is one. An empty (or literally
+    // "undefined") passphrase is itself a mismatch.
+    const passphrase = (PAYFAST_PASSPHRASE ?? "").trim();
+    if (passphrase) {
+      signatureString += `&passphrase=${pfEncode(passphrase)}`;
+    }
+
     const computedSignature = md5(signatureString);
 
     const signatureValid = computedSignature === receivedSignature;
