@@ -24,8 +24,8 @@ const THEME = {
   grayLight: '#E4EDE7',
   pending: '#F59E0B',
   pendingBg: '#FFF7ED',
-  inProgress: '#2563EB',
-  inProgressBg: '#EFF6FF',
+  inProgress: '#2E8B5A',
+  inProgressBg: '#E7F1EB',
   completed: '#15643E',
   completedBg: '#E7F1EB',
 };
