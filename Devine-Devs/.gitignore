@@ -39,3 +39,5 @@ docs/BACKEND_DEFENCE_BRIEF.md
 docs/EXHIBITION_DAY_PACK.md
 docs/EXHIBITION_READINESS.md
 docs/*.pdf
+.vercel
+.env*
