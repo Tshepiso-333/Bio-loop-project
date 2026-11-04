@@ -48,7 +48,7 @@ const ConversationCard = ({ conversation, onPress, onDelete }) => {
         delayLongPress={400}
       >
         <View style={styles.iconWrap}>
-          <Ionicons name="chatbubble-ellipses-outline" size={20} color="#10b981" />
+          <Ionicons name="chatbubble-ellipses-outline" size={20} color="#2E8B5A" />
         </View>
         <View style={styles.content}>
           <View style={styles.headerRow}>
@@ -72,7 +72,7 @@ const ConversationCard = ({ conversation, onPress, onDelete }) => {
           onPress={confirmDelete}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="trash-outline" size={16} color="#9CA3AF" />
+          <Ionicons name="trash-outline" size={16} color="#A9B5AD" />
         </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E4EDE7',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -115,13 +115,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontFamily: 'PlusJakartaSans_700Bold',
-    color: '#111827',
+    color: '#122A1F',
     flex: 1,
     marginRight: 8,
   },
-  time: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: '#9CA3AF' },
-  preview: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: '#6B7280', lineHeight: 18 },
-  previewEmpty: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: '#9CA3AF', fontStyle: 'italic' },
+  time: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: '#A9B5AD' },
+  preview: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: '#6B7F75', lineHeight: 18 },
+  previewEmpty: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', color: '#A9B5AD', fontStyle: 'italic' },
   deleteBtn: {
     width: 32,
     height: 32,

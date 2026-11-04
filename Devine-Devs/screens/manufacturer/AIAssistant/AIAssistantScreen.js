@@ -34,7 +34,7 @@ const T = {
   body: '#6B6B6B',
   muted: '#9B9B9B',
   border: '#E8E8E8',
-  divider: '#F3F4F6',
+  divider: '#F5F8F6',
   white: '#FFFFFF',
 };
 

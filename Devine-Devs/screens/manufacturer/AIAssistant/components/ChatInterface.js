@@ -365,7 +365,7 @@ const ChatInterface = ({
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <LinearGradient
-        colors={['#10b981', '#059669']}
+        colors={['#2E8B5A', '#059669']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={[styles.header, { paddingTop: insets.top + 10 }]}
@@ -496,14 +496,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontFamily: 'PlusJakartaSans_700Bold',
-    color: '#111827',
+    color: '#122A1F',
     marginBottom: 6,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 13,
     fontFamily: 'PlusJakartaSans_400Regular',
-    color: '#6b7280',
+    color: '#6B7F75',
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 20,
@@ -536,13 +536,13 @@ const styles = StyleSheet.create({
     marginRight: 6,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#E4EDE7',
   },
   typingBubble: {
     backgroundColor: '#fff',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E4EDE7',
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#10b981',
+    backgroundColor: '#2E8B5A',
   },
 });
 
