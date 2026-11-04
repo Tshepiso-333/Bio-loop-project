@@ -316,20 +316,38 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
     (p) => p.status === 'completed' && (p.pickup_date ?? '') >= weekAgoIso
   ).length;
 
+  // The last 7 calendar days ending today, completed pickups only.
   const weeklyData = (() => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const totals = days.reduce((acc, day) => ({ ...acc, [day]: 0 }), {});
+    const pad = (n) => String(n).padStart(2, '0');
+    const localKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const today = new Date();
+    const buckets = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      buckets.push({
+        key: localKey(d),
+        day: i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' }),
+        volume: 0,
+      });
+    }
+    const byKey = Object.fromEntries(buckets.map((b) => [b.key, b]));
     (pickups || []).forEach((p) => {
-      if (!p.pickup_date) return;
-      const date = new Date(p.pickup_date);
-      if (Number.isNaN(date.getTime())) return;
-      const day = date.toLocaleDateString('en-US', { weekday: 'short' });
-      if (totals[day] !== undefined) {
-        totals[day] += p.estimated_volume_liters ?? p.actual_volume_liters ?? 0;
+      if (p.status !== 'completed') return;
+      let key = null;
+      if (p.completed_at) {
+        const date = new Date(p.completed_at);
+        if (!Number.isNaN(date.getTime())) key = localKey(date);
+      } else if (p.pickup_date) {
+        key = p.pickup_date;
+      }
+      const bucket = key ? byKey[key] : null;
+      if (bucket) {
+        bucket.volume += Number(p.actual_volume_liters ?? p.estimated_volume_liters ?? 0) || 0;
       }
     });
-    return days.map((day) => ({ day, volume: totals[day] }));
+    return buckets.map(({ day, volume }) => ({ day, volume }));
   })();
+  const weeklyTotal = weeklyData.reduce((sum, d) => sum + d.volume, 0);
 
   const sevenDayForecast = forecasts?.find((f) => f.period_days === 7) || null;
   const qualityDistribution = sevenDayForecast
@@ -492,10 +510,15 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
     return (
       <View style={styles.areaChart}>
         {weeklyData.map((item, index) => {
-          const height = maxVolume > 0 ? (item.volume / maxVolume) * 120 : 0;
+          const height = maxVolume > 0 ? (item.volume / maxVolume) * 110 : 0;
           return (
             <View key={index} style={styles.areaBarWrapper}>
               <View style={styles.areaBarContainer}>
+                {item.volume > 0 ? (
+                  <Text style={[styles.areaBarLabel, { marginBottom: 2 }]}>
+                    {Math.round(item.volume)}
+                  </Text>
+                ) : null}
                 <View
                   style={[styles.areaBar, { height, backgroundColor: C.gradeA }]}
                 />
@@ -757,7 +780,7 @@ const ManufacturerDashboardScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.section}>
-              <SectionHeader title="Weekly Collection" action="Last 7 days" />
+              <SectionHeader title="Weekly collection" action={`${Math.round(weeklyTotal)} L in 7 days`} />
               <View style={styles.card}>
                 <WeeklyAreaChart />
               </View>
