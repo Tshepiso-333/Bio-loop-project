@@ -526,7 +526,7 @@ export default function DriverHomeScreen({
       <MoneyPop
         visible={!!moneyAlert}
         amount={parseAmountFromAlert(moneyAlert)}
-        title={moneyIsWithdrawal ? 'Withdrawal paid' : 'Trip complete — you earned'}
+        title={moneyIsWithdrawal ? 'Withdrawal paid' : 'Trip complete. You earned'}
         subtitle={moneyIsWithdrawal ? 'Paid out instantly.' : 'Paid out to you instantly.'}
         ctaLabel={moneyIsWithdrawal ? 'Done' : 'Nice!'}
         onDismiss={() => moneyAlert && markAlertRead?.(moneyAlert.id)}
