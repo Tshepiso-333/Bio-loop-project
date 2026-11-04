@@ -15,7 +15,6 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../AuthContext';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
 import DocumentsCard from '../../src/components/DocumentsCard';
 import { useProfile } from '../../src/hooks/useProfile';
@@ -151,7 +150,6 @@ export default function DriverHomeScreen({
 }) {
   const insets = useSafeAreaInsets();
 
-  const { signOut } = useAuth();
   const { profile } = useProfile();
 
   const {
@@ -283,19 +281,6 @@ export default function DriverHomeScreen({
           </View>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={
-                styles.headerSignOutButton
-              }
-              onPress={signOut}
-            >
-              <Ionicons
-                name="log-out-outline"
-                size={22}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={
                 styles.notificationButton
@@ -628,19 +613,6 @@ const styles = StyleSheet.create({
   notificationButton: {
     position: 'relative',
     padding: 8,
-  },
-
-  headerSignOutButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor:
-      'rgba(220,38,38,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor:
-      'rgba(255,255,255,0.3)',
   },
 
   notificationDot: {
