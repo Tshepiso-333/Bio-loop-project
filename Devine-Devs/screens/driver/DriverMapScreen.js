@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 // MapLibre v11 (Google-free). Map tiles: OpenFreeMap (no key). Route line:
 // the optimize-route Edge Function (openrouteservice, key server-side).
-import { Map as MapLibreMap, Camera, GeoJSONSource, Layer, Marker } from '@maplibre/maplibre-react-native';
+import { Map as MapLibreMap, Camera, GeoJSONSource, Layer, Marker } from '../../src/lib/maplibre';
 import { supabase } from '../../supabase';
 import * as Location from 'expo-location';
 import { useCollectorContext } from '../../src/contexts/CollectorContext';
